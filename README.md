@@ -18,6 +18,7 @@
 - [UniTask](https://github.com/Cysharp/UniTask)
 - [DoTween](https://assetstore.unity.com/packages/tools/animation/dotween-hotween-v2-27676)
 - [Odin Inspector](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041?srsltid=AfmBOoqpAKZfrIeE2HHgI2EcZ7e8fQvO7Y1UW_eQMWURL2An3zK2aMiT)
+- TextMeshPro
 
 ---
 
