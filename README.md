@@ -1,4 +1,4 @@
-# Custom-Unity-Utility-Package (📦 com.hohong123.util)
+# Custom Unity Utility Mono Repo (📦 com.hohong123.util)
 
 > 이 문서는 업로드한 개발 편이를 위해 모아둔 커스텀 패키지를 분석해 정리한 README입니다. (생성일: 2025-09-18)
 
@@ -57,8 +57,6 @@
 - **Util/Sound**: BGM/SFX 재생과 컨테이너 관리
 - **Util/UI**: UI 컴포넌트(버튼/바/효과 등)
 
-> 위 목적은 실제 파일명/네임스페이스를 기반으로 한 추정 설명입니다.
-
 ---
 
 ## 🧭 4. 네임스페이스 가이드
@@ -77,7 +75,6 @@
   - `Util.UI.Popup` (6)
   - `Util.UI.ScrollView` (8)
   - `Util.UI.ToggleUI` (5)
-- ⚠️ 네임스페이스가 비어있는 파일: 29개 — `namespace`를 명시하는 것을 권장
 
 ---
 
