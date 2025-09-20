@@ -8,9 +8,10 @@
  * =========================================================
  */
 #endif
-
-public enum MapBoundType {
-    WorldBox,
-    BoundSource,
-    Absolute,
+namespace HGame._2D.Map {
+    public enum MapBoundType {
+        WorldBox,
+        BoundSource,
+        Absolute,
+    }
 }

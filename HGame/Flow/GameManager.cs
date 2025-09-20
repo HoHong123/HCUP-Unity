@@ -15,18 +15,19 @@ using System.Threading;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using Util.Core;
+using Util.OdinCompat;
 
 namespace HGame.Game.Flow {
     public class GameManager<TSelf> : SingletonBehaviour<TSelf>
     where TSelf : GameManager<TSelf> {
-        [Title("Flow")]
+        [HeaderOrTitle("Flow")]
         [SerializeField]
         protected bool autoPrepareOnStart = true;
-        [SerializeField, ReadOnly]
+        [SerializeField]
         protected GamePhaseType phase = GamePhaseType.None;
         [SerializeField]
-        [InfoBox("Modules (children or same GameObject)")]
+        [Tooltip("Modules (children or same GameObject)")]
         List<BaseGameModule> modules = new();
 
         GameContext context = new GameContext();

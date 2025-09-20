@@ -1,15 +1,16 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
+using Util.UI.Panel;
 
 namespace Util.UI.Popup {
-    public class BasePopupUi : SerializedMonoBehaviour, IBasicPanel {
-        [Title("Panel")]
+    public class BasePopupUi : MonoBehaviour, IBasicPanel {
+        [HeaderOrTitle("Panel")]
         [SerializeField]
         protected GameObject panel;
 
-        [Title("UI")]
+        [HeaderOrTitle("UI")]
         [SerializeField]
         protected Button closeBtn;
 

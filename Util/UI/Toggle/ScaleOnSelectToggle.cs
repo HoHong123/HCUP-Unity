@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using Sirenix.OdinInspector;
 using Util.UI.Entity;
+using Util.OdinCompat;
 
 namespace Util.UI.ToggleUI {
     [RequireComponent(typeof(Toggle))]
     public class ScaleOnSelectToggle : BaseCustomToggle {
-        [Title("Targets")]
+        [HeaderOrTitle("Targets")]
         [SerializeField]
         ScalingUiEntity[] targets;
 

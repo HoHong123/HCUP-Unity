@@ -1,12 +1,12 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 
 namespace Util.UI.Drop {
     [Serializable]
     public class BaseDropUnit : MonoBehaviour, IDropUnit {
-        [Title("Information")]
+        [HeaderOrTitle("Information")]
         [SerializeField]
         protected int uid = -1;
         [SerializeField]

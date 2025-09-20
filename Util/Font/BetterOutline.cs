@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.UI;
 
 namespace Util.Font {
-    [AddComponentMenu("UI/ToJ Effects/Better Outline", 0)]
     [RequireComponent(typeof(Text))]
     public class BetterOutline : Shadow {
         private List<UIVertex> m_Verts = new List<UIVertex>();

@@ -1,11 +1,13 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
-
+using Util.OdinCompat;
 
 namespace Util.Sound {
     public class SoundUnit : MonoBehaviour {
-        [Title("Container")]
-        [SerializeField, InlineProperty, HideLabel]
+        [HeaderOrTitle("Container")]
+        [SerializeField]
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.InlineProperty, Sirenix.OdinInspector.HideLabel]
+#endif
         SoundContainer container;
 
 

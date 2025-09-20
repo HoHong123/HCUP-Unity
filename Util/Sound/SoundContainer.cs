@@ -1,14 +1,11 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
 
 namespace Util.Sound {
     [Serializable]
     public class SoundContainer {
-        [ListDrawerSettings]
         public List<SFXView> Clips = new();
-
 
         public SoundContainer(List<SFXList> clips) {
             foreach (var clip in clips) {

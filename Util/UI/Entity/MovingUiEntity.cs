@@ -1,35 +1,33 @@
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using DG.Tweening;
+using Util.OdinCompat;
 
 
 namespace Util.UI.Entity {
     [Serializable]
-    public class MovingUiEntity {
-        [Title("Target")]
+    public partial class MovingUiEntity {
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Target")]
         [SerializeField]
-        [OnValueChanged(nameof(_Init))]
         Transform target;
 
-        [Title("Option")]
+        [HeaderOrTitle("Option")]
         [SerializeField]
         bool useAnimation = false;
-        [ShowIf(nameof(useAnimation)), SerializeField]
+        [SerializeField]
         float animationDuration = 0.2f;
 
-        [Title("Positions")]
-        [InfoBox("MUST consider the pivot relation with parent.")]
+        [HeaderOrTitle("Positions")]
+        [Tooltip("MUST consider the pivot relation with parent.")]
         public bool UseAbsolutePosition = false;
         [SerializeField]
         Vector3 originPosition;
-        [ShowIf("UseAbsolutePosition")]
         [SerializeField]
         Vector3 absolutePosition = Vector3.zero;
-        [HideIf("UseAbsolutePosition")]
         [SerializeField]
         Vector3 moveAmount = Vector3.zero;
-
+#endif
 
         private void _Init() {
             originPosition = target.localPosition;

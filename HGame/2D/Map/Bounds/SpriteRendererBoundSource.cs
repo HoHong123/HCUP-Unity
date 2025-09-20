@@ -8,12 +8,12 @@
 #endif
 
 using UnityEngine;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 
 namespace HGame._2D.Map {
     [DisallowMultipleComponent]
     public class SpriteRendererBoundsSource : MonoBehaviour, IWorldBoundSource {
-        [Title("Boundary")]
+        [HeaderOrTitle("Boundary")]
         [SerializeField]
         SpriteRenderer spriteRender;
 

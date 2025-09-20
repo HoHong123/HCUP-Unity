@@ -1,11 +1,11 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 using Util.UI.Entity;
 
 namespace Util.UI.ButtonUI {
     [RequireComponent(typeof(DelegateButton))]
     public class MoveOnPressButton : BaseOnPressButton {
-        [Title("Target")]
+        [HeaderOrTitle("Target")]
         [SerializeField]
         MovingUiEntity[] targets;
 

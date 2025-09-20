@@ -23,14 +23,11 @@
 
 using System;
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
 using Util.Logger;
 
 namespace Util.Pooling {
     public abstract class BasePool<T> : IDisposable where T : class {
-        [ShowInInspector, ReadOnly]
         protected readonly Stack<T> pool = new();
-        [ShowInInspector, ReadOnly]
         protected readonly HashSet<T> activatedPool = new();
 
         protected Action<T> onCreate = null;

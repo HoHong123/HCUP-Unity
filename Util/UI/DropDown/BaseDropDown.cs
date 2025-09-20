@@ -2,30 +2,32 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
+using Util.UI.Panel;
+using Util.OdinCompat;
 
 namespace Util.UI.Drop {
     [RequireComponent(typeof(Toggle))]
     [RequireComponent(typeof(RectTransform))]
-    public abstract class BaseDropDown<TData, TUnit> : MonoBehaviour, IBasicPanel
+    public abstract partial class BaseDropDown<TData, TUnit> : MonoBehaviour, IBasicPanel
         where TData : IDropData, new()
         where TUnit : MonoBehaviour, IDropUnit {
-        [Title("Data")]
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Data")]
         [SerializeField]
         protected List<TData> datas = new();
 
-        [Title("Setting")]
-        [SerializeField, OnValueChanged("SetTablePivot")]
+        [HeaderOrTitle("Setting")]
+        [SerializeField]
         [Tooltip("Preset position setting. (Not mandatory)")]
         protected DirectionType direction = DirectionType.Down;
 
-        [Title("DropDown")]
+        [HeaderOrTitle("Data")]
         [SerializeField]
         protected Toggle dropTg;
         [SerializeField]
         protected RectTransform rect;
 
-        [Title("Table")]
+        [HeaderOrTitle("Data")]
         [SerializeField]
         protected ToggleGroup tableTgg;
         [SerializeField]
@@ -37,11 +39,12 @@ namespace Util.UI.Drop {
         [SerializeField]
         protected Vector2 tableOffset;
 
-        [Title("Unit")]
+        [HeaderOrTitle("Data")]
         [SerializeField]
         protected GameObject unitPrefab;
         [SerializeField]
         protected List<TUnit> units = new();
+#endif
 
         public event Action<int> OnItemSelected;
 

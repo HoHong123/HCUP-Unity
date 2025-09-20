@@ -13,38 +13,40 @@
 #endif
 
 using UnityEngine;
-using Sirenix.OdinInspector;
 using Util.Collection;
+using Util.OdinCompat;
 
 namespace HGame._2D.View {
-    public class ParallexLayer : MonoBehaviour {
-        [Title("Camera")]
+    public partial class ParallexLayer : MonoBehaviour {
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Camera")]
         [SerializeField]
         Camera cam;
 
         Transform camTran;
 
-        [Title("Motion")]
+        [HeaderOrTitle("Motion")]
         [SerializeField]
         bool useParallaxFollow = true;
-        [SerializeField, ShowIf("useParallaxFollow")]
+        [SerializeField]
         [Range(0f, 1f)]
         float parallaxFactor = 0.2f;
 
         Vector3 preCamPos;
 
-        [Title("Tile")]
+        [HeaderOrTitle("Tile")]
         [SerializeField]
         bool randomGap = false;
-        [SerializeField, HideIf("randomGap")]
+        [SerializeField]
         float tileGap = 0f;
-        [SerializeField, ShowIf("randomGap")]
+        [SerializeField]
         [Tooltip("X = min, Y = max")]
         Vector2 randomRange = new Vector2(0, 50);
         [SerializeField]
         SpriteRenderer[] tiles;
-        [SerializeField, ReadOnly]
+        [SerializeField]
         Vector2 tileWorldSize;
+#endif
 
         int leftCount = 0;
         int rightCount = 0;

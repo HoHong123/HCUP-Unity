@@ -2,15 +2,15 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
-using Unity.VisualScripting;
+using Unity.Collections;
+using Util.OdinCompat;
 
 namespace Util.UI.ScrollView {
     [Serializable]
     public class VlgRecycleView<TCellView, TCellData> : BaseRecycleView<TCellView, TCellData>, IRecycleView
         where TCellData : BaseRecycleCellData
         where TCellView : BaseRecycleCellView<TCellData> {
-        [Title("Cell View")]
+        [HeaderOrTitle("Cell View")]
         [SerializeField]
         VerticalLayoutGroup layoutGroup;
         [SerializeField]
@@ -18,7 +18,7 @@ namespace Util.UI.ScrollView {
         [SerializeField]
         float itemHeight;
 
-        [Title("Cell Tube")]
+        [HeaderOrTitle("Cell Tube")]
         [SerializeField, ReadOnly]
         LayoutElement headerTube;
         [SerializeField, ReadOnly]

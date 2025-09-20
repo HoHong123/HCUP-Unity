@@ -1,3 +1,5 @@
-public interface IBaseSoundContainer {
-    public void SetClipDictionary();
+namespace Util.Sound {
+    public interface IBaseSoundContainer {
+        public void SetClipDictionary();
+    }
 }

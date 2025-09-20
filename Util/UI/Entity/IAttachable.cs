@@ -1,3 +1,5 @@
-public interface IAttachable {
-    public void FindComponents();
+namespace Util.UI.Entity {
+    public interface IAttachable {
+        public void FindComponents();
+    }
 }

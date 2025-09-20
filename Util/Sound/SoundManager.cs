@@ -1,13 +1,12 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
-using Sirenix.OdinInspector;
+using Util.Core;
 using Util.Logger;
-
+using Util.OdinCompat;
 
 namespace Util.Sound {
-    public class SoundManager : SingletonBehaviour<SoundManager> {
+    public partial class SoundManager : SingletonBehaviour<SoundManager> {
         [Serializable]
         public class SoundItem {
             public int Dependency;
@@ -19,7 +18,7 @@ namespace Util.Sound {
             }
         }
 
-        [Title("Meta Data")]
+        [HeaderOrTitle("Meta Data")]
         [SerializeField]
         string path = "Sounds/";
         [SerializeField]
@@ -27,21 +26,19 @@ namespace Util.Sound {
         [SerializeField]
         string bgmPath = "BGM/";
 
-        [Title("Audio Mixer")]
+        [HeaderOrTitle("Audio Mixer")]
         [SerializeField]
         AudioMixer audioMix;
 
-        [Title("Audio Sources")]
+        [HeaderOrTitle("Audio Sources")]
         [SerializeField]
         AudioSource sfxAudio;
         [SerializeField]
         AudioSource bgmAudio;
 
-        [Title("Sound Data Allocation")]
-        [SerializeField]
-        [DictionaryDrawerSettings(KeyLabel = "Audio Code", ValueLabel = "Audio Clip")]
-        Dictionary<int, SoundItem> soundDic = new Dictionary<int, SoundItem>();
-
+#if !ODIN_INSPECTOR
+        Dictionary<int, SoundItem> soundDic = new();
+#endif
 
         public void SetSoundUnit(SoundContainer container) {
             foreach (var clip in container.Clips) {

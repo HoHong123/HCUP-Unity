@@ -1,11 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using Sirenix.OdinInspector;
 
 namespace Util.UI.ToggleUI {
     public abstract class BaseCustomToggle : MonoBehaviour, IDelegateToggle, IPointerDownHandler, IPointerUpHandler {
-        [Title("Event Timing")]
+        [Header("Event Timing")]
         [SerializeField]
         protected bool ActivateOnSelect = true;
         [SerializeField]

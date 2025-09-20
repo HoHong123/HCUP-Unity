@@ -9,12 +9,12 @@
 
 using UnityEngine;
 using UnityEngine.Tilemaps;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 
 namespace HGame._2D.Map {
     [DisallowMultipleComponent]
     public class TilemapBoundSource : MonoBehaviour, IWorldBoundSource {
-        [Title("Boundary")]
+        [HeaderOrTitle("Boundary")]
         [SerializeField]
         Tilemap tilemap;
 

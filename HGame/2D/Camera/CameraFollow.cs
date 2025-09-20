@@ -7,12 +7,14 @@
 #endif
 
 using UnityEngine;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
+using HGame._2D.Map;
 
 namespace HGame._2D.Cam {
     [DisallowMultipleComponent]
-    public class CameraFollow : MonoBehaviour {
-        [Title("Camear")]
+    public partial class CameraFollow : MonoBehaviour {
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Camear")]
         [SerializeField]
         Camera cam;
         [SerializeField, Range(0f, 1f)]
@@ -20,26 +22,27 @@ namespace HGame._2D.Cam {
         [SerializeField]
         float zPos = -10f;
 
-        [Title("Target")]
+        [HeaderOrTitle("Target")]
         [SerializeField]
         Transform target;
-        [SerializeField, Required]
+        [SerializeField]
         Transform originalTarget;
 
-        [Title("Bounds")]
+        [HeaderOrTitle("Bounds")]
         [SerializeField]
         MapBoundType boundType;
-        [SerializeField, ShowIf("boundType", MapBoundType.WorldBox)]
+        [SerializeField]
         BoxCollider2D worldBoundsB2D;
-        [SerializeField, ShowIf("boundType", MapBoundType.Absolute)]
+        [SerializeField]
         Rect absolutBound;
 
 #if UNITY_EDITOR
-        [Title("Debug")]
+        [HeaderOrTitle("Debug")]
         [SerializeField]
         protected bool useDebug = true;
-        [SerializeField, ShowIf("useDebug")]
+        [SerializeField]
         protected Color debugColor = Color.cyan;
+#endif
 #endif
 
         bool hasRect = false;

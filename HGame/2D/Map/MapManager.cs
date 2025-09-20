@@ -31,31 +31,33 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using Sirenix.OdinInspector;
+using Util.Core;
 using Util.Pooling;
 using Util.UI.Panel;
+using Util.OdinCompat;
 using HGame._2D.Cam;
 
 namespace HGame._2D.Map {
     [DisallowMultipleComponent]
-    public class MapManager : SingletonBehaviour<MapManager> {
-        [Title("Camera")]
+    public partial class MapManager : SingletonBehaviour<MapManager> {
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Camera")]
         [SerializeField]
         Camera cam;
 
-        [Title("Bounds")]
+        [HeaderOrTitle("Bounds")]
         [SerializeField]
         MapBoundType boundType;
         [SerializeField]
         float worldZ = -10f;
-        [SerializeField, ShowIf("boundType", MapBoundType.WorldBox)]
+        [SerializeField]
         BoxCollider2D worldBoundsB2D;
-        [SerializeField, ShowIf("boundType", MapBoundType.BoundSource)]
+        [SerializeField]
         List<MonoBehaviour> worldBoundSources = new();
-        [SerializeField, ShowIf("boundType", MapBoundType.Absolute)]
+        [SerializeField]
         Rect absolutBound;
 
-        [Title("UI")]
+        [HeaderOrTitle("UI")]
         [SerializeField]
         RectTransform camArea;
         [SerializeField]
@@ -63,7 +65,7 @@ namespace HGame._2D.Map {
         [SerializeField]
         ProxyPanel mapPanel;
 
-        [Title("Marker")]
+        [HeaderOrTitle("Marker")]
         [SerializeField]
         Image markerPrefab;
         [SerializeField]
@@ -71,23 +73,25 @@ namespace HGame._2D.Map {
         [SerializeField, Tooltip("Must be a child of map")]
         Transform markerParent;
 
-        ComponentPool<Image> markerPool;
-
-        [Title("Minimap Auto Fit")]
+        [HeaderOrTitle("Minimap Auto Fit")]
         [SerializeField]
         bool autoFitMinimapAspect = true;
-        [SerializeField, ShowIf("autoFitMinimapAspect")]
+        [SerializeField]
+        Vector2 fitPadding = new Vector2(8, 8);
+        [SerializeField]
         Vector2 fitPadding = new Vector2(8, 8);
 
-        [Title("Options")]
+        [HeaderOrTitle("Options")]
         [SerializeField]
         bool isYAxisUp = true;
         [SerializeField]
         bool allowDragNavigate = true;
+#endif
 
         bool dragging;
         bool hasWorldRect;
         Rect cachedWorldRect;
+        ComponentPool<Image> markerPool;
         readonly Dictionary<MinimapTrackable, Image> trackables = new();
 
 

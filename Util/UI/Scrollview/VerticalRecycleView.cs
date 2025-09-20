@@ -1,13 +1,13 @@
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 
 namespace Util.UI.ScrollView {
     [Serializable]
     public class VerticalRecycleView<TCellView, TCellData> : BaseRecycleView<TCellView, TCellData>, IRecycleView
         where TCellData : BaseRecycleCellData
         where TCellView : BaseRecycleCellView<TCellData> {
-        [Title("Cell View")]
+        [HeaderOrTitle("Cell View")]
         [SerializeField]
         float spacing = 10f;
         [SerializeField]

@@ -2,19 +2,19 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Sirenix.OdinInspector;
-using PoolDispose = IPoolDispose<Util.UI.Popup.TextPopup>;
-using PoolReturn = IPoolReturn<Util.UI.Popup.TextPopup>;
+using PoolReturn = Util.Pooling.IPoolReturn<Util.UI.Popup.TextPopup>;
+using PoolDispose = Util.Pooling.IPoolDispose<Util.UI.Popup.TextPopup>;
+using Util.OdinCompat;
 
 namespace Util.UI.Popup {
     public class TextPopup : BasePopupUi, PoolReturn, PoolDispose {
-        [Title("Texts")]
+        [HeaderOrTitle("Texts")]
         [SerializeField]
         TMP_Text titleTxt;
         [SerializeField]
         TMP_Text bodyTxt;
 
-        [Title("UI")]
+        [HeaderOrTitle("UI")]
         [SerializeField]
         Image titleBgImg;
         [SerializeField]

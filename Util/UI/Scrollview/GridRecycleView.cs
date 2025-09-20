@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 
 namespace Util.UI.ScrollView {
     [Serializable]
@@ -8,7 +8,7 @@ namespace Util.UI.ScrollView {
         where TCellData : BaseRecycleCellData
         where TCellView : BaseRecycleCellView<TCellData> {
 
-        [Title("Grid Settings")]
+        [HeaderOrTitle("Grid Settings")]
         [SerializeField]
         bool isHorizontal = true;
         [SerializeField]
@@ -16,10 +16,13 @@ namespace Util.UI.ScrollView {
         [SerializeField]
         Vector2 cellSize = new Vector2(100f, 100f);
 
-        [Title("Grid Line Control")]
+        [HeaderOrTitle("Grid Line Control")]
         [SerializeField]
         bool useFixedCount = false;
-        [SerializeField, ShowIf("useFixedCount")]
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.ShowIf("useFixedCount")]
+#endif
+        [SerializeField]
         int fixedCount = 1;
 
         int rowCount;

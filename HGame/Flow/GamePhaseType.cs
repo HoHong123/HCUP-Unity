@@ -13,12 +13,14 @@
  */
 #endif
 
-public enum GamePhaseType {
-    None,
-    Prepare,
-    Start,
-    Running,
-    Pause,
-    Over,
-    Post,
+namespace HGame.Game.Flow {
+    public enum GamePhaseType {
+        None,
+        Prepare,
+        Start,
+        Running,
+        Pause,
+        Over,
+        Post,
+    }
 }

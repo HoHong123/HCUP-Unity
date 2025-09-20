@@ -1,11 +1,11 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
+using Util.OdinCompat;
 
 namespace Util.UI.Popup {
     public class ImagePopup : BasePopupUi {
-        [Title("Viewport")]
+        [HeaderOrTitle("Viewport")]
         [SerializeField]
         RectTransform viewRect;
         [SerializeField]
@@ -13,11 +13,11 @@ namespace Util.UI.Popup {
         [SerializeField]
         RectTransform rawRect;
 
-        [Title("Image")]
+        [HeaderOrTitle("Image")]
         [SerializeField]
         RawImage rawImg;
 
-        [Title("Button")]
+        [HeaderOrTitle("Button")]
         [SerializeField]
         Button panelBtn;
 

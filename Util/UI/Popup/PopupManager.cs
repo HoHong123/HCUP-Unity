@@ -24,21 +24,18 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using Util.Logger;
+using Util.Core;
+using Util.OdinCompat;
 
 namespace Util.UI.Popup {
     public abstract class PopupManager<T> : SingletonBehaviour<T> where T : PopupManager<T> {
         #region Class
         [Serializable]
         public class LogQue {
-            [ShowInInspector]
             public int UID { get; private set; }
-            [ShowInInspector]
             public PopLevel Level { get; private set; }
-            [ShowInInspector]
             public string Title { get; private set; }
-            [ShowInInspector]
             public string Message { get; private set; }
             public Action OnClickAction { get; private set; }
 
@@ -52,15 +49,21 @@ namespace Util.UI.Popup {
                 Message = message;
                 OnClickAction = onClickAction;
             }
+
+            public override string ToString() =>
+                $"UID :: {UID}\n" +
+                $"Level :: {Level}\n" +
+                $"Title :: {Title}\n" +
+                $"Message :: {Message}";
         }
         #endregion
 
         #region Member
-        [Title("UI")]
+        [HeaderOrTitle("UI")]
         [SerializeField]
         protected GameObject background;
 
-        [Title("Prefab")]
+        [HeaderOrTitle("Prefab")]
         [SerializeField]
         protected TextPopup textPrefab;
         [SerializeField]
@@ -68,13 +71,13 @@ namespace Util.UI.Popup {
         [SerializeField]
         protected VideoPopup videoPrefab;
 
-        [Title("Parents")]
+        [HeaderOrTitle("Parents")]
         [SerializeField]
         protected Transform logParent;
         [SerializeField]
         protected Transform gameParent;
 
-        [Title("Logs")]
+        [HeaderOrTitle("Logs")]
         [SerializeField]
         protected Queue<LogQue> logHistory = new();
 

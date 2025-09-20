@@ -8,7 +8,7 @@
 # endif
 
 namespace HGame.Game.Flow {
-public sealed class GameContext {
+    public sealed class GameContext {
         public float TimeScale = 1f;
     }
 }

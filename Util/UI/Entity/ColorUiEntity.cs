@@ -1,38 +1,38 @@
-using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
 using DG.Tweening;
+#if !ODIN_INSPECTOR
+using System;
+using Util.OdinCompat;
+#endif
 
 namespace Util.UI.Entity {
-    [Serializable]
-    public class ColorUiEntity {
-        [Title("Option")]
+    public partial class ColorUiEntity {
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Option")]
         [SerializeField]
         bool changeSprite = false;
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [SerializeField]
         bool useAnimation = false;
-        [ShowIf("@!this.changeSprite && this.useAnimation"), SerializeField]
+        [SerializeField]
         float animationDuration = 0.2f;
 
-        [Title("Color")]
-        [OnValueChanged(nameof(_Init))]
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [HeaderOrTitle("Color")]
+        [SerializeField]
         MaskableGraphic graphic;
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [SerializeField]
         Color originColor;
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [SerializeField]
         Color targetColor;
 
-        [Title("Sprite")]
-        [OnValueChanged(nameof(_Init))]
-        [ShowIf(nameof(changeSprite)), SerializeField]
+        [HeaderOrTitle("Sprite")]
+        [SerializeField]
         Image image;
-        [ShowIf(nameof(changeSprite)), SerializeField]
+        [SerializeField]
         Sprite originSprite;
-        [ShowIf(nameof(changeSprite)), SerializeField]
+        [SerializeField]
         Sprite targetSprite;
-
+#endif
 
         private void _Init() {
             if (graphic == null && image == null) return;
@@ -80,7 +80,7 @@ namespace Util.UI.Entity {
         private void _Dye(Color color) {
             if (useAnimation) {
                 graphic.DOKill();
-                graphic.DOColor(color, animationDuration);
+                //graphic.DOColor(color, animationDuration);
             }
             else {
                 graphic.color = color;

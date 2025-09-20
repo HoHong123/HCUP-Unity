@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
 using Util.Pooling;
+using Util.OdinCompat;
 
 namespace Util.UI.ScrollView {
     [Serializable]
@@ -11,7 +11,7 @@ namespace Util.UI.ScrollView {
     public abstract class BaseRecycleView<TCellView, TCellData> : MonoBehaviour
         where TCellData : BaseRecycleCellData
         where TCellView : BaseRecycleCellView<TCellData> {
-        [Title("Require")]
+        [HeaderOrTitle("Require")]
         [SerializeField]
         protected ScrollRect scrollRect;
         [SerializeField]
@@ -19,7 +19,7 @@ namespace Util.UI.ScrollView {
         [SerializeField]
         protected RectTransform content;
 
-        [Title("Item Prefab")]
+        [HeaderOrTitle("Item Prefab")]
         [SerializeField]
         protected TCellView itemPrefab;
 

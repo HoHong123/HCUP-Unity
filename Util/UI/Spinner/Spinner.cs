@@ -30,15 +30,16 @@ using System.Text;
 /// 2. Save Spinner UI prefab in 'Resources' file.
 /// 3. Input Spinner prefab address into 'spinnerAddress' string variable.
 /// </summary>
-public static class Spinner {
-    static string spinnerAddress = "UI/Spinner";
-    static GameObject spinner;
-    static readonly Dictionary<object, int> callers = new();
+namespace Util.UI.Spinner {
+    public static class Spinner {
+        static string spinnerAddress = "UI/Spinner";
+        static GameObject spinner;
+        static readonly Dictionary<object, int> callers = new();
 
-    public static bool IsVisible { get; private set; } = false;
+        public static bool IsVisible { get; private set; } = false;
 
-    public static IReadOnlyDictionary<object, int> ActiveCallers => callers;
-    public static string GetCallerData() {
+        public static IReadOnlyDictionary<object, int> ActiveCallers => callers;
+        public static string GetCallerData() {
 #if UNITY_EDITOR
         if (callers.Count == 0) {
             return "[Spinner] No active callers.";
@@ -49,83 +50,85 @@ public static class Spinner {
         }
         return sb.ToString();
 #else
-        return $"[Spinner] Active Caller Count :: {callers.Count}";
+            return $"[Spinner] Active Caller Count :: {callers.Count}";
 #endif
-    }
-
-
-    static Spinner() {
-        spinner = Resources.Load<GameObject>(spinnerAddress);
-        if (!spinner) HLogger.Error($"Cannot find 'Spinner' prefab in '{spinnerAddress}'");
-        SceneLoader.OnSceneLoaded += CleanUp;
-        SceneLoader.OnSceneUnloaded += CleanUp;
-    }
-
-
-    public static void Show(object caller) {
-        if (callers.ContainsKey(caller)) {
-            callers[caller]++;
-        }
-        else {
-            callers[caller] = 1;
         }
 
-        if (!IsVisible) {
-            IsVisible = true;
-            spinner.SetActive(true);
-        }
-    }
 
-    public static async UniTask Show(float second, object caller) {
-        Show(caller);
-        await UniTask.Delay(TimeSpan.FromSeconds(second));
-        Hide(caller);
-    }
-
-    public static async UniTask Show(int tick, object caller) {
-        Show(caller);
-        await UniTask.Delay(tick);
-        Hide(caller);
-    }
-
-    public static async UniTask Show(Func<UniTask> taskFunc, object caller) {
-        Show(caller);
-        await taskFunc();
-        Hide(caller);
-    }
-
-    public static void Hide(object caller) {
-        if (!callers.ContainsKey(caller))
-            return;
-
-        callers[caller]--;
-        if (callers[caller] < 1) {
-            callers.Remove(caller);
+        static Spinner() {
+            spinner = Resources.Load<GameObject>(spinnerAddress);
+            if (!spinner)
+                HLogger.Error($"Cannot find 'Spinner' prefab in '{spinnerAddress}'");
+            SceneLoader.OnSceneLoaded += CleanUp;
+            SceneLoader.OnSceneUnloaded += CleanUp;
         }
 
-        if (callers.Count == 0 && IsVisible) {
-            IsVisible = false;
-            spinner?.SetActive(false);
-        }
-    }
 
+        public static void Show(object caller) {
+            if (callers.ContainsKey(caller)) {
+                callers[caller]++;
+            }
+            else {
+                callers[caller] = 1;
+            }
 
-    public static void CleanUp() {
-        var keysToRemove = new List<object>();
-
-        foreach (var key in callers.Keys) {
-            if (key == null) {
-                keysToRemove.Add(key);
+            if (!IsVisible) {
+                IsVisible = true;
+                spinner.SetActive(true);
             }
         }
 
-        foreach (var key in keysToRemove) {
-            callers.Remove(key);
+        public static async UniTask Show(float second, object caller) {
+            Show(caller);
+            await UniTask.Delay(TimeSpan.FromSeconds(second));
+            Hide(caller);
         }
 
-        if (callers.Count == 0 && IsVisible) {
-            IsVisible = false;
-            spinner?.SetActive(false);
+        public static async UniTask Show(int tick, object caller) {
+            Show(caller);
+            await UniTask.Delay(tick);
+            Hide(caller);
+        }
+
+        public static async UniTask Show(Func<UniTask> taskFunc, object caller) {
+            Show(caller);
+            await taskFunc();
+            Hide(caller);
+        }
+
+        public static void Hide(object caller) {
+            if (!callers.ContainsKey(caller))
+                return;
+
+            callers[caller]--;
+            if (callers[caller] < 1) {
+                callers.Remove(caller);
+            }
+
+            if (callers.Count == 0 && IsVisible) {
+                IsVisible = false;
+                spinner?.SetActive(false);
+            }
+        }
+
+
+        public static void CleanUp() {
+            var keysToRemove = new List<object>();
+
+            foreach (var key in callers.Keys) {
+                if (key == null) {
+                    keysToRemove.Add(key);
+                }
+            }
+
+            foreach (var key in keysToRemove) {
+                callers.Remove(key);
+            }
+
+            if (callers.Count == 0 && IsVisible) {
+                IsVisible = false;
+                spinner?.SetActive(false);
+            }
         }
     }
 }

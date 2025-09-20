@@ -1,12 +1,12 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
 using Util.UI.Entity;
+using Util.OdinCompat;
 
 namespace Util.UI.ButtonUI {
+    [RequireComponent(typeof(DelegateButton))]
     public class ColorOnPressButton : BaseOnPressButton {
-        [Title("Target")]
+        [HeaderOrTitle("Target")]
         [SerializeField]
-        [ListDrawerSettings]
         ColorUiEntity[] targets;
 
         public ColorUiEntity[] ColorEntity => targets;

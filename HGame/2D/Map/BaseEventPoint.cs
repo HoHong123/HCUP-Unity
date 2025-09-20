@@ -15,27 +15,29 @@
 
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using Util.Logger;
-    
+using Util.OdinCompat;
+
 namespace HGame._2D.Map {
-    public abstract class BaseEventPoint<T> : MonoBehaviour where T : MonoBehaviour {
-        [Title("Filter")]
+    public abstract partial class BaseEventPoint<T> : MonoBehaviour where T : MonoBehaviour {
+#if !ODIN_INSPECTOR
+        [HeaderOrTitle("Filter")]
         [SerializeField]
         protected bool useTag = true;
-        [SerializeField, ShowIf("useTag")]
+        [SerializeField]
         protected string targetTag;
 
-        [Title("Collider")]
-        [SerializeField, Required]
+        [HeaderOrTitle("Collider")]
+        [SerializeField]
         protected Collider2D eventCollider;
 
 #if UNITY_EDITOR
-        [Title("Debug")]
+        [HeaderOrTitle("Debug")]
         [SerializeField]
         protected bool useDebug = true;
-        [SerializeField, ShowIf("useDebug")]
+        [SerializeField]
         protected Color debugColor = Color.red;
+#endif
 #endif
 
         public string TargetTag => targetTag;
