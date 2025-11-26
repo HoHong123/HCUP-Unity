@@ -80,7 +80,7 @@ namespace HUtil.UI.Entity {
         private void _Dye(Color color) {
             if (useAnimation) {
                 graphic.DOKill();
-                graphic.DOColor(color, animationDuration);
+                //graphic.DOColor(color, animationDuration);
             }
             else {
                 graphic.color = color;
