@@ -1,0 +1,33 @@
+{
+  "name": "com.hohong123.hgame",
+  "displayName": "Hohong123 Game Layer",
+  "version": "0.1.0",
+  "unity": "2021.3",
+  "description": "Game-specific logic (Flow, 2D, Character).",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  },
+  "samples": [
+    {
+      "displayName": "",
+      "description": "Sample content.",
+      "path": "Samples~/"
+    },
+    {
+      "displayName": "GameModule",
+      "description": "Simple game phase/state flow example.",
+      "path": "Samples~/GameModule"
+    },
+    {
+      "displayName": "Skill",
+      "description": "Simple character skill example.",
+      "path": "Samples~/Skill"
+    },
+    {
+      "displayName": "Package.json",
+      "description": "Sample content.",
+      "path": "Samples~/package.json"
+    }
+  ]
+}

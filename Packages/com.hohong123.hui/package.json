@@ -1,0 +1,11 @@
+{
+  "name": "com.hohong123.hui",
+  "displayName": "Hohong123 UI Layer",
+  "version": "0.1.6",
+  "unity": "2021.3",
+  "description": "Unity UI logic.",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  }
+}
