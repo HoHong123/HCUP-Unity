@@ -21,3 +21,7 @@
 - 풀·사운드 등 싱글톤 초기화 순서를 씬 로드 시점에 맞춰 관리합니다.
 - Editor 스크립트가 빌드에 포함되지 않도록 asmdef·폴더 분리를 유지합니다.
 - 외부 의존성(UniTask/DoTween/Odin/TMP)이 누락되지 않았는지 확인합니다.
+
+## UPM 설치 경로 (HCUP-Unity)
+- `https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HUtil`
+- `https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HUtil#v0.2.1`
