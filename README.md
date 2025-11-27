@@ -1,4 +1,4 @@
-# Custom Unity Utility Mono Repo (📦 com.hohong123.util)
+# Hong's Custom Utility - Unity (HCUP)
 
 > 업로드된 패키지 묶음을 빠르게 파악할 수 있도록 정리한 README입니다. (업데이트: 2025-09-18, 버전 0.2.0)
 
