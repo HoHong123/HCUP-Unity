@@ -7,5 +7,12 @@
   "author": {
     "name": "HoHong123",
     "url": "https://github.com/HoHong123"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "HUtil Core Samples",
+      "description": "Example prefabs and scripts for pooling, sound, and utility helpers.",
+      "path": "Samples~"
+    }
+  ]
 }
