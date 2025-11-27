@@ -1,0 +1,11 @@
+{
+  "name": "Hohong123.HGame.Editor",
+  "rootNamespace": "HGame.Editor",
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": true,
+  "references": [
+    "Hohong123.HGame"
+  ]
+}
