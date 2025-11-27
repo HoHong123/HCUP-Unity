@@ -21,3 +21,7 @@
 - 씬/상태 전환 시 비동기 흐름이 중복 호출되지 않도록 직렬화하거나 토큰을 관리하십시오.
 - 샘플 코드를 참고하되, 실제 빌드에서는 `Samples~`를 제외하거나 별도 패키지로 분리합니다.
 - 캐릭터/스킬/플레이어 입력은 프로젝트 입력 시스템에 맞춰 래핑해 사용합니다.
+
+## UPM 설치 경로 (HCUP-Unity)
+- `https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HGame`
+- `https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HGame#v0.2.1`
