@@ -22,3 +22,7 @@ UI 로직·컴포넌트를 모은 패키지로 버튼/토글/드롭다운/스크
 - Canvas Rebuild/Repaint 비용을 최소화하도록 빈번한 UI 갱신은 배치하거나 프레임 분산을 고려합니다.
 - DoTween/UniTask/오딘/TMP 의존성을 사전에 설치한 뒤 적용합니다.
 - 샘플은 참고용이며 실제 빌드에서는 제외하거나 네임스페이스를 프로젝트 규칙에 맞게 정리합니다.
+
+## UPM 설치 경로 (HCUP-Unity)
+- `https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HUI`
+- `https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HUI#v0.2.1`
