@@ -1,0 +1,11 @@
+{
+  "name": "Hohong123.Util.Tween",
+  "rootNamespace": "Util.Tween",
+  "autoReferenced": true,
+  "references": [
+    "Hohong123.Util"
+  ],
+  "defineConstraints": [
+    "USE_DOTWEEN"
+  ]
+}

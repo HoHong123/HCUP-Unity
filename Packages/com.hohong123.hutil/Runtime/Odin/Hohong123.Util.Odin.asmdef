@@ -1,0 +1,11 @@
+{
+  "name": "Hohong123.Util.Odin",
+  "rootNamespace": "Util.Odin",
+  "autoReferenced": true,
+  "references": [
+    "Hohong123.Util"
+  ],
+  "defineConstraints": [
+    "ODIN_INSPECTOR"
+  ]
+}
