@@ -1,8 +1,8 @@
 {
   "name": "com.hohong123.hutil",
   "displayName": "Hohong123 HUtil",
-  "version": "0.2.0",
-  "unity": "2021.3",
+  "version": "0.3.0",
+  "unity": "6000",
   "description": "Pooling, Sound, UI, 2D, Collection, Logger utilities.",
   "author": {
     "name": "HoHong123",
