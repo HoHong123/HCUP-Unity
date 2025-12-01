@@ -1,0 +1,33 @@
+{
+  "name": "com.hohong123.hui",
+  "displayName": "Hohong123 UI Layer",
+  "version": "0.3.0",
+  "unity": "6000",
+  "description": "Unity UI logic.",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  },
+  "samples": [
+    {
+      "displayName": "Dropdown UI",
+      "description": "Prefab and scripts for the HDropdown component.",
+      "path": "Samples~/Dropdown"
+    },
+    {
+      "displayName": "Popup Manager",
+      "description": "Prefab-based popup demos including text, image, and video variations.",
+      "path": "Samples~/Popup"
+    },
+    {
+      "displayName": "Recycler Scrollviews",
+      "description": "Virtualized scroll list demos with sample cells and controllers.",
+      "path": "Samples~/Scrollview"
+    },
+    {
+      "displayName": "Spinner",
+      "description": "Simple loading spinner prefab for UI transitions.",
+      "path": "Samples~/Spinner"
+    }
+  ]
+}
