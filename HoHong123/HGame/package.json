@@ -1,0 +1,23 @@
+{
+  "name": "com.hohong123.hgame",
+  "displayName": "Hohong123 Game Layer",
+  "version": "0.3.0",
+  "unity": "6000",
+  "description": "Game-specific logic (Flow, 2D, Character).",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  },
+  "samples": [
+    {
+      "displayName": "Game Flow Demo",
+      "description": "Phase switching sample using the GameModule/Phase stack.",
+      "path": "Samples~/GameModule"
+    },
+    {
+      "displayName": "Skill Templates",
+      "description": "ScriptableObject skill examples and arrow demo assets.",
+      "path": "Samples~/Skill"
+    }
+  ]
+}
