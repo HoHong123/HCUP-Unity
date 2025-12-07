@@ -3,11 +3,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Sirenix.OdinInspector;
-using PoolDispose = HUtil.Pooling.IPoolDispose<HUtil.UI.Popup.TextPopup>;
-using PoolReturn = HUtil.Pooling.IPoolReturn<HUtil.UI.Popup.TextPopup>;
 
-namespace HUtil.UI.Popup {
-    public class TextPopup : BasePopupUi, PoolReturn, PoolDispose {
+namespace HUI.Popup {
+    public class TextPopup : BasePopupUi {
         [Title("Texts")]
         [SerializeField]
         TMP_Text titleTxt;
@@ -22,6 +20,8 @@ namespace HUtil.UI.Popup {
         [SerializeField]
         Button okBtn;
 
+        Action lastCancelEvent = null;
+
         public event Action OnClickOk;
 
         public Color TitleColor { set => titleBgImg.color = value; }
@@ -32,24 +32,27 @@ namespace HUtil.UI.Popup {
 
         protected override void Start() {
             base.Start();
+            OnClickCancel += _OnCancelEvent;
             okBtn.onClick.AddListener(() => OnClickOk?.Invoke());
         }
 
-        public void SetText(string title, string message, Action triggerEvent = null) {
+        public void SetText(string title, string message, Action okEvent = null, Action cancelEvent = null) {
             titleTxt.text = title;
             bodyTxt.text = message;
-            OnClickOk = triggerEvent;
-            okBtn.gameObject.SetActive((triggerEvent != null));
+
+            OnClickOk = null;
+            OnClickOk = okEvent;
+            okBtn.gameObject.SetActive((okEvent != null));
+
+            lastCancelEvent = cancelEvent;
         }
 
-
-        public void OnReturn(TextPopup mono) {
-            mono.titleTxt.text = string.Empty;
-            mono.bodyTxt.text = string.Empty;
-        }
-
-        public void OnDispose(TextPopup mono) {
-            Destroy(mono.panel);
+        private void _OnCancelEvent() {
+            if (lastCancelEvent != null) {
+                var action = lastCancelEvent;
+                lastCancelEvent = null;
+                action.Invoke();
+            }
         }
     }
 }

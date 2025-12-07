@@ -5,7 +5,7 @@ using Sirenix.OdinInspector;
 using HUtil.Core;
 using HUtil.Logger;
 
-namespace HUtil.UI.Popup {
+namespace HUI.Popup {
     public abstract class PopupManager<T> : SingletonBehaviour<T> where T : PopupManager<T> {
         #region Class
         [Serializable]
@@ -18,17 +18,20 @@ namespace HUtil.UI.Popup {
             public string Title { get; private set; }
             [ShowInInspector]
             public string Message { get; private set; }
-            public Action OnClickAction { get; private set; }
+            public Action OnClickOk { get; private set; }
+            public Action OnClickCancel { get; private set; }
 
             public LogQue(
                 int uid, PopLevel level,
                 string title, string message,
-                Action onClickAction = null) {
+                Action onClickOk,
+                Action onClickCancel) {
                 UID = uid;
                 Level = level;
                 Title = title;
                 Message = message;
-                OnClickAction = onClickAction;
+                OnClickOk = onClickOk;
+                OnClickCancel = onClickCancel;
             }
         }
         #endregion
@@ -37,8 +40,6 @@ namespace HUtil.UI.Popup {
         [Title("UI")]
         [SerializeField]
         protected GameObject background;
-        [SerializeField]
-        protected GameObject spinner;
 
         [Title("Prefab")]
         [SerializeField]
@@ -64,20 +65,19 @@ namespace HUtil.UI.Popup {
         protected ImagePopup imgInstnace = null;
         protected VideoPopup vidInstnace = null;
 
-        protected int creatStack = 0;
+        protected int logCreatStack = 0;
 
 
         protected bool isAllCose => gameParent.childCount + logHistory.Count == 0;
         #endregion
 
 
-        public void ShowSpinner() => spinner.SetActive(true);
-        public void HideSpinner() => spinner.SetActive(false);
-
-        public void ShowLog(PopLevel level, string title, string message, Action onClickCancel = null) {
-            int uid = ++creatStack;
+        public void ShowLog(PopLevel level, string title, string message, Action onClickOk = null, Action onClickCancel = null) {
+            int uid = ++logCreatStack;
             background.SetActive(true);
-            logHistory.Enqueue(new(uid, level, title, message,onClickCancel));
+            var wrapper = onClickCancel;
+            wrapper += _SetTextPopup;
+            logHistory.Enqueue(new(uid, level, title, message, onClickOk, wrapper));
 
             switch (level) {
             case PopLevel.Log: HLogger.Log($"[Log UID {uid}] {title} :: {message}"); break;
@@ -90,7 +90,6 @@ namespace HUtil.UI.Popup {
             // Create one text popup
             if (textInstance == null) {
                 textInstance = Instantiate(textPrefab, logParent);
-                textInstance.OnClickCancel += _SetTextPopup;
                 textInstance.Close();
             }
 
@@ -101,12 +100,14 @@ namespace HUtil.UI.Popup {
 
         public void ShowImage(Sprite sprite, Action onClick = null) => ShowImage(sprite.texture, onClick);
         public void ShowImage(Texture texture, Action onClick = null) {
+            background.SetActive(true);
             imgInstnace = Instantiate(imagePrefab, gameParent);
             imgInstnace.SetUi(texture);
             imgInstnace.OnClickPanel += onClick;
         }
 
         public void ShowVideo(string address, Action onClick = null, int width = 0, int height = 0) {
+            background.SetActive(true);
             vidInstnace = Instantiate(videoPrefab, gameParent);
             vidInstnace.SetVideo(address, width, height);
             vidInstnace.OnClickPanel += onClick;
@@ -116,13 +117,28 @@ namespace HUtil.UI.Popup {
         private void _SetTextPopup() {
             if (logHistory.Count == 0) {
                 textInstance.Close();
-                background.SetActive(false);
+                if (isAllCose) background.SetActive(false);
                 return;
             }
 
             LogQue log = logHistory.Dequeue();
-            textInstance.SetText(log.Title, log.Message, log.OnClickAction);
+            textInstance.SetText(log.Title, log.Message, log.OnClickOk, log.OnClickCancel);
             textInstance.Open();
         }
+
+#if UNITY_EDITOR
+        int _testId = 0;
+        [Button("Text Test")]
+        private void _Test() {
+            int id = _testId++;
+            ShowLog(PopLevel.Log, "Test", $"Testing event {id}",
+                () => {
+                    Debug.Log($"[Popup {id}] Ok Called");
+                },
+                () => {
+                    Debug.Log($"[Popup {id}] Cancel Called");
+                });
+        }
+#endif
     }
 }

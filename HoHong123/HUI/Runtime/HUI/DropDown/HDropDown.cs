@@ -5,7 +5,7 @@ using DG.Tweening;
 using Sirenix.OdinInspector;
 using TMPro;
 
-namespace HUtil.UI.Drop {
+namespace HUI.Dropdown {
     public class HDropDown : BaseDropDown<HDropDown.HData, HDropDown.HUnit> {
         #region Inner Class
         public class HData : IDropData {

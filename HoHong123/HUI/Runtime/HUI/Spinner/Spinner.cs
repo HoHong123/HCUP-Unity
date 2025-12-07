@@ -8,99 +8,101 @@ using HUtil.Scene;
 using System.Text;
 #endif
 
-public class SpinnerManager : SingletonBehaviour<SpinnerManager> {
-    [SerializeField]
-    GameObject spinner;
+namespace HUI.Spinner {
+    public class SpinnerManager : SingletonBehaviour<SpinnerManager> {
+        [SerializeField]
+        GameObject spinner;
 
-    readonly Dictionary<object, int> callers = new();
+        readonly Dictionary<object, int> callers = new();
 
-    public bool IsVisible { get; private set; } = false;
+        public bool IsVisible { get; private set; } = false;
 
 #if UNITY_EDITOR
-    public IReadOnlyDictionary<object, int> ActiveCallers => callers;
-    public string GetCallerData() {
-        if (callers.Count == 0) {
-            return "[Spinner] No active callers.";
+        public IReadOnlyDictionary<object, int> ActiveCallers => callers;
+        public string GetCallerData() {
+            if (callers.Count == 0) {
+                return "[Spinner] No active callers.";
+            }
+            StringBuilder sb = new StringBuilder("[Spinner] Active Callers :: \n");
+            foreach (var kvp in callers) {
+                sb.AppendLine($"- Caller: {kvp.Key}, Count: {kvp.Value}");
+            }
+            return sb.ToString();
         }
-        StringBuilder sb = new StringBuilder("[Spinner] Active Callers :: \n");
-        foreach (var kvp in callers) {
-            sb.AppendLine($"- Caller: {kvp.Key}, Count: {kvp.Value}");
-        }
-        return sb.ToString();
-    }
 #endif
 
-    private void _ShowSpinner() => spinner.SetActive(true);
-    private void _HideSpinner() => spinner.SetActive(false);
+        private void _ShowSpinner() => spinner.SetActive(true);
+        private void _HideSpinner() => spinner.SetActive(false);
 
 
-    protected override void Awake() {
-        base.Awake();
-        SceneLoader.OnSceneLoaded += CleanUp;
-        SceneLoader.OnSceneUnloaded += CleanUp;
-    }
-
-
-    public void Show(object caller) {
-        if (callers.ContainsKey(caller)) {
-            callers[caller]++;
-        }
-        else {
-            callers[caller] = 1;
+        protected override void Awake() {
+            base.Awake();
+            SceneLoader.OnSceneLoaded += CleanUp;
+            SceneLoader.OnSceneUnloaded += CleanUp;
         }
 
-        if (!IsVisible) {
-            IsVisible = true;
-            _ShowSpinner();
-        }
-    }
 
-    public void Hide(object caller) {
-        if (!callers.ContainsKey(caller)) return;
+        public void Show(object caller) {
+            if (callers.ContainsKey(caller)) {
+                callers[caller]++;
+            }
+            else {
+                callers[caller] = 1;
+            }
 
-        callers[caller]--;
-        if (callers[caller] < 1) {
-            callers.Remove(caller);
-        }
-
-        if (callers.Count == 0 && IsVisible) {
-            IsVisible = false;
-            _HideSpinner();
-        }
-    }
-
-    public async UniTask Show(int tick, object caller) {
-        Show(caller);
-        await UniTask.Delay(tick);
-        Hide(caller);
-    }
-
-    public async UniTask Show(Func<UniTask> taskFunc, object caller) {
-        Show(caller);
-        await taskFunc();
-        Hide(caller);
-    }
-
-    public void CleanUp() {
-        var keysToRemove = new List<object>();
-
-        foreach (var key in callers.Keys) {
-            if (key == null) {
-                keysToRemove.Add(key);
+            if (!IsVisible) {
+                IsVisible = true;
+                _ShowSpinner();
             }
         }
 
-        foreach (var key in keysToRemove) {
-            callers.Remove(key);
+        public void Hide(object caller) {
+            if (!callers.ContainsKey(caller))
+                return;
+
+            callers[caller]--;
+            if (callers[caller] < 1) {
+                callers.Remove(caller);
+            }
+
+            if (callers.Count == 0 && IsVisible) {
+                IsVisible = false;
+                _HideSpinner();
+            }
         }
 
-        if (callers.Count == 0 && IsVisible) {
-            IsVisible = false;
-            _HideSpinner();
+        public async UniTask Show(int tick, object caller) {
+            Show(caller);
+            await UniTask.Delay(tick);
+            Hide(caller);
+        }
+
+        public async UniTask Show(Func<UniTask> taskFunc, object caller) {
+            Show(caller);
+            await taskFunc();
+            Hide(caller);
+        }
+
+        public void CleanUp() {
+            var keysToRemove = new List<object>();
+
+            foreach (var key in callers.Keys) {
+                if (key == null) {
+                    keysToRemove.Add(key);
+                }
+            }
+
+            foreach (var key in keysToRemove) {
+                callers.Remove(key);
+            }
+
+            if (callers.Count == 0 && IsVisible) {
+                IsVisible = false;
+                _HideSpinner();
+            }
         }
     }
 }
-
 
 #if UNITY_EDITOR
 /* Dev Log

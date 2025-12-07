@@ -4,7 +4,7 @@ using Sirenix.OdinInspector;
 using DG.Tweening;
 
 
-namespace HUtil.UI.Entity {
+namespace HUI.Entity {
     [Serializable]
     public class ScalingUiEntity {
         [Title("Target")]

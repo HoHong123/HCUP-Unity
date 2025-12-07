@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using Sirenix.OdinInspector;
 using HUtil.Pooling;
 
-namespace HUtil.UI.ScrollView {
+namespace HUI.ScrollView {
     [Serializable]
     [RequireComponent(typeof(ScrollRect))]
     public abstract class BaseRecycleView<TCellView, TCellData> : MonoBehaviour
@@ -50,28 +50,34 @@ namespace HUtil.UI.ScrollView {
 
         protected virtual void InitializeScrollView() {
             if (dataList != null) {
-                UpdateVisibleCount();
                 SetData(dataList);
             }
         }
 
 
         public virtual void SetData(List<TCellData> data) {
-            if (!isInitialized || data == null || data.Count == 0) return;
-            
-            dataList = data;
-            recycleKeys.Clear();
-            activeItems.Clear();
+            dataList = data ?? new List<TCellData>();
 
+            if (itemPool != null) {
+                foreach (var kvp in activeItems) {
+                    itemPool.Return(kvp.Value);
+                }
+            }
+            activeItems.Clear();
+            recycleKeys.Clear();
+
+            lastStartIndex = -1;
+            lastEndIndex = -1;
+
+            UpdateVisibleCount();
             UpdateContentSize();
 
-            if (itemPool == null) {
-                itemPool = new(itemPrefab, dataList.Count, content);
-            }
+            if (itemPool == null) itemPool = new(itemPrefab, 0, content);
             itemPool.Init(VisibleCount + 2);
 
             UpdateVisibleItems();
         }
+
 
 
         public virtual void ScrollTo(float normalizedY) {
@@ -101,7 +107,7 @@ namespace HUtil.UI.ScrollView {
                 activeItems.Remove(key);
             }
         }
-
+         
 
         public abstract void ScrollToIndex(int index, bool center = true);
         protected abstract void UpdateVisibleCount();

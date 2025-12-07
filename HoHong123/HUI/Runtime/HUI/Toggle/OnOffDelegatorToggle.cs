@@ -3,8 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 
-namespace HUtil.UI.ToggleUI {
-    [RequireComponent(typeof(Toggle))]
+namespace HUI.ToggleUI {
     public class OnOffDelegatorToggle : BaseCustomToggle {
         public UnityEvent OnToggledOn = new();
         public UnityEvent OnToggledOff = new();

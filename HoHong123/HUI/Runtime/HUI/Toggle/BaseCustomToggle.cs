@@ -3,7 +3,8 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.ToggleUI {
+namespace HUI.ToggleUI {
+    [RequireComponent(typeof(Toggle))]
     public abstract class BaseCustomToggle : MonoBehaviour, IDelegateToggle, IPointerDownHandler, IPointerUpHandler {
         [Title("Event Timing")]
         [SerializeField]

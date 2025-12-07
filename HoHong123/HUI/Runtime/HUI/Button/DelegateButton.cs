@@ -2,22 +2,31 @@ using System;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-namespace HUtil.UI.ButtonUI {
+namespace HUI.ButtonUI {
         public class DelegateButton : Button, IPointerDownHandler, IPointerUpHandler {
-        public Action OnPointDown;
-        public Action OnPointUp;
+        #region Events
+        public event Action OnPointDown;
+        public event Action OnPointUp;
+        public event Action OnButtonEnabled;
+        public event Action OnButtonDisabled;
+        #endregion
 
+        #region Property
         public bool Interaction {
             get => interactable;
             set {
                 interactable = value;
-                if (value)
-                    OnPointUp?.Invoke();
-                else
-                    OnPointDown?.Invoke();
+                if (interactable) {
+                    OnButtonEnabled?.Invoke();
+                }
+                else {
+                    OnButtonDisabled?.Invoke();
+                }
             }
         }
+        #endregion
 
+        #region Handler
         public override void OnPointerDown(PointerEventData eventData) {
             base.OnPointerDown(eventData);
             if (interactable) OnPointDown?.Invoke();
@@ -27,6 +36,7 @@ namespace HUtil.UI.ButtonUI {
             base.OnPointerUp(eventData);
             if (interactable) OnPointUp?.Invoke();
         }
+        #endregion
     }
 }
 

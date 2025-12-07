@@ -1,15 +1,15 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using Sirenix.OdinInspector;
-using HUtil.UI.Entity;
+using HUI.Entity;
 
-namespace HUtil.UI.ToggleUI {
+namespace HUI.ToggleUI {
     public class ColorOnSelectToggle : BaseCustomToggle {
         [Title("Targets")]
         [SerializeField]
         ColorUiEntity[] targets;
 
-        public ColorUiEntity[] ColorEntity => targets;
+        public ColorUiEntity[] ColorEntities => targets;
 
 
         public override void OnToggleActive(bool isOn) {
@@ -25,10 +25,12 @@ namespace HUtil.UI.ToggleUI {
 
         private void _Dye(bool isOn) {
             foreach (var target in targets) {
-                if (isOn)
+                if (isOn) {
                     target.Dye();
-                else
+                }
+                else {
                     target.Reset();
+                }
             }
         }
     }

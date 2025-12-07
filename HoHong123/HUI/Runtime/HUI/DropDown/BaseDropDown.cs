@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.Drop {
+namespace HUI.Dropdown {
     [RequireComponent(typeof(Toggle))]
     [RequireComponent(typeof(RectTransform))]
     public abstract class BaseDropDown<TData, TUnit> : MonoBehaviour, IBasicPanel
@@ -19,7 +19,7 @@ namespace HUtil.UI.Drop {
         [Tooltip("Preset position setting. (Not mandatory)")]
         protected DirectionType direction = DirectionType.Down;
 
-        [Title("DropDown")]
+        [Title("Dropdown")]
         [SerializeField]
         protected Toggle dropTg;
         [SerializeField]
@@ -174,7 +174,7 @@ namespace HUtil.UI.Drop {
 /* Dev Log
  * @Jason - PKH
  * 네이티브 드롭다운 로직이 기존 레이아웃 시스템을 무시하도록 설계되어있어 커스텀 클래스를 만듭니다.
- * I create a custom 'DropDown' class to replace the native dropdown that designed to override the existing layout system.
+ * I create a custom 'Dropdown' class to replace the native dropdown that designed to override the existing layout system.
  * =================================================================================
  * @Jason - PKH 23. 07. 2025
  * KOR ::

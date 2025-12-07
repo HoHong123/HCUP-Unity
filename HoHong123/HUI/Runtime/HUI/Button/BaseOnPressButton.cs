@@ -1,12 +1,21 @@
 using UnityEngine;
 
-namespace HUtil.UI.ButtonUI {
+namespace HUI.ButtonUI {
     [RequireComponent(typeof(DelegateButton))]
     public abstract class BaseOnPressButton : MonoBehaviour, IDelegateButton {
-        private void Awake() {
-            DelegateButton button = GetComponent<DelegateButton>();
-            button.OnPointDown += OnPointDown;
-            button.OnPointUp += OnPointUp;
+        protected DelegateButton Button;
+
+        protected virtual void Awake() {
+            Button = GetComponent<DelegateButton>();
+            Button.OnPointDown -= OnPointDown;
+            Button.OnPointDown += OnPointDown;
+            Button.OnPointUp -= OnPointUp;
+            Button.OnPointUp += OnPointUp;
+        }
+
+        private void OnDestroy() {
+            Button.OnPointDown -= OnPointDown;
+            Button.OnPointUp -= OnPointUp;
         }
 
 

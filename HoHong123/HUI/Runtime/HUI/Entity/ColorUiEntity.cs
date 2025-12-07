@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using Sirenix.OdinInspector;
 using DG.Tweening;
 
-namespace HUtil.UI.Entity {
+namespace HUI.Entity {
     [Serializable]
     public class ColorUiEntity {
         [Title("Option")]

@@ -2,10 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using Sirenix.OdinInspector;
-using HUtil.UI.Entity;
+using HUI.Entity;
 
-namespace HUtil.UI.ToggleUI {
-    [RequireComponent(typeof(Toggle))]
+namespace HUI.ToggleUI {
     public class ScaleOnSelectToggle : BaseCustomToggle {
         [Title("Targets")]
         [SerializeField]

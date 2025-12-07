@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.Drop {
+namespace HUI.Dropdown {
     [Serializable]
     public class BaseDropUnit : MonoBehaviour, IDropUnit {
         [Title("Information")]

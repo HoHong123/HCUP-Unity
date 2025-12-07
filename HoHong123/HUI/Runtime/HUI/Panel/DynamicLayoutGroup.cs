@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace HUtil.UI.Panel {
+namespace HUI.Panel {
     // On Progress
     [ExecuteAlways]
     [RequireComponent(typeof(RectTransform))]

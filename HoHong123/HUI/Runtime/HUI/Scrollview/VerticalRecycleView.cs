@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.ScrollView {
+namespace HUI.ScrollView {
     [Serializable]
     public class VerticalRecycleView<TCellView, TCellData> : BaseRecycleView<TCellView, TCellData>, IRecycleView
         where TCellData : BaseRecycleCellData
@@ -43,11 +43,13 @@ namespace HUtil.UI.ScrollView {
         protected override void UpdateVisibleCount() {
             VisibleCount = Mathf.CeilToInt(viewport.rect.height / (itemHeight + spacing));
         }
+
         protected override void UpdateContentSize() {
             float totalHeight = (itemHeight + spacing) * Count - spacing;
             float contentHeight = Mathf.Max(totalHeight, viewport.rect.height);
             content.sizeDelta = new Vector2(content.sizeDelta.x, contentHeight);
         }
+
         protected override void UpdateVisibleItems() {
             if (Count == 0) return;
 

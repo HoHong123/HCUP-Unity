@@ -1,11 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
-using HUtil.UI.Entity;
+using HUI.Entity;
 using UnityEngine.EventSystems;
 
-namespace HUtil.UI.ToggleUI {
-    [RequireComponent(typeof(Toggle))]
+namespace HUI.ToggleUI {
     public class MoveOnSelectToggle : BaseCustomToggle {
         [Title("Targets")]
         [SerializeField]

@@ -1,9 +1,8 @@
 using UnityEngine;
 using Sirenix.OdinInspector;
-using HUtil.UI.Entity;
+using HUI.Entity;
 
-namespace HUtil.UI.ButtonUI {
-    [RequireComponent(typeof(DelegateButton))]
+namespace HUI.ButtonUI {
     public class MoveOnPressButton : BaseOnPressButton {
         [Title("Target")]
         [SerializeField]
@@ -11,13 +10,15 @@ namespace HUtil.UI.ButtonUI {
 
 
         public override void OnPointDown() {
-            foreach (var target in targets)
+            foreach (var target in targets) {
                 target.Move();
+            }
         }
 
         public override void OnPointUp() {
-            foreach (var target in targets)
+            foreach (var target in targets) {
                 target.Reset();
+            }
         }
     }
 }
