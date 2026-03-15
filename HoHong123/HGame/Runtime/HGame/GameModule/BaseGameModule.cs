@@ -16,5 +16,6 @@ namespace HGame.Flow {
         public virtual UniTask OnEnterRun(GameContext context, CancellationToken ct) => UniTask.CompletedTask;
         public virtual UniTask OnEnterOver(GameContext context, CancellationToken ct) => UniTask.CompletedTask;
         public virtual UniTask OnEnterPause(GameContext context, CancellationToken ct) => UniTask.CompletedTask;
+        public virtual UniTask OnEnterExit(GameContext context, CancellationToken ct) => UniTask.CompletedTask;
     }
 }
