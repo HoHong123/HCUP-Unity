@@ -1,13 +1,7 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 프로젝트 공용 로그 시스템입니다.
  * Unity Debug 로그를 확장하여 일관된 로그 포맷을 제공합니다.
- *
- * 특징 ::
- * 로그 레벨 관리
- * 색상 로그 출력
- * 로그 큐 저장
- * GameObject 연결 로그
  * =========================================================
  */
 #endif
@@ -24,6 +18,10 @@ namespace HUtil.Logger {
     public class HLogger {
         #region Const
         const int MAX_QUE_SIZE = 1000;
+        #endregion
+
+        #region Event
+        public static event Action<LogEntry> OnLogPublished;
         #endregion
 
         #region Nested Class
@@ -66,9 +64,9 @@ namespace HUtil.Logger {
 
             private static string _GetLevelColor(LogLevel level) {
                 switch (level) {
-                case LogLevel.Log: return "#7ED957"; // Light Green
-                case LogLevel.Warn: return "#FFD54F"; // Yellow
-                case LogLevel.Error: return "#FF5252"; // Red
+                case LogLevel.Log: return "#7ED957";
+                case LogLevel.Warn: return "#FFD54F";
+                case LogLevel.Error: return "#FF5252";
                 default: return "#7ED957";
                 }
             }
@@ -87,58 +85,51 @@ namespace HUtil.Logger {
 
         #region Public - Call Logger
         public static void Log(string message, GameObject target = null, bool popupActivate = false) {
-#if !UNITY_EDITOR
-            _Enqueue(new LogEntry(LogLevel.Log, _UtcNow, message, "", target ? target.GetInstanceID() : null));
-#endif
+            LogEntry entry = new(LogLevel.Log, _UtcNow, message, "", target ? target.GetInstanceID() : null);
+            _Publish(entry);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            _ConsoleLog(LogLevel.Log, message, "", target);
+            _ConsoleLog(entry, target);
 #endif
 
             if (popupActivate) {
                 // TODO :: Connect with local PopupManager
-                //PopupManager.Instance.AddAlert("Log", message);
             }
         }
 
         public static void Warning(string message, GameObject target = null, bool popupActivate = false) {
-#if !UNITY_EDITOR
-            _Enqueue(new LogEntry(LogLevel.Warn, _UtcNow, message, "", target ? target.GetInstanceID() : null));
-#endif
+            LogEntry entry = new(LogLevel.Warn, _UtcNow, message, "", target ? target.GetInstanceID() : null);
+            _Publish(entry);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            _ConsoleLog(LogLevel.Warn, message, "", target);
+            _ConsoleLog(entry, target);
 #endif
 
             if (popupActivate) {
                 // TODO :: Connect with local PopupManager
-                //PopupManager.Instance.AddAlert("Warning", message);
             }
         }
 
         public static void Error(string message, GameObject target = null, bool showPopup = false, string debug = "") {
-#if !UNITY_EDITOR
-            _Enqueue(new LogEntry(LogLevel.Error, _UtcNow, message, debug, target ? target.GetInstanceID() : null));
-#endif
+            LogEntry entry = new(LogLevel.Error, _UtcNow, message, debug, target ? target.GetInstanceID() : null);
+            _Publish(entry);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            _ConsoleLog(LogLevel.Error, message, debug, target);
+            _ConsoleLog(entry, target);
 #endif
 
             if (showPopup) {
-                //PopupManager.Instance.AddAlert("Error", message);
+                // TODO :: Connect with local PopupManager
             }
         }
 
         public static void Exception(Exception ex, string extra = "") {
             string msg = string.IsNullOrEmpty(extra) ? ex.ToString() : $"{extra}\n{ex}";
-
-#if !UNITY_EDITOR
-            _Enqueue(new LogEntry(LogLevel.Error, _UtcNow, msg, "", null));
-#endif
+            LogEntry entry = new(LogLevel.Error, _UtcNow, msg, "", null);
+            _Publish(entry);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            _ConsoleLog(LogLevel.Error, msg, "", null);
+            _ConsoleLog(entry, null);
 #endif
         }
 
@@ -152,71 +143,43 @@ namespace HUtil.Logger {
             if (condition) return;
             Debug.Assert(false, message, target);
         }
-        #endregion
 
         public static void SendLogsToServer() {
             // TODO :: Implement server communication to send logs
         }
+        #endregion
 
+        #region Private
+        private static void _Publish(LogEntry entry) {
 #if !UNITY_EDITOR
-        private static void _Enqueue(LogEntry entry) {
             logQue.Enqueue(entry);
             if (logQue.Count > MAX_QUE_SIZE) logQue.Dequeue();
-        }
 #endif
+            OnLogPublished?.Invoke(entry);
+        }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        #region Private - Print Log
-        private static void _ConsoleLog(LogLevel level, string message, string debug, GameObject target) {
-            string formatted = new LogEntry(level, _UtcNow, message, debug, target ? target.GetInstanceID() : null).ToConsoleString();
+        private static void _ConsoleLog(LogEntry entry, GameObject target) {
+            string formatted = entry.ToConsoleString();
 
-            if (level == LogLevel.Log) {
-                if (target == null)
-                    Debug.Log(formatted);
-                else
-                    Debug.Log(formatted, target);
+            if (entry.Level == LogLevel.Log) {
+                if (target == null) Debug.Log(formatted);
+                else Debug.Log(formatted, target);
                 return;
             }
-            else if (level == LogLevel.Warn) {
-                if (target == null)
-                    Debug.LogWarning(formatted);
-                else
-                    Debug.LogWarning(formatted, target);
+
+            if (entry.Level == LogLevel.Warn) {
+                if (target == null) Debug.LogWarning(formatted);
+                else Debug.LogWarning(formatted, target);
                 return;
             }
-            else if (level == LogLevel.Error) {
-                if (target == null)
-                    Debug.LogError(formatted);
-                else
-                    Debug.LogError(formatted, target);
+
+            if (entry.Level == LogLevel.Error) {
+                if (target == null) Debug.LogError(formatted);
+                else Debug.LogError(formatted, target);
             }
         }
-        #endregion
 #endif
+        #endregion
     }
 }
-
-#if UNITY_EDITOR
-/* Dev Log
- * @Jason - PKH 15.02.26
- * 로그 메시지에 색상 추가
- * =========================================================
- * @Jason - PKH
- *
- * 주요 기능 ::
- * Log
- * Warning
- * Error
- * Exception
- * Assert
- * SendLogsToServer
- *
- * 사용법 ::
- * HLogger.Log("message");
- * HLogger.Error("error");
- *
- * 기타 ::
- * HDebug 및 프로젝트 전반의 로그 시스템 기반입니다.
- * =========================================================
- */
-#endif
