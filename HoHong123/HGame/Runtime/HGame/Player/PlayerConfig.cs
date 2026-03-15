@@ -9,7 +9,7 @@ namespace HGame.Player {
     [Serializable]
     [CreateAssetMenu(
         fileName = "PlayerConfig",
-        menuName = "Game/Player/Config")]
+        menuName = "HCUP/Player/Config")]
     public class PlayerConfig : BaseCharacterConfig {
         [Title("Leveling")]
         [SerializeField]
@@ -49,7 +49,7 @@ namespace HGame.Player {
             var mul = Mathf.Pow(expMultiplier, Mathf.Max(0, level - 1));
             return Mathf.Ceil(baseExp * mul);
         }
-
+         
         public int RollBaseDamage() {
             return Random.Range(minDamage, maxDamage);
         }

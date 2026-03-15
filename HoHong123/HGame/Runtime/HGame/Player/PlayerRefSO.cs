@@ -6,7 +6,7 @@ namespace HGame.Player {
     [Serializable]
     [CreateAssetMenu(
         fileName = "PlayerRef", 
-        menuName = "Game/Player/Reference",
+        menuName = "HCUP/Player/Reference",
         order = 0)]
     public sealed class PlayerRefSO : ScriptableObject {
         PlayerStatus reference = null;
@@ -15,7 +15,7 @@ namespace HGame.Player {
         public IPlayerCommand Command { get; private set; }
 
         public void Set(PlayerStatus status) {
-            if (!status) return;
+            if (status == null) return;
             HDebug.StackTraceLog("Set Player Status");
             reference = status;
             ReadOnly = status;

@@ -4,7 +4,7 @@ using HGame.Character;
 
 namespace HGame.Player {
     // 플레이어 스탯 상태 소유 크래스
-    public sealed class PlayerStatus : MonoBehaviour, IPlayerReadOnly, IPlayerCommand {
+    public sealed class PlayerStatus : IPlayerReadOnly, IPlayerCommand {
         PlayerConfig config = null;
 
         public int Level { get; private set; } = 1;
