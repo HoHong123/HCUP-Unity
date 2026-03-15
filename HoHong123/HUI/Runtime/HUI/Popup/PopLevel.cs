@@ -1,6 +1,8 @@
-public enum PopLevel : int {
-    Log = 0,
-    Warning,
-    Alert,
-    Fatal,
+namespace HUI.Popup {
+    public enum PopLevel : int {
+        Log = 0,
+        Warning,
+        Alert,
+        Fatal,
+    }
 }

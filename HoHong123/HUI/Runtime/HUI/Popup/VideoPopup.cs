@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.Popup {
+namespace HUI.Popup {
     public class VideoPopup : BasePopupUi {
         [Title("Video")]
         [SerializeField]
