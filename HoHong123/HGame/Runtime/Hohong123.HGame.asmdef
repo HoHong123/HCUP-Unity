@@ -3,7 +3,6 @@
     "rootNamespace": "HGame",
     "references": [
         "UniTask",
-        "Unity.TextMeshPro",
         "Hohong123.HUtil",
         "Hohong123.HUI"
     ],
