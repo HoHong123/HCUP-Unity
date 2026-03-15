@@ -1,9 +1,24 @@
+﻿#if UNITY_EDITOR
+/* =========================================================
+ * 이 스크립트는 드롭다운 항목 유닛의 기본 베이스 클래스입니다.
+ * 드롭다운에서 공통적으로 필요한 UID, Toggle, 선택 콜백 참조를 보관하며,
+ * IDropUnit을 구현하는 가장 단순한 기본 구조를 제공합니다.
+ *
+ * 주의사항 ::
+ * 1. 이 스크립트는 Toggle 기반 드롭다운 유닛 구조를 전제로 합니다.
+ * 2. unitTg는 정상 동작을 위해 반드시 연결되어 있어야 합니다.
+ * 3. 이 클래스는 바로 사용할 수 있는 기본형이지만, 실제 프로젝트에서는 전용 파생 클래스로 확장하는 것을 권장합니다.
+ * 4. IDropUnit 규격이 변경되면 이 클래스도 함께 수정되어야 합니다.
+ * =========================================================
+ */
+#endif
+
 using System;
 using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.Drop {
+namespace HUI.Dropdown {
     [Serializable]
     public class BaseDropUnit : MonoBehaviour, IDropUnit {
         [Title("Information")]
@@ -14,10 +29,14 @@ namespace HUtil.UI.Drop {
 
         public int UID => uid;
         public Toggle Toggle => unitTg;
-        public Action<int> OnSelect { get; protected set; }
+
+        public event Action<int> OnSelect;
+
+        public void RunSelectEvent() {
+            OnSelect?.Invoke(uid);
+        }
     }
 }
-
 
 #if UNITY_EDITOR
 /* Dev Log

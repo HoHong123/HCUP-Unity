@@ -1,8 +1,8 @@
-using System;
-using UnityEngine.UI;
+﻿using UnityEngine.UI;
 
-public interface IDropUnit {
-    public int UID { get; }
-    public Toggle Toggle { get; }
-    public Action<int> OnSelect { get; }
+namespace HUI.Dropdown {
+    public interface IDropUnit {
+        public int UID { get; }
+        public Toggle Toggle { get; }
+    }
 }
