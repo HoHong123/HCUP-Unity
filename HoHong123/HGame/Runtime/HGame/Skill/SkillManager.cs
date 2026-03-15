@@ -9,7 +9,7 @@ using HGame.Player;
 namespace HGame.Skill {
     public sealed class SkillManager : HUtil.Core.SingletonBehaviour<SkillManager> {
         [Title("Player")]
-        [SerializeField][Required]
+        [SerializeField, Required]
         PlayerRefSO playerRef;
 
         [Title("Skill")]
@@ -98,14 +98,14 @@ namespace HGame.Skill {
         private async UniTask<int> _ShowChoicesAsync(List<SkillOffer> offers) {
             // UI를 통해 스킬 선택
             //int picked = await ui.SkillSelect.ShowAsync(offers);
-            int picked = 0;
+            int picked = -1;
             return picked; // -1 이면 취소로 간주 가능
         }
 
         private async UniTaskVoid _ProcessLevelUpQueueAsync() {
             processingQueue = true;
             // 게임 일시정지
-            //await MaGameManager.Instance.GamePauseAsync();
+            //await Game.Instance.GamePauseAsync();
 
             try {
                 while (pendingLevelUps > 0) {
@@ -116,7 +116,7 @@ namespace HGame.Skill {
             }
             finally {
                 // 게임 재개
-                //await MaGameManager.Instance.GameRunAsync();
+                //await Game.Instance.GameRunAsync();
                 processingQueue = false;
             }
         }

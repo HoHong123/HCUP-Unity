@@ -5,7 +5,7 @@ using Sirenix.OdinInspector;
 namespace HGame.Skill {
     [CreateAssetMenu(
         fileName = "SkillCatalog",
-        menuName = "Game/Skill/Catalog",
+        menuName = "HCUP/Skill/Catalog",
         order = 0)]
     public class SkillCatalogSO : ScriptableObject {
         [Title("Skills")]
