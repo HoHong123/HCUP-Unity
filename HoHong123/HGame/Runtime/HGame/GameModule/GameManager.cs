@@ -5,8 +5,9 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 
 namespace HGame.Flow {
-    public class GameManager<TSelf> : HUtil.Core.SingletonBehaviour<TSelf>
-    where TSelf : GameManager<TSelf> {
+    public class GameManager<TSelf>:
+        HUtil.Core.SingletonBehaviour<TSelf>
+        where TSelf : GameManager<TSelf> {
         [Title("Flow")]
         [SerializeField]
         protected bool autoPrepareOnEnable = true;
@@ -45,6 +46,7 @@ namespace HGame.Flow {
         public virtual UniTask GameRunAsync() => SwitchGamePhaseAsync(GamePhaseType.Running);
         public virtual UniTask GameOverAsync() => SwitchGamePhaseAsync(GamePhaseType.Over);
         public virtual UniTask GamePauseAsync() => SwitchGamePhaseAsync(GamePhaseType.Pause);
+        public virtual UniTask GameExitAsync() => SwitchGamePhaseAsync(GamePhaseType.Exit);
 
 
         protected async UniTask SwitchGamePhaseAsync(GamePhaseType phase) {
@@ -71,6 +73,9 @@ namespace HGame.Flow {
                 break;
             case GamePhaseType.Over:
                 foreach (var m in modules) await m.OnEnterOver(context, ct);
+                break;
+            case GamePhaseType.Exit:
+                foreach (var m in modules) await m.OnEnterExit(context, ct);
                 break;
             }
         }

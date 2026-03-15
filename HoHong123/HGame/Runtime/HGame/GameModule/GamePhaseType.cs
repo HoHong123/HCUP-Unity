@@ -4,5 +4,6 @@ public enum GamePhaseType {
     Start,
     Running,
     Pause,
-    Over
+    Over,
+    Exit
 }
