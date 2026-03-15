@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
-using Unity.VisualScripting;
 
-namespace HUtil.UI.ScrollView {
+namespace HUI.ScrollView {
     [Serializable]
     public class VlgRecycleView<TCellView, TCellData> : BaseRecycleView<TCellView, TCellData>, IRecycleView
         where TCellData : BaseRecycleCellData
@@ -38,9 +37,13 @@ namespace HUtil.UI.ScrollView {
         }
 
 
-        public override void SetData(List<TCellData> data) {
+        public override void SetData(
+            IEnumerable<TCellData> data,
+            int initSize = 0,
+            Action<TCellView> onCreate = null, Action<TCellView> onGet = null,
+            Action<TCellView> onReturn = null, Action<TCellView> onDispose = null) {
             _InitTubesIfNeeded();
-            base.SetData(data);
+            base.SetData(data, initSize);
             ScrollToIndex(0, false);
         }
 
@@ -76,7 +79,7 @@ namespace HUtil.UI.ScrollView {
                 RecycleInvisibleItems(0, Count - 1);
                 for (int i = 0; i < Count; i++) {
                     if (!activeItems.ContainsKey(i)) {
-                        _CreateCell(i);
+                        CreateCell(i);
                     }
                 }
 
@@ -99,7 +102,7 @@ namespace HUtil.UI.ScrollView {
             for (int k = start; k <= end; k++) {
                 if (k >= Count) continue;
                 if (!activeItems.ContainsKey(k)) {
-                    _CreateCell(k);
+                    CreateCell(k);
                 }
             }
 
@@ -126,7 +129,7 @@ namespace HUtil.UI.ScrollView {
             }
         }
 
-        private void _CreateCell(int index) {
+        protected override void CreateCell(int index) {
             var cell = itemPool.Get();
             var layout = cell.GetComponent<LayoutElement>();
             if (layout == null) layout = cell.gameObject.AddComponent<LayoutElement>();
