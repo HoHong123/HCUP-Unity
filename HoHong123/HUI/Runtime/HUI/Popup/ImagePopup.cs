@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.Popup {
+namespace HUI.Popup {
     public class ImagePopup : BasePopupUi {
         [Title("Viewport")]
         [SerializeField]

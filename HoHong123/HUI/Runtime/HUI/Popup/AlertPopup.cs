@@ -1,11 +1,9 @@
 using UnityEngine;
 using TMPro;
 using Sirenix.OdinInspector;
-using PoolDispose = HUtil.Pooling.IPoolDispose<HUtil.UI.Popup.AlertPopup>;
-using PoolReturn = HUtil.Pooling.IPoolReturn<HUtil.UI.Popup.AlertPopup>;
 
-namespace HUtil.UI.Popup {
-    public class AlertPopup : BasePopupUi, PoolReturn, PoolDispose {
+namespace HUI.Popup {
+    public class AlertPopup : BasePopupUi {
         [Title("Texts")]
         [SerializeField]
         TMP_Text titleTxt;

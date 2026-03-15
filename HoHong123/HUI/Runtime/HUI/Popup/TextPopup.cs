@@ -1,13 +1,11 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Sirenix.OdinInspector;
-using PoolDispose = HUtil.Pooling.IPoolDispose<HUtil.UI.Popup.TextPopup>;
-using PoolReturn = HUtil.Pooling.IPoolReturn<HUtil.UI.Popup.TextPopup>;
 
-namespace HUtil.UI.Popup {
-    public class TextPopup : BasePopupUi, PoolReturn, PoolDispose {
+namespace HUI.Popup {
+    public class TextPopup : BasePopupUi {
         [Title("Texts")]
         [SerializeField]
         TMP_Text titleTxt;
@@ -21,6 +19,12 @@ namespace HUtil.UI.Popup {
         Image bodyBgImg;
         [SerializeField]
         Button okBtn;
+        [SerializeField]
+        TMP_Text okTxt;
+        [SerializeField]
+        TMP_Text cancelTxt;
+
+        Action lastCancelEvent = null;
 
         public event Action OnClickOk;
 
@@ -32,24 +36,35 @@ namespace HUtil.UI.Popup {
 
         protected override void Start() {
             base.Start();
+            OnClickCancel += _OnCancelEvent;
             okBtn.onClick.AddListener(() => OnClickOk?.Invoke());
         }
 
-        public void SetText(string title, string message, Action triggerEvent = null) {
+        public void SetText(
+            string title, string message,
+            Action okEvent = null, Action cancelEvent = null,
+            string okBtnTxt = null, string cancelBtnTxt = null) {
             titleTxt.text = title;
             bodyTxt.text = message;
-            OnClickOk = triggerEvent;
-            okBtn.gameObject.SetActive((triggerEvent != null));
+
+            OnClickOk = null;
+            OnClickOk = okEvent;
+
+            var isOkActive = (okEvent != null);
+            okBtn.gameObject.SetActive(isOkActive);
+            if (isOkActive) okTxt.text = okBtnTxt ?? "확인";
+
+            cancelTxt.text = cancelBtnTxt ?? "닫기";
+
+            lastCancelEvent = cancelEvent;
         }
 
-
-        public void OnReturn(TextPopup mono) {
-            mono.titleTxt.text = string.Empty;
-            mono.bodyTxt.text = string.Empty;
-        }
-
-        public void OnDispose(TextPopup mono) {
-            Destroy(mono.panel);
+        private void _OnCancelEvent() {
+            if (lastCancelEvent != null) {
+                var action = lastCancelEvent;
+                lastCancelEvent = null;
+                action.Invoke();
+            }
         }
     }
 }
