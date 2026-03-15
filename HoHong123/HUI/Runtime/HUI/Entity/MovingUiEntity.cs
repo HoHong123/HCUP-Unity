@@ -1,10 +1,9 @@
-using System;
+﻿using System;
 using UnityEngine;
 using Sirenix.OdinInspector;
 using DG.Tweening;
 
-
-namespace HUtil.UI.Entity {
+namespace HUI.Entity {
     [Serializable]
     public class MovingUiEntity {
         [Title("Target")]
@@ -36,19 +35,25 @@ namespace HUtil.UI.Entity {
         }
 
 
-        public void Reset() => _Move(originPosition);
-        public void Move() => _Move(UseAbsolutePosition ? absolutePosition : (target.localPosition + moveAmount));
+        public void Reset(bool immediate = false) => _ApplyMove(originPosition, immediate);
+        public void Move(bool immediate = false) => _ApplyMove(UseAbsolutePosition ? absolutePosition : (target.localPosition + moveAmount), immediate);
 
 
-        private void _Move(Vector3 pos) {
-            if (useAnimation) {
-                target.DOKill();
-                target.DOLocalMove(pos, animationDuration);
+        private bool _CanAnimate() {
+            if (!useAnimation) return false;
+            if (target == null) return false;
+            return target.gameObject.activeInHierarchy;
+        }
+
+        private void _ApplyMove(Vector3 pos, bool immediate = false) {
+            target.DOKill();
+
+            if (_CanAnimate() && !immediate) {
+                target.DOLocalMove(pos, animationDuration).SetUpdate(true);
+                return;
             }
-            else {
-                target.localPosition = pos;
-            }
+
+            target.localPosition = pos;
         }
     }
-
 }
