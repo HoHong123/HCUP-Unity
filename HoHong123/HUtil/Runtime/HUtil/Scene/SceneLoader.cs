@@ -1,12 +1,12 @@
-#if UNITY_EDITOR
+ï»¿#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * ¾À ÀüÈ¯ Àü¿ª ½ºÅ©¸³Æ® ÀÔ´Ï´Ù.
+ * ìœ ë‹ˆí‹° ì”¬ ì „í™˜ ì»¤ìŠ¤í…€ ìŠ¤í¬ë¦½íŠ¸ì…ë‹ˆë‹¤.
  * 
- * ** »ç¿ë¹ı **
- * 1. Àü¿ª ÇÔ¼ö¸¦ ÅëÇØ ºñµ¿±â ¾À ·Îµå¸¦ ÁøÇàÇÕ´Ï´Ù.
- * 2. ÇÊ¿ä¿¡ µû¶ó ºñµ¿±â ÇÔ¼ö ÁøÇà Áß ÁøÇà»óÈ²¿¡ ÀÌº¥Æ®¸¦ Ã³¸®ÇÕ´Ï´Ù.
- * 3. °¢ ¾À ÀüÈ¯ ÀÌº¥Æ®°¡ ³¡³¯¶§ ÇÊ¿äÇÑ ÀÌº¥Æ®¸¦ ´ë¸®ÀÚ¿¡ µî·ÏÇÒ ¼ö ÀÖ½À´Ï´Ù.
+ * 1. ë¹„ë™ê¸° ë¡œë“œ/ì œê±°/ì¬ë¡œë”© ì‹œìŠ¤í…œ ì œê³µ
+ * 2. ê° ì”¬ë¡œë“œ/ì–¸ë¡œë“œ ì‹œí€€ìŠ¤ì— ì´ˆê¸°í™”/ì†Œë©¸ ë‹¨ê³„ ì•¡ì…˜ì²˜ë¦¬ë¥¼ ì œê³µ
+ * 3. í•„ìš”ì— ë”°ë¼, ë¡œë”©ì”¬ í˜¸ì¶œ
+ * + ë¡œë”©ì”¬ ì¢…ë£Œ ì—¬ë¶€ëŠ” ëª©í‘œ ì”¬ í˜¸ì¶œ í›„, í•´ë‹¹ ì”¬ ì´ˆê¸°í™”ê°€ ëë‚˜ëŠ” ì‹œì ì„ ê°œë°œìê°€ ê²°ì •í•˜ì—¬ ì¢…ë£Œí•´ì•¼ í•©ë‹ˆë‹¤.
  * =========================================================
  */
 #endif
@@ -14,37 +14,149 @@
 using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
 using HUtil.Logger;
 
 namespace HUtil.Scene {
     public static class SceneLoader {
+        #region Nested
+        private static class SceneLoaderCore {
+            public static async UniTask LoadSceneAsync(
+                string sceneName,
+                LoadSceneMode mode,
+                Action<float> onProgress,
+                Action onComplete,
+                string loadingScene) {
+                if (!string.IsNullOrEmpty(loadingScene) && mode == LoadSceneMode.Single)
+                    await SceneManager.LoadSceneAsync(loadingScene);
+
+                var asyncOp = SceneManager.LoadSceneAsync(sceneName, mode);
+                asyncOp.allowSceneActivation = false;
+
+                while (asyncOp.progress < 0.9f) {
+                    onProgress?.Invoke(asyncOp.progress);
+                    await UniTask.Yield();
+                }
+
+                onProgress?.Invoke(1f);
+                asyncOp.allowSceneActivation = true;
+
+                await asyncOp.ToUniTask();
+                onComplete?.Invoke();
+            }
+
+            public static async UniTask<bool> UnloadSceneAsync(
+                string sceneName,
+                Action<float> onProgress,
+                Action onComplete) {
+                if (!SceneManager.GetSceneByName(sceneName).isLoaded) {
+                    HLogger.Error($"[SceneLoader] Scene '{sceneName}' is not loaded.");
+                    return false;
+                }
+
+                var unloadOp = SceneManager.UnloadSceneAsync(sceneName);
+
+                while (!unloadOp.isDone) {
+                    onProgress?.Invoke(unloadOp.progress);
+                    await UniTask.Yield();
+                }
+
+                onComplete?.Invoke();
+                return true;
+            }
+        }
+        #endregion
+
+        #region Fields
+        #region Scene Catalog
+        static bool isInitialized;
+        static SceneCatalogSO baseCatalog;
+        static SceneCatalogSO overrideCatalog;
+
+        public static bool IsInitialized => isInitialized;
+        public static SceneCatalogSO BaseCatalog => baseCatalog;
+        public static SceneCatalogSO OverrideCatalog => overrideCatalog;
+        #endregion
+
+        #region Clean Up Events
         public static event Action OnSceneLoaded;
         public static event Action OnSceneUnloaded;
+        #endregion
 
+        #region Loading Progress
+        public static float LoadProgress { get; private set; }
+        #endregion
+        #endregion
+
+        #region Init
+        public static void Initialize(SceneCatalogSO baseRef, SceneCatalogSO overrideRef = null) {
+            Assert.IsFalse(isInitialized, "[SceneLoader] Initialize() must be called only once per play session.");
+            Assert.IsNotNull(baseRef, "[SceneLoader] baseRef must not be null.");
+            if (isInitialized == true) return;
+            baseCatalog = baseRef;
+            overrideCatalog = overrideRef;
+            isInitialized = true;
+        }
+
+        public static void SetOverrideCatalog(SceneCatalogSO overrideRef) {
+            overrideCatalog = overrideRef;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void _ResetStatics() {
+            baseCatalog = null;
+            overrideCatalog = null;
+            isInitialized = false;
+        }
+        #endregion
+
+        #region Scene Key API
+        public static UniTask LoadSceneAsync(
+            SceneKey key,
+            LoadSceneMode mode = LoadSceneMode.Single,
+            Action<float> onProgress = null,
+            Action onComplete = null,
+            SceneKey? loadingKey = null) {
+            var sceneName = _ResolveSceneName(key);
+            var loadingSceneName = loadingKey.HasValue ? _ResolveSceneName(loadingKey.Value) : null;
+            return LoadSceneAsync(sceneName, mode, onProgress, onComplete, loadingSceneName);
+        }
+
+        public static UniTask UnloadSceneAsync(
+            SceneKey key,
+            Action<float> onProgress = null,
+            Action onComplete = null) {
+            var sceneName = _ResolveSceneName(key);
+            return UnloadSceneAsync(sceneName, onProgress, onComplete);
+        }
+
+        public static UniTask ReloadActiveSceneAsync(
+            Action<float> onProgress = null,
+            Action onComplete = null,
+            SceneKey? loadingKey = null) {
+            var loadingSceneName = loadingKey.HasValue ? _ResolveSceneName(loadingKey.Value) : null;
+            return ReloadActiveSceneAsync(onProgress, onComplete, loadingSceneName);
+        }
+        #endregion
+
+        #region String API
         public static async UniTask LoadSceneAsync(
             string sceneName,
             LoadSceneMode mode = LoadSceneMode.Single,
             Action<float> onProgress = null,
             Action onComplete = null,
             string loadingScene = null) {
-            if (!string.IsNullOrEmpty(loadingScene) && mode == LoadSceneMode.Single) {
-                await SceneManager.LoadSceneAsync(loadingScene);
-            }
+            await SceneLoaderCore.LoadSceneAsync(
+                sceneName,
+                mode,
+                progress => {
+                    LoadProgress = progress;
+                    onProgress?.Invoke(progress);
+                },
+                onComplete,
+                loadingScene);
 
-            var asyncOp = SceneManager.LoadSceneAsync(sceneName, mode);
-            asyncOp.allowSceneActivation = false;
-
-            while (asyncOp.progress < 0.9f) {
-                onProgress?.Invoke(asyncOp.progress);
-                await UniTask.Yield();
-            }
-
-            onProgress?.Invoke(1f);
-            asyncOp.allowSceneActivation = true;
-
-            await asyncOp.ToUniTask();
-            onComplete?.Invoke();
             OnSceneLoaded?.Invoke();
         }
 
@@ -52,29 +164,34 @@ namespace HUtil.Scene {
             string sceneName,
             Action<float> onProgress = null,
             Action onComplete = null) {
-            if (!SceneManager.GetSceneByName(sceneName).isLoaded) {
-                HLogger.Warning($"Scene '{sceneName}' is not loaded.");
-                return;
-            }
-
-            var unloadOp = SceneManager.UnloadSceneAsync(sceneName);
-
-            while (!unloadOp.isDone) {
-                onProgress?.Invoke(unloadOp.progress);
-                await UniTask.Yield();
-            }
-
-            onComplete?.Invoke();
-            OnSceneUnloaded?.Invoke();
+            var success = await SceneLoaderCore.UnloadSceneAsync(sceneName, onProgress, onComplete);
+            if (success) OnSceneUnloaded?.Invoke();
         }
 
         public static UniTask ReloadActiveSceneAsync(
             Action<float> onProgress = null,
             Action onComplete = null,
             string loadingScene = null) {
-            if (Time.timeScale == 0f) Time.timeScale = 1f;
+            if (Time.timeScale < 1f) Time.timeScale = 1f;
             var active = SceneManager.GetActiveScene().name;
             return LoadSceneAsync(active, LoadSceneMode.Single, onProgress, onComplete, loadingScene);
         }
+        #endregion
+
+        #region Private
+        private static string _ResolveSceneName(SceneKey key) {
+            // í”„ë¡œì íŠ¸ í‘œì¤€ API(SceneKey)ë¥¼ ì“°ë ¤ë©´, BaseCatalogëŠ” "ë°˜ë“œì‹œ" ìˆì–´ì•¼ ì •ìƒ í”Œë¡œìš°ê°€ ì„±ë¦½í•¨.
+            Assert.IsNotNull(BaseCatalog, "[SceneLoader] BaseCatalog must be assigned before using SceneKey APIs.");
+
+            if (OverrideCatalog != null && OverrideCatalog.TryResolve(key, out var overrideName))
+                return overrideName;
+
+            if (BaseCatalog.TryResolve(key, out var baseName))
+                return baseName;
+
+            Assert.IsTrue(false, $"[SceneLoader] SceneKey '{key}' is not mapped in catalogs.");
+            return null;
+        }
+        #endregion
     }
 }
