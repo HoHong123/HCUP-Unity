@@ -1,7 +1,7 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using HUtil.Inspector;
 using HGame.Player;
 
@@ -51,6 +51,8 @@ namespace HGame.Sample.Player {
         TMP_Text healAmountTxt;
         [SerializeField]
         TMP_Text eventFeedTxt;
+        [SerializeField]
+        ScrollRect feedScroll;
 
         [HTitle("Presentation Control")]
         [SerializeField]
@@ -66,7 +68,6 @@ namespace HGame.Sample.Player {
         Coroutine ultDamageRoutine;
         Coroutine hitDamageRoutine;
         Coroutine healAmountRoutine;
-        Coroutine eventFeedRoutine;
         #endregion
 
         #region Properties
@@ -98,7 +99,6 @@ namespace HGame.Sample.Player {
         #region Unity Life Cycle
         private void Awake() {
             if (!_ValidateReferences()) return;
-
             _InitializePlayer();
             _InitializeUi();
         }
@@ -234,10 +234,8 @@ namespace HGame.Sample.Player {
         }
 
         private void _ShowEvent(string message) {
-            _SetText(eventFeedTxt, message);
-
-            if (eventFeedRoutine != null) StopCoroutine(eventFeedRoutine);
-            eventFeedRoutine = StartCoroutine(_CoClearEventText());
+            eventFeedTxt.text += $"{message}\n";
+            feedScroll.verticalNormalizedPosition = 0f;
         }
 
         private IEnumerator _CoShowTempText(TMP_Text target, string message) {
@@ -250,12 +248,6 @@ namespace HGame.Sample.Player {
 
             target.text = string.Empty;
             target.gameObject.SetActive(false);
-        }
-
-        private IEnumerator _CoClearEventText() {
-            yield return new WaitForSeconds(eventMessageDuration);
-            _SetText(eventFeedTxt, string.Empty);
-            eventFeedRoutine = null;
         }
 
         private void _PlayTempText(ref Coroutine cache, TMP_Text target, string message) {
@@ -275,8 +267,6 @@ namespace HGame.Sample.Player {
 
         private bool _ValidateReferences() {
             if (config != null && playerRef != null) return true;
-
-            Debug.LogError($"[{nameof(DemoPlayerManager)}] PlayerConfig / PlayerRefSO는 반드시 연결되어야 합니다.", this);
             enabled = false;
             return false;
         }
@@ -285,7 +275,7 @@ namespace HGame.Sample.Player {
         #region Player Events
         private void _OnLevelUp(int level) {
             _RefreshExpUi(level, playerStatus.Exp, playerStatus.ExpToNext);
-            _ShowEvent($"레벨업! Lv.{level}");
+            _ShowEvent($"<color=#4DA3FF>레벨업! Lv.{level}</color>");
         }
 
         private void _OnExpChanged(float exp, float nextExp) {
@@ -298,12 +288,12 @@ namespace HGame.Sample.Player {
 
         private void _OnDamage(int damage) {
             _PlayTempText(ref hitDamageRoutine, hitDamageTxt, $"-{damage}");
-            _ShowEvent($"피격: {damage}");
+            _ShowEvent($"<color=#EF6F6C>피격: {damage}</color>");
         }
 
         private void _OnHeal(int heal) {
             _PlayTempText(ref healAmountRoutine, healAmountTxt, $"+{heal}");
-            _ShowEvent($"회복: {heal}");
+            _ShowEvent($"<color=#3ED9A0>회복: {heal}</color>");
         }
 
         private void _OnAttack() {
@@ -312,7 +302,7 @@ namespace HGame.Sample.Player {
 
             int damage = _RollDamage();
             _PlayTempText(ref attackDamageRoutine, attackDamageTxt, $"ATK {damage}");
-            _ShowEvent($"공격 데미지: {damage}");
+            _ShowEvent($"<color=#FFD166>공격 데미지: {damage}</color>");
         }
 
         private void _OnUlt() {
@@ -321,41 +311,65 @@ namespace HGame.Sample.Player {
 
             int damage = Mathf.RoundToInt(_RollDamage() * 2.5f);
             _PlayTempText(ref ultDamageRoutine, ultDamageTxt, $"ULT {damage}");
-            _ShowEvent($"궁극기 데미지: {damage}");
+            _ShowEvent($"<color=#F4A261>궁극기 데미지: {damage}</color>");
         }
 
         private void _OnDeath() {
-            _ShowEvent("플레이어 사망");
+            _ShowEvent("<color=#B388EB>플레이어 사망</color>");
         }
         #endregion
 
 #if UNITY_EDITOR
         #region Debug
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.Title("Debug")]
+#endif
+
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.Button("[Debug] Gain 50 Exp")]
+#else
         [ContextMenu("[Debug] Gain 50 Exp")]
+#endif
         private void _DebugGainExp50() {
             DebugGainExp(50f);
         }
 
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.Button("[Debug] Take 10 Damage")]
+#else
         [ContextMenu("[Debug] Take 10 Damage")]
+#endif
         private void _DebugTakeDamage10() {
             DebugTakeDamage(10);
         }
 
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.Button("[Debug] Heal 10")]
+#else
         [ContextMenu("[Debug] Heal 10")]
+#endif
         private void _DebugHeal10() {
             DebugHeal(10);
         }
 
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.Button("[Debug] Attack")]
+#else
         [ContextMenu("[Debug] Attack")]
+#endif
         private void _DebugAttack() {
             DebugAttack();
         }
 
+#if ODIN_INSPECTOR
+        [Sirenix.OdinInspector.Button("[Debug] Ult")]
+#else
         [ContextMenu("[Debug] Ult")]
+#endif
         private void _DebugUlt() {
             DebugUlt();
         }
-        #endregion
+#endregion
 #endif
     }
 }
