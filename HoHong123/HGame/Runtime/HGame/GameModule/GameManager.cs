@@ -73,7 +73,7 @@ namespace HGame.Flow {
                 foreach (var m in modules) await m.OnEnterPause(context, ct);
                 break;
             case GamePhaseType.Resume:
-                foreach (var m in modules) await m.OnEnterPause(context, ct);
+                foreach (var m in modules) await m.OnEnterResume(context, ct);
                 break;
             case GamePhaseType.Over:
                 foreach (var m in modules) await m.OnEnterOver(context, ct);

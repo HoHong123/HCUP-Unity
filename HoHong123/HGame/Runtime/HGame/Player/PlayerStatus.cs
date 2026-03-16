@@ -3,7 +3,7 @@ using UnityEngine;
 using HGame.Character;
 
 namespace HGame.Player {
-    // ÇÃ·¹ÀÌ¾î ½ºÅÈ »óÅÂ ¼ÒÀ¯ Å©·¡½º
+    // í”Œë ˆì´ì–´ ìŠ¤íƒ¯ ìƒíƒœ ì†Œìœ  í¬ë˜ìŠ¤
     public sealed class PlayerStatus : IPlayerReadOnly, IPlayerCommand {
         PlayerConfig config = null;
 
@@ -57,7 +57,6 @@ namespace HGame.Player {
             OnHpChanged?.Invoke(Hp);
             if (Hp <= 0f) {
                 OnDeath?.Invoke();
-                // GameOver
             }
         }
 

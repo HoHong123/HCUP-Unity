@@ -623,7 +623,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HGame.Flow.Sample.DemoPhaseModule
   order: 3
-  delay: 0
+  delayMiliseconds: 1200
   log: Third Module Call
 --- !u!1 &278364042
 GameObject:
@@ -1079,7 +1079,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HGame.Flow.Sample.DemoPhaseModule
   order: 2
-  delay: 0
+  delayMiliseconds: 800
   log: Second Module Call
 --- !u!1 &589623730
 GameObject:
@@ -2416,7 +2416,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HGame.Flow.Sample.DemoPhaseModule
   order: 1
-  delay: 0
+  delayMiliseconds: 1000
   log: First Module Call
 --- !u!1 &1523806084
 GameObject:
@@ -2745,7 +2745,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -100, y: 0}
+  m_AnchoredPosition: {x: -99.99994, y: 0}
   m_SizeDelta: {x: -200, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1677409407
@@ -2761,13 +2761,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ScrollRect
   m_Content: {fileID: 1699148248}
-  m_Horizontal: 1
+  m_Horizontal: 0
   m_Vertical: 1
   m_MovementType: 1
   m_Elasticity: 0.1
   m_Inertia: 1
   m_DecelerationRate: 0.135
-  m_ScrollSensitivity: 1
+  m_ScrollSensitivity: 40
   m_Viewport: {fileID: 1578677286}
   m_HorizontalScrollbar: {fileID: 0}
   m_VerticalScrollbar: {fileID: 722250913}
@@ -3371,6 +3371,7 @@ MonoBehaviour:
   resumeBtn: {fileID: 1010418996}
   overBtn: {fileID: 808671958}
   exitBtn: {fileID: 745628570}
+  format: '{0}. {1}\n'
   logStack: 1
   logs: []
 --- !u!1 &2142962956
