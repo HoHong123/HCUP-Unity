@@ -29,6 +29,8 @@ namespace HGame.Sample.Module {
         Button exitBtn;
 
         [HTitle("Logs")]
+        [SerializeField]
+        string format;
         [SerializeField, HReadOnly]
         int logStack = 1;
         [SerializeField, HReadOnly]
@@ -51,14 +53,14 @@ namespace HGame.Sample.Module {
 
         public void StackLog(string log) {
             logs.Add(log);
-            log += $"{logStack}. {log}\n";
+            logTxt.text += string.Format(format, logStack++, log);
         }
 
 
         private void _OnClickPrepare() => SwitchGamePhaseAsync(GamePhaseType.Prepare).Forget();
         private void _OnClickStart() => SwitchGamePhaseAsync(GamePhaseType.Start).Forget();
         private void _OnClickRun() => SwitchGamePhaseAsync(GamePhaseType.Running).Forget();
-        private void _OnClickPause() => SwitchGamePhaseAsync(GamePhaseType.Prepare).Forget();
+        private void _OnClickPause() => SwitchGamePhaseAsync(GamePhaseType.Pause).Forget();
         private void _OnClickResume() => SwitchGamePhaseAsync(GamePhaseType.Resume).Forget();
         private void _OnClickOver() => SwitchGamePhaseAsync(GamePhaseType.Over).Forget();
         private void _OnClickExit() => SwitchGamePhaseAsync(GamePhaseType.Exit).Forget();
