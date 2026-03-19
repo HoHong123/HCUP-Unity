@@ -10,6 +10,7 @@ namespace HGame.Sound.Load {
         public struct Entry {
             public int Id;
             public int Dependency;
+            public int OwnerCount;
             public string Token;
 
             public bool IsLoaded;
