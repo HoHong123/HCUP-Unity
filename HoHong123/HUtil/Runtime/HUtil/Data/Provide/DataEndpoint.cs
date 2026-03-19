@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 데이터 로드, 캐시, 중복 요청 방지 및 영속 저장을 통합 관리하는 데이터 엔드포인트 클래스입니다.
  *
@@ -19,10 +19,10 @@ using HUtil.Data.Cache;
 namespace HUtil.Data.Provider {
     public sealed class DataEndpoint<TKey, TData> {
         #region Fields
-        readonly DataLoader<TKey, TData> handler; // 원본 데이터 로더 선택기
-        readonly SharedLoadGate<TKey, TData> loadGate; // 중복 로드 방지 게이트
-        readonly IDataCache<TKey, TData> cacheStore; // 캐시 저장소
-        readonly IDataSave<TKey, TData> dataStore; // (옵션) 영속 저장소
+        readonly DataLoader<TKey, TData> handler;
+        readonly SharedLoadGate<TKey, TData> loadGate;
+        readonly IDataCache<TKey, TData> cacheStore;
+        readonly IDataSave<TKey, TData> dataStore;
         #endregion
 
         #region Public - Construction
@@ -42,7 +42,7 @@ namespace HUtil.Data.Provider {
         }
         #endregion
 
-        #region Public - Get 
+        #region Public - Get
         /// 1. 캐시 우선(useCache=true)
         /// 2. 없으면 원본 로드
         /// 3. 캐시 저장
@@ -52,10 +52,11 @@ namespace HUtil.Data.Provider {
             TKey key,
             DataLoadType loadType,
             bool useCache,
-            bool forceRefresh = false) {
-            if (forceRefresh) return _FetchAndCacheAsync(key, loadType);
-            if (useCache) return _GetCacheOrFetchAsync(key, loadType);
-            return _FetchAndCacheAsync(key, loadType);
+            bool forceRefresh = false,
+            object owner = null) {
+            if (forceRefresh) return _FetchAndCacheAsync(key, loadType, owner);
+            if (useCache) return _GetCacheOrFetchAsync(key, loadType, owner);
+            return _FetchAndCacheAsync(key, loadType, owner);
         }
         #endregion
 
@@ -63,39 +64,46 @@ namespace HUtil.Data.Provider {
         public void RemoveCache(TKey key) => cacheStore.ForceRemove(key);
         #endregion
 
-        #region Public - Clear 
+        #region Public - Clear
         public void ClearCache() => cacheStore.Clear();
         #endregion
 
         #region Private - Fetch
-        private async UniTask<TData> _GetCacheOrFetchAsync(TKey key, DataLoadType loadType) {
-            // 캐시 확인
-            if (cacheStore.TryGet(key, out var cached)) return cached;
-            // 캐시에 없으면 로드
-            return await _FetchAndCacheAsync(key, loadType);
+        private async UniTask<TData> _GetCacheOrFetchAsync(TKey key, DataLoadType loadType, object owner) {
+            if (_TryLoadCache(key, owner, out var cached)) return cached;
+            return await _FetchAndCacheAsync(key, loadType, owner);
         }
 
-        private async UniTask<TData> _FetchAndCacheAsync(TKey key, DataLoadType loadType) {
+        private async UniTask<TData> _FetchAndCacheAsync(TKey key, DataLoadType loadType, object owner) {
             return await loadGate.RunAsync(key, async () => {
-                // 기존 캐시에 있으면 의존성을 높이고 반환
-                if (cacheStore.TryLoad(key, out var cached)) return cached;
+                if (_TryLoadCache(key, owner, out var cached)) return cached;
 
-                // 데이터 게이트 사용
                 var loader = handler.Resolve(loadType);
 #if UNITY_ASSERTIONS
                 UnityEngine.Assertions.Assert.IsNotNull(loader);
 #endif
-                // 데이터 다운로드
                 var data = await loader.LoadAsync(key);
+                _SaveCache(key, data, owner);
 
-                // 캐시 저장
-                cacheStore.Save(key, data);
-                
-                // 추가 저장 로직이 필요하면 실행
                 if (dataStore != null) await dataStore.SaveAsync(key, data);
-
                 return data;
             });
+        }
+        #endregion
+
+        #region Private - Cache
+        private bool _TryLoadCache(TKey key, object owner, out TData data) {
+            if (owner != null) return cacheStore.TryLoad(key, owner, out data);
+            return cacheStore.TryLoad(key, out data);
+        }
+
+        private void _SaveCache(TKey key, TData data, object owner) {
+            if (owner != null) {
+                cacheStore.Save(key, data, owner);
+                return;
+            }
+
+            cacheStore.Save(key, data);
         }
         #endregion
     }
