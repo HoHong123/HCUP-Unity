@@ -36,7 +36,7 @@ namespace HUI.Entity {
 
 
         public void Reset(bool immediate = false) => _ApplyScale(originalScale, immediate);
-        public void Scale(bool immediate = false) => _ApplyScale(UseAbsoluteScale ? absoluteScale : target.localScale * scaleFactor, immediate);
+        public void Scale(bool immediate = false) => _ApplyScale(UseAbsoluteScale ? absoluteScale : originalScale * scaleFactor, immediate);
 
 
         private bool _CanAnimate() {

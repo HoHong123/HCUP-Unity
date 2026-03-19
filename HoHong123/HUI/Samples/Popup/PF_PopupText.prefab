@@ -475,7 +475,7 @@ GameObject:
   - component: {fileID: 7148849464176206896}
   - component: {fileID: 7957086763655806345}
   m_Layer: 5
-  m_Name: PF_[Popup]Text
+  m_Name: PF_PopupText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

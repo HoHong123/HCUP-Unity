@@ -171,6 +171,7 @@ GameObject:
   - component: {fileID: 5500789083324703617}
   - component: {fileID: 1073953609150928519}
   - component: {fileID: 2973066435397823267}
+  - component: {fileID: 3439243232354031364}
   m_Layer: 0
   m_Name: '[BM] SoundManager'
   m_TagString: Untagged
@@ -272,6 +273,19 @@ MonoBehaviour:
   defaultMinDistance: 0
   defaultMaxDistance: 15
   sfxMixerGroup: {fileID: 4485514105091022233, guid: f8aaa7eb05efd0946b20b4017aeabd4f, type: 2}
+--- !u!114 &3439243232354031364
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5656368760335633532}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50b4d24791acbec4f90043878a6a7e20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.AddOn.SfxAgent
+  preloadUids: []
 --- !u!1 &6609743104428554494
 GameObject:
   m_ObjectHideFlags: 0
