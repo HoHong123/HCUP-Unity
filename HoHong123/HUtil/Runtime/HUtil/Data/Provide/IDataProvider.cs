@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 데이터 Provider의 기본 인터페이스입니다.
  * Provider는 특정 데이터의 로드, 캐시 및 생명주기를 관리하는 책임을 가집니다.
@@ -15,8 +15,11 @@ namespace HUtil.Data.Provider {
     public interface IDataProvider<TKey, TData> {
         UniTask PrewarmIdAsync(TKey id);
         UniTask<TData> GetOrLoadAsync(TKey id);
+        UniTask<TData> GetOrLoadAsync(TKey id, object owner);
         bool TryGet(TKey id, out TData data);
         void ReleaseId(TKey id);
+        void ReleaseId(TKey id, object owner);
+        int ReleaseOwner(object owner);
         void Prune();
         void Clear();
     }
