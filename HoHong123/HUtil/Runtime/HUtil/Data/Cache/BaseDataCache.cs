@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 런타임 데이터 캐시 저장소 베이스 클래스입니다.
  * Key → Data 구조로 캐시 데이터를 관리합니다.
@@ -17,13 +17,13 @@ namespace HUtil.Data.Cache {
     public class BaseDataCache<TKey, TData> : IDataCache<TKey, TData> where TData : class {
         #region Nested Class
 #if UNITY_EDITOR && ODIN_INSPECTOR
-        // 디버깅용 클래스
         public class Item {
 #else
         protected class Item {
 #endif
             public HashSet<object> Owners;
             public int Dependency;
+            public int AnonymousDependency;
             public TData Data;
         }
         #endregion
@@ -36,14 +36,25 @@ namespace HUtil.Data.Cache {
         #endregion
 
         #region Public - Load
-        /// <summary> 데이터 반환 / 의존성 체크 </summary>
+        /// <summary> 데이터 반환 / 익명 의존성 증가 </summary>
         public bool TryLoad(TKey key, out TData data) {
             data = null;
-            if (TryGet(key, out var item)) {
-                table[key].Dependency++;
-                return true;
-            }
-            return false;
+            if (!_TryGetItem(key, out var item, out data)) return false;
+
+            item.AnonymousDependency++;
+            item.Dependency++;
+            return true;
+        }
+
+        /// <summary> 데이터 반환 / Owner 의존성 등록 </summary>
+        public bool TryLoad(TKey key, object owner, out TData data) {
+            data = null;
+            if (owner == null) return TryLoad(key, out data);
+            if (!_TryGetItem(key, out var item, out data)) return false;
+            if (!item.Owners.Add(owner)) return true;
+
+            item.Dependency++;
+            return true;
         }
         #endregion
 
@@ -51,19 +62,15 @@ namespace HUtil.Data.Cache {
         /// <summary> 데이터 반환 </summary>
         public virtual bool TryGet(TKey key, out TData data) {
             data = null;
-            if (table.TryGetValue(key, out var item) && item.Data != null) {
-                data = item.Data;
-                return true;
-            }
-            return false;
+            return _TryGetItem(key, out _, out data);
         }
         #endregion
 
         #region Public - Save
         public bool Save(TKey key, TData data) {
             if (data == null) return false;
-
             if (table.TryGetValue(key, out var item) && item.Data != null) {
+                item.AnonymousDependency++;
                 item.Dependency++;
                 return true;
             }
@@ -71,6 +78,28 @@ namespace HUtil.Data.Cache {
             table[key] = new Item {
                 Owners = new(),
                 Dependency = 1,
+                AnonymousDependency = 1,
+                Data = data
+            };
+
+            return true;
+        }
+
+        public bool Save(TKey key, TData data, object owner) {
+            if (owner == null) return Save(key, data);
+            if (data == null) return false;
+
+            if (table.TryGetValue(key, out var item) && item.Data != null) {
+                if (!item.Owners.Add(owner)) return true;
+
+                item.Dependency++;
+                return true;
+            }
+
+            table[key] = new Item {
+                Owners = new() { owner },
+                Dependency = 1,
+                AnonymousDependency = 0,
                 Data = data
             };
 
@@ -80,7 +109,7 @@ namespace HUtil.Data.Cache {
 
         #region Public - Prune
         public void Prune() {
-            table.RemoveIf(item => item.Dependency < 1);
+            table.RemoveIf(item => item.Dependency < 1 || item.Data == null);
         }
         #endregion
 
@@ -97,15 +126,70 @@ namespace HUtil.Data.Cache {
 
         public bool Release(TKey key) {
             if (!table.TryGetValue(key, out var item) || item.Data == null) return false;
-            if (--item.Dependency > 0) return false;
+            if (item.AnonymousDependency < 1) return false;
+
+            item.AnonymousDependency--;
+            item.Dependency--;
+
+            if (item.Dependency > 0) return false;
             return table.Remove(key);
+        }
+
+        public bool Release(TKey key, object owner) {
+            if (owner == null) return Release(key);
+            if (!table.TryGetValue(key, out var item) || item.Data == null) return false;
+            if (!item.Owners.Remove(owner)) return false;
+
+            item.Dependency--;
+            if (item.Dependency > 0) return false;
+            return table.Remove(key);
+        }
+
+        public int ReleaseOwner(object owner) {
+            if (owner == null) return 0;
+
+            List<TKey> removeKeys = null;
+            int releasedCount = 0;
+
+            foreach (var pair in table) {
+                var item = pair.Value;
+                if (item.Data == null) continue;
+                if (!item.Owners.Remove(owner)) continue;
+
+                item.Dependency--;
+                releasedCount++;
+
+                if (item.Dependency > 0) continue;
+                (removeKeys ??= new()).Add(pair.Key);
+            }
+
+            if (removeKeys == null) return releasedCount;
+            foreach (var key in removeKeys)
+                table.Remove(key);
+
+            return releasedCount;
+        }
+        #endregion
+
+        #region Private - Helper
+        private bool _TryGetItem(TKey key, out Item item, out TData data) {
+            data = null;
+            item = null;
+            if (!table.TryGetValue(key, out item) || item.Data == null) return false;
+
+            data = item.Data;
+            return true;
         }
         #endregion
 
 #if UNITY_EDITOR
         #region Public - Debug
         public int TryGetDependency(TKey key) {
-            return (table.TryGetValue(key, out var item) && item.Data == null) ? item.Dependency : 0;
+            return table.TryGetValue(key, out var item) && item.Data != null ? item.Dependency : 0;
+        }
+
+        public int TryGetOwnerCount(TKey key) {
+            return table.TryGetValue(key, out var item) && item.Data != null ? item.Owners.Count : 0;
         }
         #endregion
 #endif
@@ -122,12 +206,11 @@ namespace HUtil.Data.Cache {
  * Get = 호출 시 호출한 오브젝트가 해당 데이터에 의존성을 가지지 않는다는 의미
  * 
  * 즉슨, 책임있는 사용과 책임없는 사용의 차이다.
- * TODO :: 추후 Dependency가 아닌 Set<object>을 통해 의존성을 체크하고
- * 1. Load시 소유자 리스트에 등록
- * 2. 소유자가 Load 호출시, 의존성 체크 후 의존성을 늘리지 않고 데이터 제공
- * 3. 소유자가 Get 호출시, 데이터 제공
- * 4. 소유자가 아닌 대상이 Get 호출시, 데이터 미제공
- * 이와 같은 흐름으로 제공될 예정.
+ *
+ * 현재 구현은 익명 의존성과 Owner 기반 의존성을 함께 지원한다.
+ * 1. Load시 Owner가 있으면 HashSet 기준으로 1회만 등록된다.
+ * 2. 동일 Owner의 중복 Load는 Dependency를 중복 증가시키지 않는다.
+ * 3. ReleaseOwner 호출 시 Owner가 점유한 모든 Key가 일괄 정산된다.
  * =========================================================
  * @Jason - PKH
  *

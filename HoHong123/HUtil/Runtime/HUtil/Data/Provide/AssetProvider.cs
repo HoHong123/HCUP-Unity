@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * Unity Asset 데이터를 로드하고 캐싱하는 Provider 클래스입니다.
  * Asset 로드, 캐시 관리, 의존성 관리 및 데이터 엔드포인트 흐름을 통합 관리하는 역할을 수행합니다.
@@ -66,29 +66,38 @@ namespace HUtil.Data.Load {
 
         #region Public - Get
         public bool TryGet(string id, out TAsset data) => cache.TryGet(id, out data);
+
         public async UniTask<TAsset> GetOrLoadAsync(string id) =>
             await endpoint.GetAsync(
                 key: id,
                 loadType: loadType,
                 useCache: true,
                 forceRefresh: false);
+
+        public async UniTask<TAsset> GetOrLoadAsync(string id, object owner) =>
+            await endpoint.GetAsync(
+                key: id,
+                loadType: loadType,
+                useCache: true,
+                forceRefresh: false,
+                owner: owner);
         #endregion
 
         #region Public - Release
         public void ReleaseId(string id) => cache.Release(id);
+        public void ReleaseId(string id, object owner) => cache.Release(id, owner);
+        public int ReleaseOwner(object owner) => cache.ReleaseOwner(owner);
         #endregion
 
         #region Public - Prune
         public void Prune() {
             cache.Prune();
-            // TODO :: Save에 Prune이 있다면 적용
         }
         #endregion
 
         #region Public - Clear
         public void Clear() {
             cache.Clear();
-            // 필요에 따라 Save의 Clear 구현
         }
         #endregion
     }
