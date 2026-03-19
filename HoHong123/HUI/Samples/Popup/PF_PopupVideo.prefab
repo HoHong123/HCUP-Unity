@@ -375,7 +375,7 @@ GameObject:
   - component: {fileID: 5788370419306463193}
   - component: {fileID: 2445844405540147871}
   m_Layer: 5
-  m_Name: PF_[Popup]Video
+  m_Name: PF_PopupVideo
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

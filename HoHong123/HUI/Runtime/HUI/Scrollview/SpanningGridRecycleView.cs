@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 이 스크립트는 Span 정보를 가지는 셀 데이터를 Grid 형태로 재배치하여 표시하는 RecycleView 스크립트입니다.
  * 셀마다 서로 다른 SpanX, SpanY를 가질 수 있으며, primary/secondary 축 기준으로 배치 정보를 계산하여

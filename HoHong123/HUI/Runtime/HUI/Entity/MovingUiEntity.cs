@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using Sirenix.OdinInspector;
 using DG.Tweening;
@@ -36,7 +36,7 @@ namespace HUI.Entity {
 
 
         public void Reset(bool immediate = false) => _ApplyMove(originPosition, immediate);
-        public void Move(bool immediate = false) => _ApplyMove(UseAbsolutePosition ? absolutePosition : (target.localPosition + moveAmount), immediate);
+        public void Move(bool immediate = false) => _ApplyMove(UseAbsolutePosition ? absolutePosition : (originPosition + moveAmount), immediate);
 
 
         private bool _CanAnimate() {

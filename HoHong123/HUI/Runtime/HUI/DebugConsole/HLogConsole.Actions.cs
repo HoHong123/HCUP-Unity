@@ -12,12 +12,11 @@ namespace HUI.DebugConsole {
     public partial class HLogConsole {
         #region Public
         public void Open() {
-            if (panelRoot == null) return;
             panelRoot.SetActive(true);
+            _RefreshRecycleView(true);
         }
 
         public void Close() {
-            if (panelRoot == null) return;
             panelRoot.SetActive(false);
         }
 
@@ -25,7 +24,8 @@ namespace HUI.DebugConsole {
             entries.Clear();
             filteredEntries.Clear();
             pendingUnityEchoCountByCondition.Clear();
-            if (recycleView != null) recycleView.SetData(filteredEntries);
+            isFollowingLatest = true;
+            _RefreshRecycleView(true);
         }
 
         public void Save() {
@@ -47,36 +47,53 @@ namespace HUI.DebugConsole {
 
         #region Private
         private void _InitializePanelState() {
-            if (panelRoot == null) return;
             panelRoot.SetActive(false);
         }
 
         private void _BindUi() {
-            if (openButton != null) openButton.onClick.AddListener(Open);
-            if (closeButton != null) closeButton.onClick.AddListener(Close);
-            if (clearButton != null) clearButton.onClick.AddListener(Clear);
-            if (saveButton != null) saveButton.onClick.AddListener(Save);
+            openButton.onClick.AddListener(Open);
+            closeButton.onClick.AddListener(Close);
+            clearButton.onClick.AddListener(Clear);
+            saveButton.onClick.AddListener(Save);
 
-            if (showLogToggle != null) showLogToggle.onValueChanged.AddListener(_OnFilterChanged);
-            if (showWarnToggle != null) showWarnToggle.onValueChanged.AddListener(_OnFilterChanged);
-            if (showErrorToggle != null) showErrorToggle.onValueChanged.AddListener(_OnFilterChanged);
-            if (showHLoggerToggle != null) showHLoggerToggle.onValueChanged.AddListener(_OnFilterChanged);
-            if (showUnityToggle != null) showUnityToggle.onValueChanged.AddListener(_OnFilterChanged);
+            showLogToggle.onValueChanged.AddListener(_OnFilterChanged);
+            showWarnToggle.onValueChanged.AddListener(_OnFilterChanged);
+            showErrorToggle.onValueChanged.AddListener(_OnFilterChanged);
+            showHLoggerToggle.onValueChanged.AddListener(_OnFilterChanged);
+            showUnityToggle.onValueChanged.AddListener(_OnFilterChanged);
 
-            if (recycleView != null) recycleView.OnCellClicked = _OnCellClicked;
+            recycleView.OnCellClicked = _OnCellClicked;
+            recycleView.OnLatestFollowStateChanged = _OnLatestFollowStateChanged;
         }
 
         private void _UnbindUi() {
-            if (openButton != null) openButton.onClick.RemoveListener(Open);
-            if (closeButton != null) closeButton.onClick.RemoveListener(Close);
-            if (clearButton != null) clearButton.onClick.RemoveListener(Clear);
-            if (saveButton != null) saveButton.onClick.RemoveListener(Save);
+            openButton.onClick.RemoveListener(Open);
+            closeButton.onClick.RemoveListener(Close);
+            clearButton.onClick.RemoveListener(Clear);
+            saveButton.onClick.RemoveListener(Save);
 
-            if (showLogToggle != null) showLogToggle.onValueChanged.RemoveListener(_OnFilterChanged);
-            if (showWarnToggle != null) showWarnToggle.onValueChanged.RemoveListener(_OnFilterChanged);
-            if (showErrorToggle != null) showErrorToggle.onValueChanged.RemoveListener(_OnFilterChanged);
-            if (showHLoggerToggle != null) showHLoggerToggle.onValueChanged.RemoveListener(_OnFilterChanged);
-            if (showUnityToggle != null) showUnityToggle.onValueChanged.RemoveListener(_OnFilterChanged);
+            showLogToggle.onValueChanged.RemoveListener(_OnFilterChanged);
+            showWarnToggle.onValueChanged.RemoveListener(_OnFilterChanged);
+            showErrorToggle.onValueChanged.RemoveListener(_OnFilterChanged);
+            showHLoggerToggle.onValueChanged.RemoveListener(_OnFilterChanged);
+            showUnityToggle.onValueChanged.RemoveListener(_OnFilterChanged);
+
+            recycleView.OnLatestFollowStateChanged = null;
+        }
+
+        private void _OnLatestFollowStateChanged(bool isAtLatest) {
+            isFollowingLatest = isAtLatest;
+        }
+
+        private void _RefreshRecycleView(bool moveToLatest) {
+            if (!IsOpen) return;
+            if (!recycleView.gameObject.activeInHierarchy) return;
+
+            recycleView.SetData(filteredEntries);
+
+            if (moveToLatest && isFollowingLatest) {
+                recycleView.ScrollToLatest();
+            }
         }
 
         private void _OnFilterChanged(bool isOn) {
@@ -115,8 +132,11 @@ namespace HUI.DebugConsole {
             _TrimEntries();
 
             if (!_PassesFilter(entry)) return;
+
             filteredEntries.Add(entry);
-            if (recycleView != null) recycleView.SetData(filteredEntries);
+            _TrimFilteredEntries();
+
+            _RefreshRecycleView(true);
         }
 
         private void _TrimEntries() {
@@ -127,10 +147,19 @@ namespace HUI.DebugConsole {
             entries.RemoveRange(0, removeCount);
         }
 
+        private void _TrimFilteredEntries() {
+            if (maxConsoleEntries <= 0) return;
+            if (filteredEntries.Count <= maxConsoleEntries) return;
+
+            int removeCount = filteredEntries.Count - maxConsoleEntries;
+            filteredEntries.RemoveRange(0, removeCount);
+        }
+
         private void _RefreshVisibleEntries() {
             filteredEntries.Clear();
             filteredEntries.AddRange(entries.Where(_PassesFilter));
-            if (recycleView != null) recycleView.SetData(filteredEntries);
+            _TrimFilteredEntries();
+            _RefreshRecycleView(false);
         }
 
         private bool _PassesFilter(HLogCellData entry) {
@@ -138,18 +167,21 @@ namespace HUI.DebugConsole {
             return _PassesLevelFilter(entry.Level);
         }
 
-        private bool _PassesSourceFilter(HLogSource source) {
-            if (source == HLogSource.HLogger) return showHLoggerToggle == null || showHLoggerToggle.isOn;
-            if (source == HLogSource.Unity) return showUnityToggle == null || showUnityToggle.isOn;
-            return true;
-        }
+        private bool _PassesSourceFilter(HLogSource source) => source switch {
+            HLogSource.HLogger => showHLoggerToggle == null || showHLoggerToggle.isOn,
+            HLogSource.Unity => showUnityToggle == null || showUnityToggle.isOn,
+            _ => true
+        };
 
-        private bool _PassesLevelFilter(LogLevel level) {
-            if (level == LogLevel.Log || level == LogLevel.Debug) return showLogToggle == null || showLogToggle.isOn;
-            if (level == LogLevel.Warn) return showWarnToggle == null || showWarnToggle.isOn;
-            if (level == LogLevel.Error || level == LogLevel.Fatal || level == LogLevel.Assert) return showErrorToggle == null || showErrorToggle.isOn;
-            return true;
-        }
+        private bool _PassesLevelFilter(LogLevel level) => level switch {
+            LogLevel.Log or
+            LogLevel.Debug => showLogToggle == null || showLogToggle.isOn,
+            LogLevel.Warn => showWarnToggle == null || showWarnToggle.isOn,
+            LogLevel.Error or
+            LogLevel.Fatal or
+            LogLevel.Assert => showErrorToggle == null || showErrorToggle.isOn,
+            _ => true
+        };
 
         private void _AddPendingUnityEcho(string condition) {
             if (string.IsNullOrEmpty(condition)) return;
@@ -166,14 +198,22 @@ namespace HUI.DebugConsole {
             if (string.IsNullOrEmpty(condition)) return false;
             if (!pendingUnityEchoCountByCondition.TryGetValue(condition, out int count)) return false;
 
-            if (count <= 1) pendingUnityEchoCountByCondition.Remove(condition);
-            else pendingUnityEchoCountByCondition[condition] = count - 1;
+            if (count <= 1)
+                pendingUnityEchoCountByCondition.Remove(condition);
+            else
+                pendingUnityEchoCountByCondition[condition] = count - 1;
+
             return true;
         }
 
         private void _OnCellClicked(HLogCellData data) {
+            if (data == null) return;
+
+            GUIUtility.systemCopyBuffer = data.ClipboardText;
+
 #if UNITY_EDITOR
             if (!data.TargetInstanceId.HasValue) return;
+
             UnityEngine.Object targetObject = EditorUtility.InstanceIDToObject(data.TargetInstanceId.Value);
             if (targetObject == null) return;
 
@@ -189,7 +229,7 @@ namespace HUI.DebugConsole {
             if (fpsTimer < fpsInterval) return;
 
             float fps = fpsAccumulatedDelta <= 0f ? 0f : fpsFrameCount / fpsAccumulatedDelta;
-            if (fpsText != null) fpsText.text = $"FPS: {fps:0.0}";
+            fpsText.text = $"FPS: {fps:0.0}";
 
             fpsTimer = 0f;
             fpsFrameCount = 0;
@@ -200,7 +240,7 @@ namespace HUI.DebugConsole {
             networkTimer += Time.unscaledDeltaTime;
             if (networkTimer < networkInterval) return;
 
-            if (networkText != null) networkText.text = $"Network: {Application.internetReachability}";
+            networkText.text = $"Network: {Application.internetReachability}";
             networkTimer = 0f;
         }
 
