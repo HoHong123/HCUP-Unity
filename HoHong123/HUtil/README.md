@@ -16,6 +16,9 @@
 - Tween: DoTween 연동 보조.
 - Editor: Odin/Inspector 툴 1개 (런타임 분리 주의).
 
+## 샘플
+- `Samples~/OwnerTracking`: Addressable Owner 추적 규칙을 검증하는 샘플입니다. 단, 현재 실제 `AddressableLoadSequence<TData>` 는 TODO 상태이므로 이 샘플은 Owner/Dependency 정산 흐름을 모의 로더로 재현합니다.
+
 ## 업그레이드/사용 가이드
 - 풀에서 가져온 객체는 반드시 Return 처리합니다.
 - 풀·사운드 등 싱글톤 초기화 순서를 씬 로드 시점에 맞춰 관리합니다.
