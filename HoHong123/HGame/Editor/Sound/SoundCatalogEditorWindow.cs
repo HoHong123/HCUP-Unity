@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+ï»¿#if UNITY_EDITOR
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -17,6 +17,7 @@ namespace HGame.Editor.Sound {
             public AudioClip Clip;
             public SoundCatalogSO Catalog;
             public string Token;
+            public string Path;
         }
         #endregion
 
@@ -28,13 +29,13 @@ namespace HGame.Editor.Sound {
         List<SoundCatalogSO> catalogs = new();
 
         [SerializeField]
-        string search = "";
-
-        [SerializeField]
         bool showOnlyMissingClip;
 
         [SerializeField]
         bool showOnlyMissingToken;
+
+        [SerializeField]
+        bool showOnlyMissingPath;
 
         [SerializeField]
         bool groupByCatalog = true;
@@ -48,6 +49,7 @@ namespace HGame.Editor.Sound {
         bool searchByUid = true;
         bool searchByName = true;
         bool searchByToken = true;
+        bool searchByPath = true;
         bool searchByClip = true;
 
         Dictionary<SoundCatalogSO, bool> catalogFoldouts = new();
@@ -86,13 +88,13 @@ namespace HGame.Editor.Sound {
         private void _DrawToolbar() {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
                 using (new EditorGUILayout.HorizontalScope()) {
-                    if (GUILayout.Button("Update All Catalogs (Tokens From Clips)", GUILayout.Height(24))) {
-                        _UpdateAllCatalogsTokensFromClips();
+                    if (GUILayout.Button("Update All Catalogs (Token/Path From Clips)", GUILayout.Height(24))) {
+                        _UpdateAllCatalogsTokenAndPathFromClips();
                         dirtyRows = true;
                     }
 
-                    if (GUILayout.Button("Resolve Clips From Tokens (All)", GUILayout.Height(24))) {
-                        _ResolveAllCatalogsClipsFromTokens();
+                    if (GUILayout.Button("Resolve Clips From Token/Path (All)", GUILayout.Height(24))) {
+                        _ResolveAllCatalogsClipsFromTokenAndPath();
                         dirtyRows = true;
                     }
                 }
@@ -110,10 +112,15 @@ namespace HGame.Editor.Sound {
                         dirtyRows = true;
                     }
 
-                    bool nextGroup = EditorGUILayout.ToggleLeft("Group By Catalog", groupByCatalog, GUILayout.Width(160));
-                    if (nextGroup != groupByCatalog) {
-                        groupByCatalog = nextGroup;
+                    bool nextMissingPath = EditorGUILayout.ToggleLeft("Only Missing Path", showOnlyMissingPath, GUILayout.Width(160));
+                    if (nextMissingPath != showOnlyMissingPath) {
+                        showOnlyMissingPath = nextMissingPath;
+                        dirtyRows = true;
                     }
+
+                    bool nextGroup = EditorGUILayout.ToggleLeft("Group By Catalog", groupByCatalog, GUILayout.Width(160));
+                    if (nextGroup != groupByCatalog)
+                        groupByCatalog = nextGroup;
 
                     GUILayout.FlexibleSpace();
 
@@ -128,16 +135,9 @@ namespace HGame.Editor.Sound {
         private void _DrawCatalogDropArea() {
             GUILayout.Space(6);
 
-            Rect dropArea = GUILayoutUtility.GetRect(
-                0f, 48f,
-                GUILayout.ExpandWidth(true)
-            );
+            Rect dropArea = GUILayoutUtility.GetRect(0f, 48f, GUILayout.ExpandWidth(true));
 
-            GUI.Box(
-                dropArea,
-                "Drag & Drop SoundCatalogSO here (Multiple supported)",
-                EditorStyles.helpBox
-            );
+            GUI.Box(dropArea, "Drag & Drop SoundCatalogSO here (Multiple supported)", EditorStyles.helpBox);
 
             Event evt = Event.current;
             if (!dropArea.Contains(evt.mousePosition)) return;
@@ -154,7 +154,8 @@ namespace HGame.Editor.Sound {
                         }
                     }
 
-                    if (!hasValid) return;
+                    if (!hasValid)
+                        return;
 
                     DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
 
@@ -211,6 +212,9 @@ namespace HGame.Editor.Sound {
                     bool nextToken = EditorGUILayout.ToggleLeft("Token", searchByToken, GUILayout.Width(70));
                     if (nextToken != searchByToken) { searchByToken = nextToken; dirtyRows = true; }
 
+                    bool nextPath = EditorGUILayout.ToggleLeft("Path", searchByPath, GUILayout.Width(70));
+                    if (nextPath != searchByPath) { searchByPath = nextPath; dirtyRows = true; }
+
                     bool nextClip = EditorGUILayout.ToggleLeft("Clip", searchByClip, GUILayout.Width(70));
                     if (nextClip != searchByClip) { searchByClip = nextClip; dirtyRows = true; }
                 }
@@ -219,12 +223,7 @@ namespace HGame.Editor.Sound {
 
         private void _DrawCatalogList() {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
-                catalogsFoldout = EditorGUILayout.Foldout(
-                    catalogsFoldout,
-                    $"Catalogs ({catalogs.Count})",
-                    true
-                );
-
+                catalogsFoldout = EditorGUILayout.Foldout(catalogsFoldout, $"Catalogs ({catalogs.Count})", true);
                 if (!catalogsFoldout) return;
 
                 _DrawCatalogDropArea();
@@ -241,8 +240,7 @@ namespace HGame.Editor.Sound {
                         }
 
                         if (GUILayout.Button("Ping", GUILayout.Width(60))) {
-                            if (catalogs[k])
-                                EditorGUIUtility.PingObject(catalogs[k]);
+                            if (catalogs[k]) EditorGUIUtility.PingObject(catalogs[k]);
                         }
 
                         if (GUILayout.Button("-", GUILayout.Width(22)))
@@ -299,13 +297,10 @@ namespace HGame.Editor.Sound {
                         EditorGUILayout.Space(8);
 
                         bool opened = _GetCatalogFoldout(currentCatalog);
-                        bool nextOpened = EditorGUILayout.Foldout(
-                            opened,
-                            currentCatalog.name,
-                            true
-                        );
+                        bool nextOpened = EditorGUILayout.Foldout(opened, currentCatalog.name, true);
 
                         if (nextOpened != opened) _SetCatalogFoldout(currentCatalog, nextOpened);
+
                         currentFoldout = nextOpened;
                     }
 
@@ -316,10 +311,8 @@ namespace HGame.Editor.Sound {
             }
         }
 
-
         private void _DrawRow(Row row) {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
-                // Header
                 using (new EditorGUILayout.HorizontalScope()) {
                     EditorGUILayout.LabelField($"[{row.Key.Major}] {row.Key.Id}", GUILayout.Width(140));
 
@@ -332,7 +325,6 @@ namespace HGame.Editor.Sound {
                     }
                 }
 
-                // Clip + actions
                 using (new EditorGUILayout.HorizontalScope()) {
                     var nextClip = (AudioClip)EditorGUILayout.ObjectField(row.Clip, typeof(AudioClip), false);
                     if (nextClip != row.Clip) {
@@ -340,27 +332,41 @@ namespace HGame.Editor.Sound {
                         row.Clip = nextClip;
                     }
 
-                    if (GUILayout.Button("¢º", GUILayout.Width(28))) {
+                    if (GUILayout.Button("â–¶", GUILayout.Width(28))) {
                         _TryPreviewClip(row.Clip);
                     }
 
-                    if (GUILayout.Button("¡á", GUILayout.Width(28))) {
+                    if (GUILayout.Button("â– ", GUILayout.Width(28))) {
                         _TryStopPreview();
                     }
                 }
 
-                // Token + update
                 using (new EditorGUILayout.HorizontalScope()) {
                     EditorGUILayout.LabelField("Token", GUILayout.Width(42));
                     EditorGUILayout.SelectableLabel(row.Token ?? "", EditorStyles.textField, GUILayout.Height(18));
-                    if (GUILayout.Button("Update Token", GUILayout.Width(110))) {
-                        _UpdateSingleTokenFromClip(row);
+
+                    if (GUILayout.Button("Update", GUILayout.Width(80))) {
+                        _UpdateSingleTokenAndPathFromClip(row);
                         dirtyRows = true;
                     }
-                    if (GUILayout.Button("Resolve Clip", GUILayout.Width(110))) {
-                        _ResolveSingleClipFromToken(row);
+
+                    if (GUILayout.Button("Resolve", GUILayout.Width(80))) {
+                        _ResolveSingleClipFromTokenAndPath(row);
                         dirtyRows = true;
                     }
+                }
+
+                using (new EditorGUILayout.HorizontalScope()) {
+                    EditorGUILayout.LabelField("Path", GUILayout.Width(42));
+                    EditorGUILayout.SelectableLabel(row.Path ?? "", EditorStyles.textField, GUILayout.Height(18));
+                }
+
+                using (new EditorGUILayout.HorizontalScope()) {
+                    EditorGUILayout.LabelField("ResKey", GUILayout.Width(42));
+                    EditorGUILayout.SelectableLabel(
+                        SoundCatalogSO.BuildResourcesLoadKey(row.Path, row.Token),
+                        EditorStyles.textField,
+                        GUILayout.Height(18));
                 }
             }
         }
@@ -387,6 +393,7 @@ namespace HGame.Editor.Sound {
                         Index = j,
                         Key = e.Key,
                         Token = e.Token,
+                        Path = e.Path,
                         Clip = _TryGetEditorClip(e)
                     };
 
@@ -407,53 +414,39 @@ namespace HGame.Editor.Sound {
         private bool _PassFilter(Row row) {
             if (showOnlyMissingClip && row.Clip) return false;
             if (showOnlyMissingToken && !string.IsNullOrWhiteSpace(row.Token)) return false;
-
-            string q1 = string.IsNullOrWhiteSpace(search) ? "" : search.Trim();
-            string q2 = string.IsNullOrWhiteSpace(searchText) ? "" : searchText.Trim();
-
-            if (q1.Length == 0 && q2.Length == 0) return true;
-
-            return _MatchQuery(row, q1) || _MatchQuery(row, q2);
+            if (showOnlyMissingPath && !string.IsNullOrWhiteSpace(row.Path)) return false;
+            if (string.IsNullOrWhiteSpace(searchText)) return true;
+            return _MatchQuery(row, searchText.Trim());
         }
 
         private bool _MatchQuery(Row row, string query) {
             if (string.IsNullOrWhiteSpace(query)) return false;
-
-            string q = query.Trim();
-
-            // Catalog
-            if (row.Catalog && row.Catalog.name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (row.Catalog && row.Catalog.name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
-            // Major
-            if (row.Key.Major.ToString().IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (row.Key.Major.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
-            // UID
-            if (searchByUid && row.Key.Id.ToString().IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (searchByUid && row.Key.Id.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
-            // Name
-            // ÇöÀç Row¿¡´Â NameÀÌ ¾øÀ¸¹Ç·Î "Clip.name"À» NameÀ¸·Î Ãë±ÞÇÏ°Å³ª, UID enum nameÀ» ºÙÀÏ ¼öµµ ÀÖÀ½. (Áö±ÝÀº Clip.name ±â¹Ý)
-            if (searchByName) {
-                if (row.Clip && row.Clip.name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
-                    return true;
-            }
-            // Token
+            if (searchByName && row.Clip && row.Clip.name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
             if (searchByToken && !string.IsNullOrWhiteSpace(row.Token) &&
-                row.Token.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+                row.Token.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
-            // Clip
+            if (searchByPath && !string.IsNullOrWhiteSpace(row.Path) &&
+                row.Path.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
             if (searchByClip && row.Clip &&
-                row.Clip.name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+                row.Clip.name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
-
             return false;
         }
 
-        private void _UpdateAllCatalogsTokensFromClips() {
+        private void _UpdateAllCatalogsTokenAndPathFromClips() {
             catalogs.RemoveAll(x => !x);
 
             foreach (var catalog in catalogs) {
                 if (!catalog) continue;
-                catalog.EditorUpdateTokensFromClips();
+                catalog.EditorUpdateTokenAndPathFromClips();
                 EditorUtility.SetDirty(catalog);
             }
 
@@ -461,12 +454,12 @@ namespace HGame.Editor.Sound {
             Repaint();
         }
 
-        private void _ResolveAllCatalogsClipsFromTokens() {
+        private void _ResolveAllCatalogsClipsFromTokenAndPath() {
             catalogs.RemoveAll(x => !x);
 
             foreach (var catalog in catalogs) {
                 if (!catalog) continue;
-                catalog.EditorResolveClipsFromTokens();
+                catalog.EditorResolveClipsFromTokenAndPath();
                 EditorUtility.SetDirty(catalog);
             }
 
@@ -474,16 +467,16 @@ namespace HGame.Editor.Sound {
             Repaint();
         }
 
-        private void _UpdateSingleTokenFromClip(Row row) {
+        private void _UpdateSingleTokenAndPathFromClip(Row row) {
             if (!row.Catalog || !row.Clip) return;
-            row.Catalog.EditorUpdateTokensFromClips();
+            row.Catalog.EditorUpdateTokenAndPathFromClips();
             EditorUtility.SetDirty(row.Catalog);
             AssetDatabase.SaveAssets();
         }
 
-        private void _ResolveSingleClipFromToken(Row row) {
-            if (!row.Catalog || !row.Clip) return;
-            row.Catalog.EditorResolveClipsFromTokens();
+        private void _ResolveSingleClipFromTokenAndPath(Row row) {
+            if (!row.Catalog) return;
+            row.Catalog.EditorResolveClipsFromTokenAndPath();
             EditorUtility.SetDirty(row.Catalog);
             AssetDatabase.SaveAssets();
         }
@@ -491,10 +484,10 @@ namespace HGame.Editor.Sound {
         private AudioClip _TryGetEditorClip(SoundCatalogSO.Entry entry) {
             try {
                 var prop = entry.GetType().GetProperty("EditorClip");
-                if (prop != null)
-                    return prop.GetValue(entry) as AudioClip;
+                if (prop != null) return prop.GetValue(entry) as AudioClip;
             }
             catch { }
+
             return null;
         }
 
@@ -509,10 +502,7 @@ namespace HGame.Editor.Sound {
 
             var entryProp = entriesProp.GetArrayElementAtIndex(index);
             var clipProp = entryProp.FindPropertyRelative("editorClip");
-            if (clipProp == null) {
-                // SO¿¡ editorClip ÇÊµå°¡ ¾øÀ¸¸é ¾Æ¹«°Íµµ ¸ø ÇÑ´Ù.
-                return;
-            }
+            if (clipProp == null) return;
 
             clipProp.objectReferenceValue = clip;
             so.ApplyModifiedPropertiesWithoutUndo();

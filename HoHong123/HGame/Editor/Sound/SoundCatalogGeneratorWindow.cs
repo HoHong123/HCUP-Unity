@@ -18,6 +18,8 @@ namespace HGame.Editor.Sound {
             public SoundMajorCategory Major;
             public string FileName;
             public string AssetPath;
+            public string Token;
+            public string Path;
         }
         #endregion
 
@@ -55,8 +57,8 @@ namespace HGame.Editor.Sound {
         string discoveredTextCache = "";
         string logsTextCache = "";
 
-        bool discoveredDirty = true; // discovered가 오래되었는지 확인
-        bool logsDirty = true; // log가 오래되었는지 확인
+        bool discoveredDirty = true;
+        bool logsDirty = true;
         #endregion
 
         #region ===== Menu =====
@@ -109,6 +111,7 @@ namespace HGame.Editor.Sound {
                 using (new EditorGUILayout.HorizontalScope()) {
                     if (GUILayout.Button("+ Add", GUILayout.Width(110)))
                         extraClips.Add(null);
+
                     if (GUILayout.Button("Clear", GUILayout.Width(80)))
                         extraClips.Clear();
                 }
@@ -116,11 +119,10 @@ namespace HGame.Editor.Sound {
                 int removeIndex = -1;
                 for (int k = 0; k < extraClips.Count; k++) {
                     using (new EditorGUILayout.HorizontalScope()) {
-                        extraClips[k] = (AudioClip)EditorGUILayout.ObjectField(
-                            extraClips[k], typeof(AudioClip), false);
-
-                        if (GUILayout.Button("-", GUILayout.Width(22)))
+                        extraClips[k] = (AudioClip)EditorGUILayout.ObjectField(extraClips[k], typeof(AudioClip), false);
+                        if (GUILayout.Button("-", GUILayout.Width(22))) {
                             removeIndex = k;
+                        }
                     }
                 }
 
@@ -162,26 +164,8 @@ namespace HGame.Editor.Sound {
 
             foreach (var guid in guids) {
                 string assetPath = AssetDatabase.GUIDToAssetPath(guid).Replace("\\", "/");
-                string fileName = Path.GetFileName(assetPath);
-
-                if (!_TryParseUid(Path.GetFileNameWithoutExtension(fileName), out int uid)) {
-                    logs.Add($"[Warn] Invalid filename :: {fileName}");
-                    continue;
-                }
-
-                var major = _InferMajor(assetPath);
-
-                if (validateUidByPolicy && !_IsUidValidByPolicy(major, uid)) {
-                    logs.Add($"[Warn] UID out of policy :: {fileName} ({uid})");
-                    continue;
-                }
-
-                discovered.Add(new DiscoveredClip {
-                    Uid = uid,
-                    Major = major,
-                    FileName = fileName,
-                    AssetPath = assetPath
-                });
+                if (!_TryBuildDiscoveredClip(assetPath, out var clip, logOnInvalid: true)) continue;
+                discovered.Add(clip);
             }
 
             logs.Add($"[Scan] Done :: discovered={discovered.Count}");
@@ -228,14 +212,13 @@ namespace HGame.Editor.Sound {
             catalog.EditorClearEntries();
 
             foreach (var discover in discovered) {
-                var key = new SoundKey(discover.Major, discover.Uid);
-                string token = _ToResourcesToken(discover.AssetPath);
-                if (string.IsNullOrWhiteSpace(token)) {
-                    logs.Add($"[Warn] Not under Resources. Skip :: {discover.AssetPath}");
+                if (string.IsNullOrWhiteSpace(discover.Token)) {
+                    logs.Add($"[Warn] Empty token. Skip :: {discover.AssetPath}");
                     continue;
                 }
+                var key = new SoundKey(discover.Major, discover.Uid);
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(discover.AssetPath);
-                catalog.EditorAddEntry(key, token, clip);
+                catalog.EditorAddEntry(key, discover.Token, discover.Path, clip);
             }
 
             EditorUtility.SetDirty(catalog);
@@ -252,27 +235,8 @@ namespace HGame.Editor.Sound {
 
                 string assetPath = AssetDatabase.GetAssetPath(clip).Replace("\\", "/");
                 if (discovered.Any(d => d.AssetPath == assetPath)) continue;
-
-                string fileName = Path.GetFileName(assetPath);
-
-                if (!_TryParseUid(Path.GetFileNameWithoutExtension(fileName), out int uid)) {
-                    logs.Add($"[Warn] Extra invalid filename :: {fileName}");
-                    continue;
-                }
-
-                var major = _InferMajor(assetPath);
-
-                if (validateUidByPolicy && !_IsUidValidByPolicy(major, uid)) {
-                    logs.Add($"[Warn] Extra UID out of policy :: {fileName} ({uid})");
-                    continue;
-                }
-
-                discovered.Add(new DiscoveredClip {
-                    Uid = uid,
-                    Major = major,
-                    FileName = fileName,
-                    AssetPath = assetPath
-                });
+                if (!_TryBuildDiscoveredClip(assetPath, out var discoveredClip, logOnInvalid: true)) continue;
+                discovered.Add(discoveredClip);
             }
         }
 
@@ -286,53 +250,72 @@ namespace HGame.Editor.Sound {
 
                 for (int k = 0; k < guids.Length; k++) {
                     string assetPath = AssetDatabase.GUIDToAssetPath(guids[k]).Replace("\\", "/");
-                    string fileName = Path.GetFileName(assetPath);
-
-                    if (!_TryParseUid(Path.GetFileNameWithoutExtension(fileName), out int uid)) {
-                        logs.Add($"[Warn] Invalid filename :: {fileName}");
-                        continue;
-                    }
-
-                    var major = _InferMajor(assetPath);
-
-                    if (validateUidByPolicy && !_IsUidValidByPolicy(major, uid)) {
-                        logs.Add($"[Warn] UID out of policy :: {fileName} ({uid})");
-                        continue;
-                    }
-
-                    discovered.Add(new DiscoveredClip {
-                        Uid = uid,
-                        Major = major,
-                        FileName = fileName,
-                        AssetPath = assetPath
-                    });
+                    if (!_TryBuildDiscoveredClip(assetPath, out var clip, logOnInvalid: true)) continue;
+                    discovered.Add(clip);
                 }
             }
             else {
                 logs.Add("[Generate] RootFolder is null. Scan skipped (Extras only).");
             }
 
-            // 2) 항상 Extras 포함
             _MergeExtras();
 
             logs.Add($"[Generate] Build done :: discovered={discovered.Count}");
         }
+
+        private bool _TryBuildDiscoveredClip(string assetPath, out DiscoveredClip clip, bool logOnInvalid) {
+            clip = default;
+
+            if (string.IsNullOrWhiteSpace(assetPath)) return false;
+
+            string fileName = Path.GetFileName(assetPath);
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+
+            if (!_TryParseUid(fileNameWithoutExtension, out int uid)) {
+                if (logOnInvalid) logs.Add($"[Warn] Invalid filename :: {fileName}");
+                return false;
+            }
+
+            var major = _InferMajor(assetPath);
+
+            if (validateUidByPolicy && !_IsUidValidByPolicy(major, uid)) {
+                if (logOnInvalid) logs.Add($"[Warn] UID out of policy :: {fileName} ({uid})");
+                return false;
+            }
+
+            string token = _ToToken(assetPath);
+            string folderPath = _ToResourceFolderPath(assetPath);
+
+            clip = new DiscoveredClip {
+                Uid = uid,
+                Major = major,
+                FileName = fileName,
+                AssetPath = assetPath,
+                Token = token,
+                Path = folderPath
+            };
+            return true;
+        }
         #endregion
 
         #region ===== Discovered Table =====
-        private void _Header(string text, float width) => EditorGUILayout.LabelField(text, EditorStyles.boldLabel, GUILayout.Width(width));
+        private void _Header(string text, float width) {
+            EditorGUILayout.LabelField(text, EditorStyles.boldLabel, GUILayout.Width(width));
+        }
 
         private void _DrawDiscoveredTable() {
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("Discovered (Table)", EditorStyles.boldLabel);
 
-            using (var sv = new EditorGUILayout.ScrollViewScope(discoveredTableScroll, GUILayout.Height(240))) {
+            using (var sv = new EditorGUILayout.ScrollViewScope(discoveredTableScroll, GUILayout.Height(260))) {
                 discoveredTableScroll = sv.scrollPosition;
 
                 using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox)) {
                     _Header("UID", 80);
                     _Header("Major", 80);
                     _Header("FileName", 220);
+                    _Header("Token", 180);
+                    _Header("Path", 220);
                     _Header("AssetPath", 420);
                 }
 
@@ -341,6 +324,8 @@ namespace HGame.Editor.Sound {
                         EditorGUILayout.LabelField(d.Uid.ToString(), GUILayout.Width(80));
                         EditorGUILayout.LabelField(d.Major.ToString(), GUILayout.Width(80));
                         EditorGUILayout.LabelField(d.FileName, GUILayout.Width(220));
+                        EditorGUILayout.LabelField(d.Token, GUILayout.Width(180));
+                        EditorGUILayout.LabelField(d.Path, GUILayout.Width(220));
                         EditorGUILayout.LabelField(d.AssetPath, GUILayout.Width(420));
                     }
                 }
@@ -353,7 +338,7 @@ namespace HGame.Editor.Sound {
             EditorGUILayout.Space(6);
             showDiscoveredTextView = EditorGUILayout.ToggleLeft("Discovered (TSV / Excel Copy)", showDiscoveredTextView);
 
-            if (!showDiscoveredTextView)return;
+            if (!showDiscoveredTextView) return;
 
             _RebuildDiscoveredTextIfNeeded();
 
@@ -368,8 +353,7 @@ namespace HGame.Editor.Sound {
                     EditorGUIUtility.systemCopyBuffer = discoveredTextCache.FilterText(discoveredFind);
             }
 
-            using (var sv = new EditorGUILayout.ScrollViewScope(
-                discoveredTextScroll, GUILayout.Height(180))) {
+            using (var sv = new EditorGUILayout.ScrollViewScope(discoveredTextScroll, GUILayout.Height(180))) {
                 discoveredTextScroll = sv.scrollPosition;
                 EditorGUILayout.TextArea(discoveredTextCache.FilterText(discoveredFind), GUILayout.ExpandHeight(true));
             }
@@ -387,15 +371,16 @@ namespace HGame.Editor.Sound {
                 EditorGUILayout.LabelField("Find", GUILayout.Width(32));
                 logsFind = EditorGUILayout.TextField(logsFind);
 
-                if (GUILayout.Button("Copy All", GUILayout.Width(90)))
+                if (GUILayout.Button("Copy All", GUILayout.Width(90))) {
                     EditorGUIUtility.systemCopyBuffer = logsTextCache;
+                }
 
-                if (GUILayout.Button("Copy Filtered", GUILayout.Width(110)))
+                if (GUILayout.Button("Copy Filtered", GUILayout.Width(110))) {
                     EditorGUIUtility.systemCopyBuffer = logsTextCache.FilterText(logsFind);
+                }
             }
 
-            using (var sv = new EditorGUILayout.ScrollViewScope(
-                logsTextScroll, GUILayout.Height(160))) {
+            using (var sv = new EditorGUILayout.ScrollViewScope(logsTextScroll, GUILayout.Height(160))) {
                 logsTextScroll = sv.scrollPosition;
                 EditorGUILayout.TextArea(logsTextCache.FilterText(logsFind), GUILayout.ExpandHeight(true));
             }
@@ -411,29 +396,38 @@ namespace HGame.Editor.Sound {
             return false;
         }
 
-        private string _ToResourcesToken(string assetPath) {
+        private string _ToToken(string assetPath) {
+            if (string.IsNullOrWhiteSpace(assetPath)) return string.Empty;
+            return Path.GetFileNameWithoutExtension(assetPath.Replace("\\", "/"));
+        }
+
+        private string _ToResourceFolderPath(string assetPath) {
             if (string.IsNullOrWhiteSpace(assetPath)) return string.Empty;
 
             assetPath = assetPath.Replace("\\", "/");
 
             const string resourcesRoot = "Assets/Resources/";
-            if (!assetPath.StartsWith(resourcesRoot, StringComparison.OrdinalIgnoreCase))
+            if (!assetPath.StartsWith(resourcesRoot, StringComparison.OrdinalIgnoreCase)) {
                 return string.Empty;
+            }
 
             string relative = assetPath.Substring(resourcesRoot.Length);
-            return Path.ChangeExtension(relative, null);
+            string withoutExtension = Path.ChangeExtension(relative, null)?.Replace("\\", "/") ?? string.Empty;
+            return Path.GetDirectoryName(withoutExtension)?.Replace("\\", "/") ?? string.Empty;
         }
 
         private void _RebuildDiscoveredTextIfNeeded() {
             if (!discoveredDirty) return;
 
             var sb = new StringBuilder(4096);
-            sb.AppendLine("UID\tMajor\tFileName\tAssetPath");
+            sb.AppendLine("UID\tMajor\tFileName\tToken\tPath\tAssetPath");
 
             foreach (var d in discovered) {
                 sb.Append(d.Uid).Append('\t');
                 sb.Append(d.Major).Append('\t');
                 sb.Append(d.FileName).Append('\t');
+                sb.Append(d.Token).Append('\t');
+                sb.Append(d.Path).Append('\t');
                 sb.Append(d.AssetPath).AppendLine();
             }
 

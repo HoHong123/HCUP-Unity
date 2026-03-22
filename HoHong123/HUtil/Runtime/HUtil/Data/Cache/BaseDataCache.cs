@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 /* =========================================================
  * 런타임 데이터 캐시 저장소 베이스 클래스입니다.
  * Key → Data 구조로 캐시 데이터를 관리합니다.
@@ -10,8 +10,8 @@
  */
 #endif
 
+using System;
 using System.Collections.Generic;
-using HUtil.Collection;
 
 namespace HUtil.Data.Cache {
     public class BaseDataCache<TKey, TData> : IDataCache<TKey, TData> where TData : class {
@@ -28,8 +28,15 @@ namespace HUtil.Data.Cache {
         }
         #endregion
 
-        #region Properties
+        #region Fields
         protected readonly Dictionary<TKey, Item> table = new();
+        #endregion
+
+        #region Events
+        public event Action<TKey, TData> OnDataRemoved;
+        #endregion
+
+        #region Properties
 #if UNITY_EDITOR && ODIN_INSPECTOR
         public IReadOnlyDictionary<TKey, Item> Preview => table;
 #endif
@@ -109,19 +116,32 @@ namespace HUtil.Data.Cache {
 
         #region Public - Prune
         public void Prune() {
-            table.RemoveIf(item => item.Dependency < 1 || item.Data == null);
+            List<TKey> removeKeys = null;
+
+            foreach (var pair in table) {
+                if (pair.Value.Dependency > 0 && pair.Value.Data != null) continue;
+                (removeKeys ??= new()).Add(pair.Key);
+            }
+
+            if (removeKeys == null)
+                return;
+            foreach (var key in removeKeys)
+                _RemoveItem(key);
         }
         #endregion
 
         #region Public - Clear
         public void Clear() {
-            table.Clear();
+            if (table.Count < 1) return;
+
+            List<TKey> removeKeys = new(table.Keys);
+            foreach (var key in removeKeys) _RemoveItem(key);
         }
         #endregion
 
         #region Public - Remove
         public void ForceRemove(TKey key) {
-            table.Remove(key);
+            _RemoveItem(key);
         }
 
         public bool Release(TKey key) {
@@ -132,7 +152,7 @@ namespace HUtil.Data.Cache {
             item.Dependency--;
 
             if (item.Dependency > 0) return false;
-            return table.Remove(key);
+            return _RemoveItem(key);
         }
 
         public bool Release(TKey key, object owner) {
@@ -142,7 +162,7 @@ namespace HUtil.Data.Cache {
 
             item.Dependency--;
             if (item.Dependency > 0) return false;
-            return table.Remove(key);
+            return _RemoveItem(key);
         }
 
         public int ReleaseOwner(object owner) {
@@ -164,10 +184,25 @@ namespace HUtil.Data.Cache {
             }
 
             if (removeKeys == null) return releasedCount;
-            foreach (var key in removeKeys)
-                table.Remove(key);
+            foreach (var key in removeKeys) {
+                _RemoveItem(key);
+            }
 
             return releasedCount;
+        }
+
+
+        private bool _RemoveItem(TKey key) {
+            if (!table.TryGetValue(key, out var item)) return false;
+            if (!table.Remove(key)) return false;
+
+            _NotifyRemoved(key, item.Data);
+            return true;
+        }
+
+        private void _NotifyRemoved(TKey key, TData data) {
+            if (data == null) return;
+            OnDataRemoved?.Invoke(key, data);
         }
         #endregion
 
@@ -232,6 +267,7 @@ namespace HUtil.Data.Cache {
  *
  * 기타 ::
  * 1. Dependency 기반 캐시 관리 시스템입니다.
+ * 2. 제거 이벤트를 통해 외부 자원 Release와 연동할 수 있습니다.
  * ==============================================================
  */
 #endif

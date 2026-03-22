@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 /* =========================================================
  * Unity Asset 데이터를 로드하고 캐싱하는 Provider 클래스입니다.
  * Asset 로드, 캐시 관리, 의존성 관리 및 데이터 엔드포인트 흐름을 통합 관리하는 역할을 수행합니다.
@@ -28,12 +28,14 @@ namespace HUtil.Data.Load {
         #region Fields
         readonly DataEndpoint<string, TAsset> endpoint;
         readonly BaseDataCache<string, TAsset> cache;
+        readonly IReleasableDataLoad<string, TAsset> releasableLoader;
         readonly DataLoadType loadType;
         #endregion
 
         #region Properties
         public DataLoadType Type => loadType;
 #if UNITY_EDITOR && ODIN_INSPECTOR
+        public BaseDataCache<string,TAsset> Cache => cache;
         public IReadOnlyDictionary<string, BaseDataCache<string, TAsset>.Item> Preview => cache.Preview;
 #endif
         #endregion
@@ -49,6 +51,7 @@ namespace HUtil.Data.Load {
 
             this.loadType = loadType;
             this.cache = cache;
+            releasableLoader = loader as IReleasableDataLoad<string, TAsset>;
 
             var handler = new DataLoader<string, TAsset>(loader);
             endpoint = new DataEndpoint<string, TAsset>(
@@ -57,6 +60,8 @@ namespace HUtil.Data.Load {
                 loadGate: new SharedLoadGate<string, TAsset>(),
                 dataStore: null
             );
+
+            cache.OnDataRemoved += _OnDataRemoved;
         }
         #endregion
 
@@ -100,6 +105,12 @@ namespace HUtil.Data.Load {
             cache.Clear();
         }
         #endregion
+
+        #region Private - Cache Event
+        private void _OnDataRemoved(string key, TAsset data) {
+            releasableLoader.Release(key);
+        }
+        #endregion
     }
 }
 
@@ -125,6 +136,7 @@ namespace HUtil.Data.Load {
  *
  * 기타 ::
  * 1. DataEndpoint를 통해 Loader / Cache / Gate를 통합 관리합니다.
+ * 2. Releasable Loader는 Cache 제거 이벤트와 연동됩니다.
  * =========================================================
  */
 #endif
