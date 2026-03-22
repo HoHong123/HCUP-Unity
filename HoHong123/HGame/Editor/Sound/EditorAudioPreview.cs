@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+ï»¿#if UNITY_EDITOR
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -17,14 +17,14 @@ namespace HGame.Editor.Sound {
 
             const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
-            // Unity ¹öÀüº° ¿À¹ö·Îµå Â÷ÀÌ ´ëÀÀ
+            // Unity ë²„ì „ë³„ ì˜¤ë²„ë¡œë“œ ì°¨ì´ ëŒ€ì‘
             playPreviewClip =
                 audioUtilType.GetMethod("PlayPreviewClip", flags, null, new[] { typeof(AudioClip), typeof(int), typeof(bool) }, null) ??
                 audioUtilType.GetMethod("PlayPreviewClip", flags, null, new[] { typeof(AudioClip), typeof(int), typeof(bool), typeof(float) }, null);
 
             stopAllPreviewClips = audioUtilType.GetMethod("StopAllPreviewClips", flags);
 
-            // ¹öÀü¿¡ µû¶ó ÀÖÀ» ¼öµµ/¾øÀ» ¼öµµ ÀÖÀ½
+            // ë²„ì „ì— ë”°ë¼ ìˆì„ ìˆ˜ë„/ì—†ì„ ìˆ˜ë„ ìˆìŒ
             stopPreviewClip =
                 audioUtilType.GetMethod("StopPreviewClip", flags, null, new[] { typeof(AudioClip) }, null) ??
                 audioUtilType.GetMethod("StopPreviewClip", flags, null, new[] { typeof(AudioClip), typeof(bool) }, null);
@@ -32,7 +32,7 @@ namespace HGame.Editor.Sound {
 
         public static bool CanUse => audioUtilType != null && playPreviewClip != null && stopAllPreviewClips != null;
 
-        /// <summary>±âº»°ª single=true :: ±âÁ¸ ÇÁ¸®ºä¸¦ ¸ğµÎ ¸ØÃá µÚ Àç»ı(Áßº¹ ¹æÁö).</summary>
+        /// <summary>ê¸°ë³¸ê°’ single=true :: ê¸°ì¡´ í”„ë¦¬ë·°ë¥¼ ëª¨ë‘ ë©ˆì¶˜ ë’¤ ì¬ìƒ(ì¤‘ë³µ ë°©ì§€).</summary>
         public static void Play(AudioClip clip, bool loop = false, bool single = true) {
             if (!clip || playPreviewClip == null) return;
             if (single) StopAll();

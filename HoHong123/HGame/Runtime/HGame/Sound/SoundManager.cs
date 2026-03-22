@@ -10,7 +10,6 @@ using HGame.Sound.Load;
 using HUtil.Core;
 using HUtil.Data.Load;
 using HUtil.Inspector;
-using HUtil.Logger;
 using HUtil.Diagnosis;
 
 namespace HGame.Sound {
@@ -34,7 +33,7 @@ namespace HGame.Sound {
 
         #region Static
         #region Default Click Option
-        static int PRIVATE_DEFAULT_CLICK_UID = 600003;
+        static int PRIVATE_DEFAULT_CLICK_UID = (int)AudioClips.Click;
         public static int DEFAULT_CLICK_UID => PRIVATE_DEFAULT_CLICK_UID;
 
         public static void SetGlobalClickUid(AudioClips clip) => SetGlobalClickUid((int)clip);

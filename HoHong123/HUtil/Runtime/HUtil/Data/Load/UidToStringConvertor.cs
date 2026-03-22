@@ -12,14 +12,16 @@ using System;
 using Cysharp.Threading.Tasks;
 
 namespace HUtil.Data.Load {
-    public sealed class UidToStringConvertor<TData> : IDataLoad<int, TData> where TData : class {
+    public sealed class UidToStringConvertor<TData> : IReleasableDataLoad<int, TData> where TData : class {
         #region Fields
         readonly IDataLoad<string, TData> stringLoader;
+        readonly IReleasableDataLoad<string, TData> releasableStringLoader;
         readonly Func<int, string> resolveToken;
         #endregion
 
         #region Properties
         public DataLoadType Type => stringLoader.Type;
+        public bool CanRelease => releasableStringLoader != null;
         #endregion
 
         #region Public - Constructors
@@ -32,6 +34,9 @@ namespace HUtil.Data.Load {
 #endif
             this.stringLoader = stringLoader;
             this.resolveToken = resolveToken;
+            if (stringLoader is IReleasableDataLoad<string, TData>) {
+                this.releasableStringLoader = stringLoader as IReleasableDataLoad<string, TData>;
+            }
         }
         #endregion
 
@@ -40,9 +45,27 @@ namespace HUtil.Data.Load {
             if (uid < 0) return UniTask.FromResult<TData>(null);
 
             var token = resolveToken(uid);
-            if (string.IsNullOrWhiteSpace(token)) return UniTask.FromResult<TData>(null);
+            if (string.IsNullOrWhiteSpace(token)) {
+                return UniTask.FromResult<TData>(null);
+            }
 
             return stringLoader.LoadAsync(token);
+        }
+        #endregion
+
+        #region Public - Release
+        public void Release(int uid) {
+            if (releasableStringLoader == null) return;
+            if (uid < 0) return;
+
+            var token = resolveToken(uid);
+            if (string.IsNullOrWhiteSpace(token)) return;
+
+            releasableStringLoader.Release(token);
+        }
+
+        public void ReleaseAll() {
+            releasableStringLoader?.ReleaseAll();
         }
         #endregion
     }
@@ -55,6 +78,7 @@ namespace HUtil.Data.Load {
  * 주요 기능 ::
  * 1. UID → Token 변환
  * 2. Token 기반 Loader 호출
+ * 3. Release 전달
  *
  * 사용법 ::
  * 1. stringLoader와 resolveToken 함수를 전달하여 생성합니다.
