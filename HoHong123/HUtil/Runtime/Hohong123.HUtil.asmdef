@@ -2,7 +2,10 @@
     "name": "Hohong123.HUtil",
     "rootNamespace": "HUtil",
     "references": [
-        "UniTask"
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Addressables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
