@@ -133,9 +133,10 @@ namespace HUtil.Logger {
 #endif
         }
 
-        public static Exception Throw(Exception ex, string extra = "") {
+        public static Exception Throw(Exception ex, string extra = "", bool doThrow = true) {
             Exception(ex, extra);
-            throw ex;
+            if (doThrow) throw ex;
+            return null;
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]
