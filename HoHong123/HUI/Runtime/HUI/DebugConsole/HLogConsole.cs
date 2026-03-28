@@ -100,7 +100,7 @@ namespace HUI.DebugConsole {
         [ContextMenu("Send HLog.Error")]
         private void _MakeHError() => HLogger.Error($"{debugStack++}. HError Called");
         [ContextMenu("Send HLog.Fatal")]
-        private void _MakeHFatal() => HLogger.Throw(new System.Exception(), $"{debugStack++}. HThrow Called");
+        private void _MakeHFatal() => HLogger.Throw(new System.Exception(), $"{debugStack++}. HThrow Called", false);
 
         [ContextMenu("Send Debug.Log")]
         private void _MakeLog() => Debug.Log($"{debugStack++}. Log Called");
