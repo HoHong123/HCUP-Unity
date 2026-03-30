@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 런타임 데이터 캐시 저장소 베이스 클래스입니다.
  * Key → Data 구조로 캐시 데이터를 관리합니다.
@@ -21,10 +21,10 @@ namespace HUtil.Data.Cache {
 #else
         protected class Item {
 #endif
-            public HashSet<object> Owners;
+            public TData Data;
             public int Dependency;
             public int AnonymousDependency;
-            public TData Data;
+            public HashSet<object> Owners;
         }
         #endregion
 
