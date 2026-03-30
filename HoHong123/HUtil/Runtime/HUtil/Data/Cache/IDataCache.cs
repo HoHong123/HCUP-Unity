@@ -1,7 +1,6 @@
 #if UNITY_EDITOR
 /* =========================================================
  * 런타임 데이터 캐시 시스템의 기본 인터페이스입니다.
- *
  * 데이터 캐싱 및 의존성 관리 기능을 정의합니다.
  *
  * 주의사항 ::
@@ -14,14 +13,20 @@ namespace HUtil.Data.Cache {
     public interface IDataCache<TKey, TData> {
         bool TryLoad(TKey key, out TData data);
         bool TryLoad(TKey key, object owner, out TData data);
+
         bool TryGet(TKey key, out TData data);
+
         bool Save(TKey key, TData data);
         bool Save(TKey key, TData data, object owner);
-        void Prune();
+
         bool Release(TKey key);
         bool Release(TKey key, object owner);
         int ReleaseOwner(object owner);
+        
         void ForceRemove(TKey key);
+        
+        void Prune();
+        
         void Clear();
     }
 }

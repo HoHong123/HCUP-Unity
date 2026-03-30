@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 데이터 로드 시퀀스의 기본 클래스입니다.
  * 로드 키 정규화와 실제 로드 호출을 분리합니다.
@@ -25,7 +25,7 @@ namespace HUtil.Data.Sequence {
         #endregion
 
         #region Public - Load
-        public UniTask<TData> LoadAsync(string tokenOrPath) {
+        public virtual UniTask<TData> LoadAsync(string tokenOrPath) {
             if (string.IsNullOrWhiteSpace(tokenOrPath)) return UniTask.FromResult<TData>(null);
 
             var key = _NormalizeKey(tokenOrPath);
