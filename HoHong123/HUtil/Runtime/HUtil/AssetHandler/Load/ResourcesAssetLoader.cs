@@ -17,8 +17,7 @@ namespace HUtil.AssetHandler.Load {
         #endregion
 
         #region Public - Constructors
-        public ResourcesAssetLoader() : this(string.Empty) {
-        }
+        public ResourcesAssetLoader() : this(string.Empty) {}
 
         public ResourcesAssetLoader(string resourcesRootPath) {
             this.resourcesRootPath = _NormalizeRootPath(resourcesRootPath);

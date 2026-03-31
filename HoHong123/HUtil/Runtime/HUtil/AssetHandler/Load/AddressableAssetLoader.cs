@@ -19,13 +19,10 @@ namespace HUtil.AssetHandler.Load {
         #region Public - Load
         public async UniTask<TAsset> LoadAsync(string key) {
             var normalizedKey = _NormalizeKey(key);
-            if (string.IsNullOrWhiteSpace(normalizedKey))
-                return null;
+            if (string.IsNullOrWhiteSpace(normalizedKey)) return null;
 
             if (handleTable.TryGetValue(normalizedKey, out var cachedHandle)) {
-                if (cachedHandle.IsValid())
-                    return cachedHandle.Result;
-
+                if (cachedHandle.IsValid()) return cachedHandle.Result;
                 handleTable.Remove(normalizedKey);
             }
 
@@ -33,8 +30,7 @@ namespace HUtil.AssetHandler.Load {
             await handle.ToUniTask();
 
             if (handle.Status != AsyncOperationStatus.Succeeded) {
-                if (handle.IsValid())
-                    Addressables.Release(handle);
+                if (handle.IsValid()) Addressables.Release(handle);
                 return null;
             }
 
@@ -46,14 +42,17 @@ namespace HUtil.AssetHandler.Load {
         #region Public - Release
         public bool Release(string key) {
             var normalizedKey = _NormalizeKey(key);
-            if (string.IsNullOrWhiteSpace(normalizedKey))
+            if (string.IsNullOrWhiteSpace(normalizedKey)) {
                 return false;
+            }
 
-            if (!handleTable.TryGetValue(normalizedKey, out var handle))
+            if (!handleTable.TryGetValue(normalizedKey, out var handle)) {
                 return false;
+            }
 
-            if (handle.IsValid())
+            if (handle.IsValid()) {
                 Addressables.Release(handle);
+            }
 
             handleTable.Remove(normalizedKey);
             return true;
@@ -61,8 +60,7 @@ namespace HUtil.AssetHandler.Load {
 
         public void ReleaseAll() {
             foreach (var handle in handleTable.Values) {
-                if (handle.IsValid())
-                    Addressables.Release(handle);
+                if (handle.IsValid()) Addressables.Release(handle);
             }
 
             handleTable.Clear();
@@ -71,9 +69,7 @@ namespace HUtil.AssetHandler.Load {
 
         #region Private - Normalize
         private string _NormalizeKey(string key) {
-            if (string.IsNullOrWhiteSpace(key))
-                return string.Empty;
-
+            if (string.IsNullOrWhiteSpace(key)) return string.Empty;
             return key.Trim();
         }
         #endregion
