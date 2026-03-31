@@ -7,7 +7,7 @@ using HGame.Sound.Core;
 namespace HGame.Sound.AddOn {
     [Serializable]
     public sealed class SfxView {
-        #region IMGUI Fields
+        #region Fields
         [Title("Catalogs")]
         [SerializeField][ListDrawerSettings]
         [OnValueChanged("_EditorRebuildPreview", includeChildren: true)]
@@ -20,7 +20,6 @@ namespace HGame.Sound.AddOn {
 #if UNITY_EDITOR
         [Title("Preview (Editor Only)")]
         [SerializeField]
-        [ReadOnly]
         [ListDrawerSettings(IsReadOnly = true)]
         List<EntryPreview> previews = new();
 
