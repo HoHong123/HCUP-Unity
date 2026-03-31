@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -14,7 +14,7 @@ namespace HGame.Sound.Core {
         menuName = "HCUP/Sound/Sound Catalog")]
     public sealed class SoundCatalogSO : ScriptableObject {
         #region Private - Const
-        const string ResourceRoot = "Assets/Resources/";
+        const string RESOURCE_ROOT = "Assets/Resources/";
         #endregion
 
         #region Public - Nested Types
@@ -58,12 +58,10 @@ namespace HGame.Sound.Core {
         }
         #endregion
 
-        #region Private - Serialized Fields
+        #region Private - Fields
         [SerializeField]
         List<Entry> entries = new();
-        #endregion
 
-        #region Private - Fields
         Dictionary<SoundKey, Entry> entryMap;
         #endregion
 
@@ -195,10 +193,10 @@ namespace HGame.Sound.Core {
                 return false;
 
             string normalizedAssetPath = assetPath.Replace("\\", "/");
-            if (!normalizedAssetPath.StartsWith(ResourceRoot, StringComparison.OrdinalIgnoreCase))
+            if (!normalizedAssetPath.StartsWith(RESOURCE_ROOT, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            string relativePath = normalizedAssetPath.Substring(ResourceRoot.Length);
+            string relativePath = normalizedAssetPath.Substring(RESOURCE_ROOT.Length);
             string pathWithoutExtension = System.IO.Path.ChangeExtension(relativePath, null)?.Replace("\\", "/");
             if (string.IsNullOrWhiteSpace(pathWithoutExtension))
                 return false;
@@ -242,8 +240,8 @@ namespace HGame.Sound.Core {
 
             string normalized = path.Replace("\\", "/").Trim();
 
-            if (normalized.StartsWith(ResourceRoot, StringComparison.OrdinalIgnoreCase)) {
-                normalized = normalized.Substring(ResourceRoot.Length);
+            if (normalized.StartsWith(RESOURCE_ROOT, StringComparison.OrdinalIgnoreCase)) {
+                normalized = normalized.Substring(RESOURCE_ROOT.Length);
             }
 
             normalized = normalized.Trim('/');
