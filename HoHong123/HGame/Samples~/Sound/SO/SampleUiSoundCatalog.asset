@@ -16,10 +16,12 @@ MonoBehaviour:
   - key:
       major: 0
       id: 690002
-    token: AudioClips/Lobby/BGM/690002_Dungeon
+    token: 690002_Dungeon
+    path: AudioClips/Lobby/BGM
     editorClip: {fileID: 8300000, guid: d266902a5541f7046ac2c3ab4164b2bc, type: 3}
   - key:
       major: 2
       id: 600101
-    token: AudioClips/Lobby/UI/600101_ItemDelete
+    token: 600101_ItemDelete
+    path: AudioClips/Lobby/UI
     editorClip: {fileID: 8300000, guid: 999fdcd44155fba4895a06d766ff9a51, type: 3}

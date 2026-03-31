@@ -169,16 +169,16 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5500789083324703617}
-  - component: {fileID: -98184081840240165}
+  - component: {fileID: 1073953609150928519}
   - component: {fileID: 2973066435397823267}
   - component: {fileID: 3439243232354031364}
   m_Layer: 0
-  m_Name: '[BM] SoundManager'
+  m_Name: '[BM] SoundManager.Legacy'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &5500789083324703617
 Transform:
   m_ObjectHideFlags: 0
@@ -199,7 +199,7 @@ Transform:
   - {fileID: 8794526215175127330}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &-98184081840240165
+--- !u!114 &1073953609150928519
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -208,9 +208,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 5656368760335633532}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cef18096884c9794aa917e68f8dccd81, type: 3}
+  m_Script: {fileID: 11500000, guid: 1cfb5bd5b90110c448999149f62b5b7b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Audio.SoundManager
+  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.SoundManager
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -221,8 +221,7 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   dontDestroyOnLoad: 1
-  loadMode: 0
-  initialDefaultClickToken: 600003
+  load: 0
   audioMix: {fileID: 24100000, guid: f8aaa7eb05efd0946b20b4017aeabd4f, type: 2}
   sfxAudio: {fileID: 5382712485931233371}
   bgmAudio: {fileID: 1199179675426585453}
@@ -286,7 +285,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50b4d24791acbec4f90043878a6a7e20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.AddOn.SfxAgent
-  useNewManager: 1
+  useNewManager: 0
   preloadUids:
   - catalogs:
     - {fileID: 11400000, guid: 34295028aa7a61e48ae6dadc4b8f96c3, type: 2}
