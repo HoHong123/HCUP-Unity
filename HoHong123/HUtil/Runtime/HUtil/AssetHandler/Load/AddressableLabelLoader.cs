@@ -7,6 +7,18 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using Object = UnityEngine.Object;
 
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * Addressable label query 전용 로더 구현 스크립트입니다.
+ *
+ * 주의사항 ::
+ * 1. 주소 기반 단일 asset 로더와 같은 경계로 섞지 않는 것을 전제로 합니다.
+ * 2. 내부 handle key는 실제 label과 다른 내부 식별자입니다.
+ * =========================================================
+ */
+#endif
+
 namespace HUtil.AssetHandler.Load {
     public sealed class AddressableLabelLoader<TAsset> : IAddressableLabelLoader<TAsset>
         where TAsset : Object {
@@ -218,3 +230,26 @@ namespace HUtil.AssetHandler.Load {
         #endregion
     }
 }
+
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * 주요 기능 ::
+ * 1. label 기준 all, first, single, index 조회를 제공합니다.
+ * 2. 조회 방식별 handle을 분리 관리합니다.
+ * 3. label query 결과의 release를 지원합니다.
+ *
+ * 사용법 ::
+ * 1. Addressable label 검색이 필요한 기능에서만 별도로 사용합니다.
+ * 2. 단일 asset provider 경로와는 독립적으로 사용합니다.
+ *
+ * 이벤트 ::
+ * 1. 직접 이벤트는 없습니다.
+ * 2. release 호출 시 대응하는 handle 정리가 일어납니다.
+ *
+ * 기타 ::
+ * 1. 내부 모드 enum과 key struct는 nested로 감춥니다.
+ * 2. 일반 AssetProvider 축과 분리된 query 성격의 도구입니다.
+ * =========================================================
+ */
+#endif
