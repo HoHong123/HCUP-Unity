@@ -16,140 +16,168 @@ MonoBehaviour:
   - key:
       major: 2
       id: 600001
-    token: AudioClips/Common/UI/600001_RelicUp
+    token: 600001_RelicUp
+    path: AudioClips/Common/UI
     editorClip: {fileID: 8300000, guid: 7d68ce0ab903018438f796d6f1926ed3, type: 3}
   - key:
       major: 2
       id: 600002
-    token: AudioClips/Common/UI/600002_Error12
+    token: 600002_Error12
+    path: AudioClips/Common/UI
     editorClip: {fileID: 8300000, guid: 0572c213de72e974a8b526272d318b06, type: 3}
   - key:
       major: 2
       id: 600003
-    token: AudioClips/Common/UI/600003_Click
+    token: 600003_Click
+    path: AudioClips/Common/UI
     editorClip: {fileID: 8300000, guid: 990c15a538b34804fbeffd94ec905dd7, type: 3}
   - key:
       major: 2
       id: 600004
-    token: AudioClips/Common/UI/600004_LevelUp
+    token: 600004_LevelUp
+    path: AudioClips/Common/UI
     editorClip: {fileID: 8300000, guid: ede0c1d4e0752024194666d4f13937ee, type: 3}
   - key:
       major: 0
       id: 690003
-    token: AudioClips/Game/BGM/690003_NewHopeDrumsOnly
+    token: 690003_NewHopeDrumsOnly
+    path: AudioClips/Game/BGM
     editorClip: {fileID: 8300000, guid: e48669c06264e104e92db7afdeb8deaf, type: 3}
   - key:
       major: 0
       id: 690002
-    token: AudioClips/Lobby/BGM/690002_Dungeon
+    token: 690002_Dungeon
+    path: AudioClips/Lobby/BGM
     editorClip: {fileID: 8300000, guid: d266902a5541f7046ac2c3ab4164b2bc, type: 3}
   - key:
       major: 2
       id: 600101
-    token: AudioClips/Lobby/UI/600101_ItemDelete
+    token: 600101_ItemDelete
+    path: AudioClips/Lobby/UI
     editorClip: {fileID: 8300000, guid: 999fdcd44155fba4895a06d766ff9a51, type: 3}
   - key:
       major: 1
       id: 640001
-    token: AudioClips/Monster/640001_CreatureAncientTreant01Surprised01
+    token: 640001_CreatureAncientTreant01Surprised01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: e95aa2617c6c91644a1daf65cd10c4c3, type: 3}
   - key:
       major: 1
       id: 640002
-    token: AudioClips/Monster/640002_CreatureCow01Death01
+    token: 640002_CreatureCow01Death01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: fd07c24f5f44bdd4183e6c81d57e5640, type: 3}
   - key:
       major: 1
       id: 640003
-    token: AudioClips/Monster/640003_CreatureOrc02DeathLong02
+    token: 640003_CreatureOrc02DeathLong02
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 939a20189045a0d4ca1215204d529fb9, type: 3}
   - key:
       major: 1
       id: 640004
-    token: AudioClips/Monster/640004_CreatureOrc02Hurt02
+    token: 640004_CreatureOrc02Hurt02
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 682fefd5b7c7a8548adc2a6162ed5a7a, type: 3}
   - key:
       major: 1
       id: 640005
-    token: AudioClips/Monster/640005_CreatureParrot01Death01
+    token: 640005_CreatureParrot01Death01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 60d0ef44db0f0fa4485d072aa7bc9072, type: 3}
   - key:
       major: 1
       id: 640006
-    token: AudioClips/Monster/640006_CreatureParrot01Death02
+    token: 640006_CreatureParrot01Death02
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 8bef650f92b538145a3a09b139656fec, type: 3}
   - key:
       major: 1
       id: 640007
-    token: AudioClips/Monster/640007_CreatureParrot01Surprised01
+    token: 640007_CreatureParrot01Surprised01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 41f81245a2ccb9b4d8317aeb0a719338, type: 3}
   - key:
       major: 1
       id: 640008
-    token: AudioClips/Monster/640008_CreaturePhantasm01Death01
+    token: 640008_CreaturePhantasm01Death01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 2ae34da1c0208e74bb3905607d5aed41, type: 3}
   - key:
       major: 1
       id: 640009
-    token: AudioClips/Monster/640009_CreatureRockGiant01Death01
+    token: 640009_CreatureRockGiant01Death01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 6ad6ad09974c3684d924af127d9e1081, type: 3}
   - key:
       major: 1
       id: 640010
-    token: AudioClips/Monster/640010_CreatureTreeFolk01Tired01
+    token: 640010_CreatureTreeFolk01Tired01
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 17a6bff7c776a3e48a58e05584aa279d, type: 3}
   - key:
       major: 1
       id: 640011
-    token: AudioClips/Monster/640011_BossDead00
+    token: 640011_BossDead00
+    path: AudioClips/Monster
     editorClip: {fileID: 8300000, guid: 269c4f6fb55adda4195aa93ccab14f60, type: 3}
   - key:
       major: 1
       id: 610001
-    token: AudioClips/Player/610001_HumanFemaleAttackLong01
+    token: 610001_HumanFemaleAttackLong01
+    path: AudioClips/Player
     editorClip: {fileID: 8300000, guid: ad346aef70ebc5d46a3a574f2403cf48, type: 3}
   - key:
       major: 1
       id: 610002
-    token: AudioClips/Player/610002_ChaBerserkerVoice
+    token: 610002_ChaBerserkerVoice
+    path: AudioClips/Player
     editorClip: {fileID: 8300000, guid: 4e231581fc1997c47a2de1f46afcf812, type: 3}
   - key:
       major: 1
       id: 610003
-    token: AudioClips/Player/610003_ChaBerserkerVoiceOriginal
+    token: 610003_ChaBerserkerVoiceOriginal
+    path: AudioClips/Player
     editorClip: {fileID: 8300000, guid: 7a76fc86479dd234da57e65d49037014, type: 3}
   - key:
       major: 1
       id: 630001
-    token: AudioClips/Weapon/630001_Dagger01
+    token: 630001_Dagger01
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: a325dbf565a8868498af60261f98ed8d, type: 3}
   - key:
       major: 1
       id: 630002
-    token: AudioClips/Weapon/630002_Dagger02
+    token: 630002_Dagger02
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: 13fb4fe4b199568439692d055cbeec93, type: 3}
   - key:
       major: 1
       id: 630003
-    token: AudioClips/Weapon/630003_Recharge
+    token: 630003_Recharge
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: 1756aa7f822fcaf4d82286705a2b25b9, type: 3}
   - key:
       major: 1
       id: 630101
-    token: AudioClips/Weapon/630101_SkillGacha00
+    token: 630101_SkillGacha00
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: f14df0feabb13684692e14aa2da13eaa, type: 3}
   - key:
       major: 1
       id: 630102
-    token: AudioClips/Weapon/630102_SkillGacha01
+    token: 630102_SkillGacha01
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: 537b220eebd6c894a832030b44d48324, type: 3}
   - key:
       major: 1
       id: 630401
-    token: AudioClips/Weapon/630401_MonEfxDagger00
+    token: 630401_MonEfxDagger00
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: bd9a4b1695507324d824c35291f6f5d7, type: 3}
   - key:
       major: 1
       id: 630402
-    token: AudioClips/Weapon/630402_MonEfxDagger01
+    token: 630402_MonEfxDagger01
+    path: AudioClips/Weapon
     editorClip: {fileID: 8300000, guid: 16376461a74a57d4da163e8d0ccf92a7, type: 3}
