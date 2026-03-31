@@ -2,18 +2,19 @@ using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine.Assertions;
 using HUtil.AssetHandler.Cache;
-using HUtil.AssetHandler.Check;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Load;
 using HUtil.AssetHandler.Store;
+using HUtil.AssetHandler.Validation;
 
 namespace HUtil.AssetHandler.Provider {
     public sealed class AssetProvider<TKey, TAsset> : IAssetProvider<TKey, TAsset> {
         #region Fields
         readonly IAssetCache<TKey, TAsset> assetCache;
         readonly IAssetStore<TKey, TAsset> assetStore;
-        readonly IAssetChecker<TKey, TAsset> assetChecker;
+        readonly IAssetValidator<TKey, TAsset> assetValidator;
         readonly IAssetLoadGate<TKey, TAsset> assetLoadGate;
+        readonly List<IAssetReleasableLoader<TKey, TAsset>> releasableLoaders = new();
         readonly Dictionary<AssetLoadMode, IAssetLoader<TKey, TAsset>> loaderTable = new();
         #endregion
 
@@ -21,23 +22,27 @@ namespace HUtil.AssetHandler.Provider {
         public AssetProvider(
             IEnumerable<IAssetLoader<TKey, TAsset>> assetLoaders,
             IAssetCache<TKey, TAsset> assetCache,
-            IAssetChecker<TKey, TAsset> assetChecker,
+            IAssetValidator<TKey, TAsset> assetValidator,
             IAssetLoadGate<TKey, TAsset> assetLoadGate,
             IAssetStore<TKey, TAsset> assetStore = null) {
 
             Assert.IsNotNull(assetLoaders, "[AssetProvider] loaders is null.");
             Assert.IsNotNull(assetCache, "[AssetProvider] cache is null.");
-            Assert.IsNotNull(assetChecker, "[AssetProvider] checker is null.");
+            Assert.IsNotNull(assetValidator, "[AssetProvider] validator is null.");
             Assert.IsNotNull(assetLoadGate, "[AssetProvider] loadGate is null.");
 
             this.assetCache = assetCache;
-            this.assetChecker = assetChecker;
+            this.assetValidator = assetValidator;
             this.assetLoadGate = assetLoadGate;
             this.assetStore = assetStore;
 
             foreach (var assetLoader in assetLoaders) {
                 Assert.IsNotNull(assetLoader, "[AssetProvider] loader contains null.");
                 loaderTable[assetLoader.LoadMode] = assetLoader;
+
+                if (assetLoader is IAssetReleasableLoader<TKey, TAsset> releasableLoader) {
+                    releasableLoaders.Add(releasableLoader);
+                }
             }
 
             Assert.IsTrue(loaderTable.Count > 0, "[AssetProvider] No asset loader registered.");
@@ -71,27 +76,30 @@ namespace HUtil.AssetHandler.Provider {
 
         #region Public - Release
         public bool Release(TKey key) {
-            return assetCache.Release(key);
+            var cacheReleased = assetCache.Release(key);
+            var sourceReleased = _ReleaseAssetLoaders(key);
+            return cacheReleased || sourceReleased;
         }
 
         public void ReleaseAll() {
             assetCache.ReleaseAll();
+            _ReleaseAllAssetLoaders();
         }
 
         public void ClearCache() {
             assetCache.Clear();
+            _ReleaseAllAssetLoaders();
         }
 
         public UniTask ClearStoreAsync() {
-            if (assetStore == null)
-                return UniTask.CompletedTask;
+            if (assetStore == null) return UniTask.CompletedTask;
             return assetStore.ClearAsync();
         }
         #endregion
 
         #region Private - Get
         private UniTask<TAsset> _GetAsync(AssetRequest<TKey> request) {
-            if (!assetChecker.CanLoad(request.Key)) {
+            if (!assetValidator.CanLoad(request.Key)) {
                 return UniTask.FromResult<TAsset>(default);
             }
 
@@ -231,9 +239,28 @@ namespace HUtil.AssetHandler.Provider {
         }
         #endregion
 
-        #region Private - Check
+        #region Private - Release
+        private bool _ReleaseAssetLoaders(TKey key) {
+            bool released = false;
+
+            foreach (var releasableLoader in releasableLoaders) {
+                if (releasableLoader.Release(key))
+                    released = true;
+            }
+
+            return released;
+        }
+
+        private void _ReleaseAllAssetLoaders() {
+            foreach (var releasableLoader in releasableLoaders) {
+                releasableLoader.ReleaseAll();
+            }
+        }
+        #endregion
+
+        #region Private - Validate
         private bool _IsValidAsset(TKey key, TAsset asset) {
-            return assetChecker.IsValid(key, asset);
+            return assetValidator.IsValid(key, asset);
         }
         #endregion
     }
