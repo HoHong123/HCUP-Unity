@@ -1,5 +1,3 @@
-using HUtil.AssetHandler.Data;
-
 namespace HUtil.AssetHandler.Data {
     public readonly struct AssetRequest<TKey> {
         #region Properties
