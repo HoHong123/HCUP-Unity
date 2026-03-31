@@ -10,11 +10,11 @@ using HUtil.AssetHandler.Store;
 namespace HUtil.AssetHandler.Provider {
     public sealed class AssetProvider<TKey, TAsset> : IAssetProvider<TKey, TAsset> {
         #region Fields
-        readonly Dictionary<AssetLoadMode, IAssetLoader<TKey, TAsset>> loaderTable = new();
         readonly IAssetCache<TKey, TAsset> assetCache;
         readonly IAssetStore<TKey, TAsset> assetStore;
         readonly IAssetChecker<TKey, TAsset> assetChecker;
         readonly IAssetLoadGate<TKey, TAsset> assetLoadGate;
+        readonly Dictionary<AssetLoadMode, IAssetLoader<TKey, TAsset>> loaderTable = new();
         #endregion
 
         #region Public - Constructors
@@ -25,10 +25,10 @@ namespace HUtil.AssetHandler.Provider {
             IAssetLoadGate<TKey, TAsset> assetLoadGate,
             IAssetStore<TKey, TAsset> assetStore = null) {
 
-            Assert.IsNotNull(assetLoaders, "[AssetProvider] assetLoaders is null.");
-            Assert.IsNotNull(assetCache, "[AssetProvider] assetCache is null.");
-            Assert.IsNotNull(assetChecker, "[AssetProvider] assetChecker is null.");
-            Assert.IsNotNull(assetLoadGate, "[AssetProvider] assetLoadGate is null.");
+            Assert.IsNotNull(assetLoaders, "[AssetProvider] loaders is null.");
+            Assert.IsNotNull(assetCache, "[AssetProvider] cache is null.");
+            Assert.IsNotNull(assetChecker, "[AssetProvider] checker is null.");
+            Assert.IsNotNull(assetLoadGate, "[AssetProvider] loadGate is null.");
 
             this.assetCache = assetCache;
             this.assetChecker = assetChecker;
@@ -36,7 +36,7 @@ namespace HUtil.AssetHandler.Provider {
             this.assetStore = assetStore;
 
             foreach (var assetLoader in assetLoaders) {
-                Assert.IsNotNull(assetLoader, "[AssetProvider] assetLoader contains null.");
+                Assert.IsNotNull(assetLoader, "[AssetProvider] loader contains null.");
                 loaderTable[assetLoader.LoadMode] = assetLoader;
             }
 
@@ -91,8 +91,9 @@ namespace HUtil.AssetHandler.Provider {
 
         #region Private - Get
         private UniTask<TAsset> _GetAsync(AssetRequest<TKey> request) {
-            if (!assetChecker.CanLoad(request.Key))
+            if (!assetChecker.CanLoad(request.Key)) {
                 return UniTask.FromResult<TAsset>(default);
+            }
 
             return assetLoadGate.RunAsync(
                 request.Key,
@@ -135,7 +136,9 @@ namespace HUtil.AssetHandler.Provider {
 
         #region Private - Local Store
         private async UniTask<TAsset> _GetLocalStoreFirstAsync(AssetRequest<TKey> request) {
-            _RequireStore(request.FetchMode);
+            Assert.IsNotNull(
+                assetStore,
+                $"[AssetProvider] assetStore is required. fetchMode={request.FetchMode}");
 
             var storeAsset = await _LoadFromStoreAsync(request.Key);
             if (_IsValidAsset(request.Key, storeAsset)) {
@@ -153,7 +156,9 @@ namespace HUtil.AssetHandler.Provider {
         }
 
         private async UniTask<TAsset> _GetLocalStoreOnlyAsync(AssetRequest<TKey> request) {
-            _RequireStore(request.FetchMode);
+            Assert.IsNotNull(
+                assetStore,
+                $"[AssetProvider] assetStore is required. fetchMode={request.FetchMode}");
 
             var storeAsset = await _LoadFromStoreAsync(request.Key);
             if (!_IsValidAsset(request.Key, storeAsset))
@@ -173,12 +178,10 @@ namespace HUtil.AssetHandler.Provider {
                 return sourceAsset;
             }
 
-            if (assetStore == null)
-                return default;
+            if (assetStore == null) return default;
 
             var storeAsset = await _LoadFromStoreAsync(request.Key);
-            if (!_IsValidAsset(request.Key, storeAsset))
-                return default;
+            if (!_IsValidAsset(request.Key, storeAsset))  return default;
 
             _SaveCache(request.Key, storeAsset);
             return storeAsset;
@@ -186,8 +189,7 @@ namespace HUtil.AssetHandler.Provider {
 
         private async UniTask<TAsset> _GetSourceOnlyAsync(AssetRequest<TKey> request) {
             var sourceAsset = await _LoadFromSourceAsync(request);
-            if (!_IsValidAsset(request.Key, sourceAsset))
-                return default;
+            if (!_IsValidAsset(request.Key, sourceAsset)) return default;
 
             _SaveCache(request.Key, sourceAsset);
             return sourceAsset;
@@ -203,8 +205,7 @@ namespace HUtil.AssetHandler.Provider {
 
         private async UniTask<TAsset> _LoadFromStoreAsync(TKey key) {
             Assert.IsNotNull(assetStore, "[AssetProvider] assetStore is null.");
-            if (!await assetStore.HasAsync(key))
-                return default;
+            if (!await assetStore.HasAsync(key)) return default;
             return await assetStore.LoadAsync(key);
         }
         #endregion
@@ -215,25 +216,18 @@ namespace HUtil.AssetHandler.Provider {
         }
 
         private UniTask _SaveStoreAsync(TKey key, TAsset asset) {
-            if (assetStore == null)
-                return UniTask.CompletedTask;
+            if (assetStore == null) return UniTask.CompletedTask;
             return assetStore.SaveAsync(key, asset);
         }
         #endregion
 
         #region Private - Resolve
         private IAssetLoader<TKey, TAsset> _ResolveLoader(AssetLoadMode loadMode) {
-            if (loaderTable.TryGetValue(loadMode, out var assetLoader))
+            if (loaderTable.TryGetValue(loadMode, out var assetLoader)) {
                 return assetLoader;
-
+            }
             Assert.IsTrue(false, $"[AssetProvider] Loader not registered. loadMode={loadMode}");
             return default;
-        }
-
-        private void _RequireStore(AssetFetchMode fetchMode) {
-            Assert.IsNotNull(
-                assetStore,
-                $"[AssetProvider] assetStore is required. fetchMode={fetchMode}");
         }
         #endregion
 
