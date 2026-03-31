@@ -214,7 +214,7 @@ namespace HUI.DebugConsole {
 #if UNITY_EDITOR
             if (!data.TargetInstanceId.HasValue) return;
 
-            UnityEngine.Object targetObject = EditorUtility.InstanceIDToObject(data.TargetInstanceId.Value);
+            UnityEngine.Object targetObject = EditorUtility.EntityIdToObject(data.TargetInstanceId.Value);
             if (targetObject == null) return;
 
             Selection.activeObject = targetObject;
