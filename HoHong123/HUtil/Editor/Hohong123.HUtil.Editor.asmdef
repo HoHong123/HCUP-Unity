@@ -1,11 +1,21 @@
 {
-  "name": "Hohong123.HUtil.Editor",
-  "rootNamespace": "HUtil.Editor",
-  "includePlatforms": [ "Editor" ],
-  "autoReferenced": true,
-  "references": [
-    "Hohong123.HUtil",
-    "Unity.TextMeshPro",
-    "Unity.TextMeshPro.Editor"
-  ]
+    "name": "Hohong123.HUtil.Editor",
+    "rootNamespace": "HUtil.Editor",
+    "references": [
+        "Unity.TextMeshPro",
+        "Unity.TextMeshPro.Editor",
+        "Unity.Addressables.Editor",
+        "Hohong123.HUtil"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

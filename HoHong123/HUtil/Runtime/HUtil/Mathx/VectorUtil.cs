@@ -1,3 +1,13 @@
+﻿#if UNITY_EDITOR
+/* =========================================================
+ * Vector 관련 유틸리티 함수 모음입니다.
+ *
+ * 목적 ::
+ * UI 위치 계산 및 방향 벡터 계산을 간단하게 하기 위함입니다.
+ * =========================================================
+ */
+#endif
+
 using UnityEngine;
 
 
@@ -28,3 +38,25 @@ namespace HUtil.Mathx {
         }
     }
 }
+
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH 2026.03.10
+ *
+ * 주요 기능 ::
+ * GetRandomPositionWithin
+ *  + RectTransform 내부 랜덤 위치 반환
+ * GetCanvasPosition
+ *  + World → Screen 좌표 변환
+ * DegreeToDirection
+ *  + 각도 → 방향 벡터
+ *
+ * 사용법 ::
+ * float angle = 90f;
+ * Vector2 dir = angle.DegreeToDirection();
+ *
+ * 기타 ::
+ * UI / Gameplay 계산 유틸리티입니다.
+ * =========================================================
+ */
+#endif

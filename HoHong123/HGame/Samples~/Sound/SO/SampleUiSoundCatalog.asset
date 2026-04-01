@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ee33bd46168c2e4b910848ad5566382, type: 3}
+  m_Name: SampleUiSoundCatalog
+  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.Core.SoundCatalogSO
+  entries:
+  - key:
+      major: 0
+      id: 690002
+    token: 690002_Dungeon
+    path: AudioClips/Lobby/BGM
+    editorClip: {fileID: 8300000, guid: d266902a5541f7046ac2c3ab4164b2bc, type: 3}
+  - key:
+      major: 2
+      id: 600101
+    token: 600101_ItemDelete
+    path: AudioClips/Lobby/UI
+    editorClip: {fileID: 8300000, guid: 999fdcd44155fba4895a06d766ff9a51, type: 3}

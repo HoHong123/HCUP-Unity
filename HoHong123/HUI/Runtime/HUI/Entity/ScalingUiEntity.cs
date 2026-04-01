@@ -3,8 +3,7 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 using DG.Tweening;
 
-
-namespace HUtil.UI.Entity {
+namespace HUI.Entity {
     [Serializable]
     public class ScalingUiEntity {
         [Title("Target")]
@@ -31,23 +30,30 @@ namespace HUtil.UI.Entity {
         float scaleFactor = 1f;
 
 
-
         private void _Init() {
             originalScale = target.localScale;
         }
 
-        public void Reset() => _Scale(originalScale);
-        public void ChangeScale() => _Scale(UseAbsoluteScale ? absoluteScale : target.localScale * scaleFactor);
+
+        public void Reset(bool immediate = false) => _ApplyScale(originalScale, immediate);
+        public void Scale(bool immediate = false) => _ApplyScale(UseAbsoluteScale ? absoluteScale : originalScale * scaleFactor, immediate);
 
 
-        private void _Scale(Vector2 scale) {
-            if (useAnimation) {
-                target.DOKill();
-                target.DOScale(scale, animationDuration);
+        private bool _CanAnimate() {
+            if (!useAnimation) return false;
+            if (target == null) return false;
+            return target.gameObject.activeInHierarchy;
+        }
+
+        private void _ApplyScale(Vector3 scale, bool immediate = false) {
+            target.DOKill();
+
+            if (_CanAnimate()) {
+                target.DOScale(scale, animationDuration).SetUpdate(true);
+                return;
             }
-            else {
-                target.localScale = scale;
-            }
+
+            target.localScale = scale;
         }
     }
 }

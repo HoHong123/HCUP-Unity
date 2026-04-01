@@ -1,10 +1,26 @@
+﻿#if UNITY_EDITOR
+/* =========================================================
+ * 이 스크립트는 커스텀 드롭다운 UI의 공통 베이스 클래스입니다.
+ * 네이티브 드롭다운 대신 기존 UI 레이아웃 시스템과 결합 가능한 구조를 제공하며,
+ * 데이터와 유닛을 제네릭으로 받아 드롭다운 항목 생성 및 선택 처리를 확장할 수 있도록 설계되었습니다.
+ *
+ * 주의사항 ::
+ * 1. 이 스크립트는 Toggle 및 RectTransform 컴포넌트가 반드시 필요합니다.
+ * 2. TData는 IDropData를 구현하고 기본 생성자가 가능해야 합니다.
+ * 3. TUnit은 MonoBehaviour 및 IDropUnit을 구현해야 합니다.
+ * 4. 실제 유닛 초기화와 선택 후 처리 로직은 파생 클래스에서 반드시 구현해야 합니다.
+ * 5. unitPrefab은 TUnit 컴포넌트를 포함하거나, 런타임에 AddComponent 가능한 구조여야 합니다.
+ * =========================================================
+ */
+#endif
+
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
 
-namespace HUtil.UI.Drop {
+namespace HUI.Dropdown {
     [RequireComponent(typeof(Toggle))]
     [RequireComponent(typeof(RectTransform))]
     public abstract class BaseDropDown<TData, TUnit> : MonoBehaviour, IBasicPanel
@@ -19,7 +35,7 @@ namespace HUtil.UI.Drop {
         [Tooltip("Preset position setting. (Not mandatory)")]
         protected DirectionType direction = DirectionType.Down;
 
-        [Title("DropDown")]
+        [Title("Dropdown")]
         [SerializeField]
         protected Toggle dropTg;
         [SerializeField]
@@ -173,8 +189,7 @@ namespace HUtil.UI.Drop {
 #if UNITY_EDITOR
 /* Dev Log
  * @Jason - PKH
- * 네이티브 드롭다운 로직이 기존 레이아웃 시스템을 무시하도록 설계되어있어 커스텀 클래스를 만듭니다.
- * I create a custom 'DropDown' class to replace the native dropdown that designed to override the existing layout system.
+ * 네이티브 드롭다운 런타임에 신규 캔버스 레이아웃에 생성되기에 기존 레이아웃 시스템이 무시됩니다.
  * =================================================================================
  * @Jason - PKH 23. 07. 2025
  * KOR ::
@@ -187,5 +202,27 @@ namespace HUtil.UI.Drop {
  * In the derived class, the data and unit to be used for the dropdown were made mandatory to be created.
  * When necessary, an external class that meets the conditions can be used to ensure extensibility,
  * The creation of a physical code file for a class/structure that is too simple for just to store some datas can be prevented by creating an inner class/structure.
+ * =========================================================
+ * @Jason - PKH 2026.03.10
+ *
+ * 주요 기능 ::
+ * 1. 드롭다운 항목 데이터를 기반으로 유닛 오브젝트를 생성합니다.
+ * 2. Toggle 상태에 따라 드롭다운 테이블의 활성/비활성을 제어합니다.
+ * 3. DirectionType과 Offset 값을 사용하여 테이블 Pivot 및 위치를 조정합니다.
+ * 4. 항목 선택 시 Value를 갱신하고 OnItemSelected 이벤트를 호출합니다.
+ * 5. 파생 클래스가 InitUnits(), SelectByIndex(int)를 통해 세부 동작을 구현하도록 강제합니다.
+ *
+ * 사용법 ::
+ * 1. BaseDropDown을 상속받는 파생 클래스를 작성합니다.
+ * 2. TData는 드롭다운 데이터 구조, TUnit은 드롭다운 항목 UI 스크립트로 지정합니다.
+ * 3. Inspector에서 dropTg, table, tableRect, unitParent, unitPrefab을 연결합니다.
+ * 4. Start 시 CreateUnits()로 항목 오브젝트를 생성한 뒤 InitUnits()에서 데이터와 유닛을 매핑합니다.
+ * 5. 항목 선택 시 OnSelect(index)를 호출하면 Value 변경과 함께 드롭다운이 닫힙니다.
+ *
+ * 기타 ::
+ * 1. 네이티브 Dropdown이 기존 레이아웃 시스템을 무시하는 문제를 대체하기 위한 커스텀 구조입니다.
+ * 2. unitPrefab에 TUnit이 없으면 런타임에 AddComponent로 추가합니다.
+ * 3. scene 상의 실제 prefab 오브젝트일 경우 CreateUnits() 이후 원본 unitPrefab은 비활성화합니다.
+ * =========================================================
  */
 #endif

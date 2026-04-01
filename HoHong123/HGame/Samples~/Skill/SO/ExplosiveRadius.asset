@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c52874e1fb21c9b49b5d4682671ca444, type: 3}
+  m_Name: ExplosiveRadius
+  m_EditorClassIdentifier: Assembly-CSharp::HGame.Skill.Sample.SkillExplosiveRadiusSO
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  uid: 0
+  displayName: "\uD3ED\uBC1C \uBC94\uC704 \uC99D\uAC00"
+  icon: {fileID: 0}
+  uiIcon: {fileID: 0}
+  description: 
+  maxStacks: 10
+  grant:
+    normal: 0
+    common: 0
+    rare: 0
+    epic: 0

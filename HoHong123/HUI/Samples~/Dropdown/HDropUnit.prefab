@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7139586333360521874}
   - component: {fileID: 4384852545479243225}
-  - component: {fileID: 4156469512065060810}
   m_Layer: 5
   m_Name: HDropUnit
   m_TagString: Untagged
@@ -89,21 +88,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_IsOn: 1
---- !u!114 &4156469512065060810
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 876903189584644210}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62142ad8462684b4284fb150aca61032, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  unitTg: {fileID: 4384852545479243225}
-  text: {fileID: 5546615411568141177}
-  icon: {fileID: 6841675717181905461}
 --- !u!1 &2621380971550768674
 GameObject:
   m_ObjectHideFlags: 0

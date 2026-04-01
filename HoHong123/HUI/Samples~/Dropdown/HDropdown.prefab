@@ -860,16 +860,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 8306662518777591478}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3d92a60943f535f4e8ab649bfb91023c, type: 3}
+  m_Script: {fileID: 11500000, guid: 3649a7e86377bcc42bbd0198e6a782bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  datas:
-  - Icon: {fileID: 21300000, guid: f1bec6e299e50f14d9391dc39dcaa76c, type: 3}
-    Name: Dagger
-  - Icon: {fileID: 21300000, guid: 8f1d22c7020cc6a49bb4f3eed2ffd295, type: 3}
-    Name: Shovel
-  - Icon: {fileID: 21300000, guid: cfe97e31b9cf08341a656831934f500f, type: 3}
-    Name: Cannon
   direction: 3
   dropTg: {fileID: 1479049284565818801}
   rect: {fileID: 6372792291311888911}
@@ -878,7 +871,7 @@ MonoBehaviour:
   tableRect: {fileID: 8113704120335974998}
   unitParent: {fileID: 370786935454928349}
   tableOffset: {x: 0, y: 0}
-  unitPrefab: {fileID: 876903189584644210, guid: 437d15cee2311a44cb6fb31f58fbf1d1, type: 3}
+  unitPrefab: {fileID: 876903189584644210, guid: 9a0bc142622e02f4db9c4f8582ac346f, type: 3}
   units: []
   icon: {fileID: 2589705292337105493}
   label: {fileID: 2243813798071521273}
