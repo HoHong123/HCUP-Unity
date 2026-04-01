@@ -1,3 +1,17 @@
+﻿#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * Inspector 필드의 최대값을 제한하는 Attribute입니다.
+ *
+ * 적용 타입 ::
+ * int, float, Vector2
+ *
+ * 사용 예 ::
+ * [HMax(100)]
+ * public int hp;
+ * =========================================================
+ */
+
 namespace HUtil.Inspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public class HMaxAttribute : HInspectorAttribute {
@@ -9,3 +23,4 @@ namespace HUtil.Inspector {
         }
     }
 }
+#endif

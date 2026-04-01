@@ -6,7 +6,7 @@ using Sirenix.OdinInspector;
 using HGame.Cam;
 using HUtil.Core;
 using HUtil.Pooling;
-using HUtil.UI.Panel;
+using HUI.Panel;
 
 namespace HGame.Map {
     [DisallowMultipleComponent]

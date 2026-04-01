@@ -1,11 +1,20 @@
 {
-  "name": "Hohong123.HGame.Editor",
-  "rootNamespace": "HGame.Editor",
-  "includePlatforms": [
-    "Editor"
-  ],
-  "autoReferenced": true,
-  "references": [
-    "Hohong123.HGame"
-  ]
+    "name": "Hohong123.HGame.Editor",
+    "rootNamespace": "HGame.Editor",
+    "references": [
+        "Hohong123.HUI",
+        "Hohong123.HUtil",
+        "Hohong123.HGame"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

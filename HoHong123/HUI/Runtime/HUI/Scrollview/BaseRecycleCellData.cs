@@ -1,7 +1,3 @@
-using UnityEngine;
-
-namespace HUtil.UI.ScrollView {
-    public abstract class BaseRecycleCellData {
-
-    }
+namespace HUI.ScrollView {
+    public abstract class BaseRecycleCellData {}
 }

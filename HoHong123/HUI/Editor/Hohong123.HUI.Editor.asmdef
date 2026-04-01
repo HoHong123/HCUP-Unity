@@ -1,0 +1,19 @@
+{
+    "name": "Hohong123.HUI.Editor",
+    "rootNamespace": "HUI.Editor",
+    "references": [
+        "Hohong123.HUtil",
+        "Hohong123.HUI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

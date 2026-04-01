@@ -1,118 +1,186 @@
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
- * ÀÏÁ¤ °³¼öÀÇ ·Î±×¸¦ ÀúÀåÇÏ´Â Ä¿½ºÅÒ ·Î±× ½Ã½ºÅÛÀÔ´Ï´Ù.
- * 
- * ** »ç¿ë¹ı **
- * 1. °¢ Àü¿ª ÇÔ¼ö¸¦ È£ÃâÇÏ¿© ¿øÇÏ´Â ·¹º§ÀÇ ¸Ş½ÃÁö¸¦ Ãâ·ÂÇÕ´Ï´Ù.
- * 2. ÇÊ¿ä¿¡ µû¶ó °ÔÀÓ¿ÀºêÁ§Æ®¸¦ Àü´ŞÇÏ¿© ·Î±× Å¬¸¯½Ã ÇØ´ç ¿ÀºêÁ§Æ®¸¦ ÇÏÀÌ¶óÀÌÆ®ÇÒ ¼ö ÀÖ½À´Ï´Ù.
- * Ps. ÇÊ¿ä¿¡ µû¶ó ¼­¹ö¿¡ ÇöÀç ·Î±×½ºÅÃÀ» Àü´ŞÇÏµµ·Ï ÇÒ ¼ö ÀÖ½À´Ï´Ù.
+ * í”„ë¡œì íŠ¸ ê³µìš© ë¡œê·¸ ì‹œìŠ¤í…œì…ë‹ˆë‹¤.
+ * Unity Debug ë¡œê·¸ë¥¼ í™•ì¥í•˜ì—¬ ì¼ê´€ëœ ë¡œê·¸ í¬ë§·ì„ ì œê³µí•©ë‹ˆë‹¤.
  * =========================================================
  */
 #endif
 
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
-
+using Debug = UnityEngine.Debug;
+#if !UNITY_EDITOR
+using System.Collections.Generic;
+#endif
 
 namespace HUtil.Logger {
-    public class HLogger : MonoBehaviour {
+    public class HLogger {
+        #region Const
         const int MAX_QUE_SIZE = 1000;
+        #endregion
 
-        readonly static Queue<string> logQue = new();
-        readonly static Queue<string> warningQue = new();
-        readonly static Queue<string> errorQue = new();
-        readonly static Queue<string> fatalQue = new();
+        #region Event
+        public static event Action<LogEntry> OnLogPublished;
+        #endregion
 
-        static string utcNow => DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
+        #region Nested Class
+        public readonly struct LogEntry {
+            public readonly LogLevel Level;
+            public readonly DateTimeOffset Timestamp;
+            public readonly string Message;
+            public readonly string Debug;
+            public readonly int? TargetInstanceId;
 
-
-        public static void Log(string message, GameObject target = null, bool popupActivate = false) {
-            string log = $"@1 [{utcNow}] {message}";
-
-#if UNITY_EDITOR
-            if (target == null) {
-                Debug.Log(log);
+            public LogEntry(
+                LogLevel level,
+                DateTimeOffset timestamp,
+                string message,
+                string debug,
+                int? targetInstanceId) {
+                Level = level;
+                Timestamp = timestamp;
+                Message = message;
+                Debug = debug;
+                TargetInstanceId = targetInstanceId;
             }
-            else {
-                Debug.Log(log, target);
+
+            public string ToConsoleString() {
+                string levelTag = _GetColoredLevelTag(Level);
+                string head = $"{levelTag} [{Timestamp:yyyy-MM-dd HH:mm:ss zzz}] ";
+                if (string.IsNullOrEmpty(Debug)) return $"{head}{Message}";
+                string debugHead = $"{levelTag} Debug :: ";
+                return $"{head}{Message}\n{debugHead}{Debug}";
             }
+
+            private static string _GetColoredLevelTag(LogLevel level) {
+                string tag = $"@{(int)level} [{level}]";
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                return $"<color={_GetLevelColor(level)}>{tag}</color>";
+#else
+                return tag;
 #endif
+            }
+
+            private static string _GetLevelColor(LogLevel level) {
+                switch (level) {
+                case LogLevel.Log: return "#7ED957";
+                case LogLevel.Warn: return "#FFD54F";
+                case LogLevel.Error: return "#FF5252";
+                default: return "#7ED957";
+                }
+            }
+        }
+        #endregion
+
+        #region Log
+#if !UNITY_EDITOR
+        readonly static Queue<LogEntry> logQue = new();
+#endif
+        #endregion
+
+        #region Property
+        static DateTimeOffset _UtcNow => DateTimeOffset.Now;
+        #endregion
+
+        #region Public - Call Logger
+        public static void Log(string message, GameObject target = null, bool popupActivate = false) {
+            LogEntry entry = new(LogLevel.Log, _UtcNow, message, "", target ? target.GetInstanceID() : null);
+            _Publish(entry);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _ConsoleLog(entry, target);
+#endif
+
             if (popupActivate) {
                 // TODO :: Connect with local PopupManager
-                //PopupManager.Instance.AddAlert("Log", message);
             }
-
-            logQue.Enqueue(log);
-            if (logQue.Count > MAX_QUE_SIZE)
-                logQue.Dequeue();
         }
 
         public static void Warning(string message, GameObject target = null, bool popupActivate = false) {
-            string log = $"@2 [{utcNow}] {message}";
+            LogEntry entry = new(LogLevel.Warn, _UtcNow, message, "", target ? target.GetInstanceID() : null);
+            _Publish(entry);
 
-#if UNITY_EDITOR
-            if (target == null) {
-                Debug.LogWarning(log);
-            }
-            else {
-                Debug.LogWarning(log, target);
-            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _ConsoleLog(entry, target);
 #endif
+
             if (popupActivate) {
                 // TODO :: Connect with local PopupManager
-                //PopupManager.Instance.AddAlert("Warning", message);
             }
-
-            warningQue.Enqueue(message);
-            if (warningQue.Count > MAX_QUE_SIZE)
-                warningQue.Dequeue();
         }
 
         public static void Error(string message, GameObject target = null, bool showPopup = false, string debug = "") {
-            string log =
-                $"@3 [{utcNow}] {message}\n" +
-                $"@3 Debug :: {debug}";
+            LogEntry entry = new(LogLevel.Error, _UtcNow, message, debug, target ? target.GetInstanceID() : null);
+            _Publish(entry);
 
-#if UNITY_EDITOR
-            if (target == null) {
-                Debug.LogError(log);
-            }
-            else {
-                Debug.LogError(log, target);
-            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _ConsoleLog(entry, target);
 #endif
 
             if (showPopup) {
                 // TODO :: Connect with local PopupManager
-                //PopupManager.Instance.AddAlert("Error", message);
             }
-
-            errorQue.Enqueue(message);
-            if (errorQue.Count > MAX_QUE_SIZE)
-                errorQue.Dequeue();
-
-            // TODO :: Decide what to do with log stack
-            // ...
         }
 
         public static void Exception(Exception ex, string extra = "") {
-            string extraInfo = string.IsNullOrEmpty(extra) ? "" : $"{extra} ";
-            string log =
-                $"@4 [{utcNow}] {ex.Message}\n" +
-                $"{extraInfo}";
+            string msg = string.IsNullOrEmpty(extra) ? ex.ToString() : $"{extra}\n{ex}";
+            LogEntry entry = new(LogLevel.Error, _UtcNow, msg, "", null);
+            _Publish(entry);
 
-#if UNITY_EDITOR
-            Debug.LogError(log);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _ConsoleLog(entry, null);
 #endif
-
-            fatalQue.Enqueue(log);
         }
 
-        public static Exception Throw(Exception ex, string extra = "") {
+        public static Exception Throw(Exception ex, string extra = "", bool doThrow = true) {
             Exception(ex, extra);
-            throw ex;
+            if (doThrow) throw ex;
+            return null;
         }
+
+        [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]
+        public static void Assert(bool condition, string message = "Assertion failed", GameObject target = null) {
+            if (condition) return;
+            Debug.Assert(false, message, target);
+        }
+
+        public static void SendLogsToServer() {
+            // TODO :: Implement server communication to send logs
+        }
+        #endregion
+
+        #region Private
+        private static void _Publish(LogEntry entry) {
+#if !UNITY_EDITOR
+            logQue.Enqueue(entry);
+            if (logQue.Count > MAX_QUE_SIZE) logQue.Dequeue();
+#endif
+            OnLogPublished?.Invoke(entry);
+        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static void _ConsoleLog(LogEntry entry, GameObject target) {
+            string formatted = entry.ToConsoleString();
+
+            if (entry.Level == LogLevel.Log) {
+                if (target == null) Debug.Log(formatted);
+                else Debug.Log(formatted, target);
+                return;
+            }
+
+            if (entry.Level == LogLevel.Warn) {
+                if (target == null) Debug.LogWarning(formatted);
+                else Debug.LogWarning(formatted, target);
+                return;
+            }
+
+            if (entry.Level == LogLevel.Error) {
+                if (target == null) Debug.LogError(formatted);
+                else Debug.LogError(formatted, target);
+            }
+        }
+#endif
+        #endregion
     }
 }

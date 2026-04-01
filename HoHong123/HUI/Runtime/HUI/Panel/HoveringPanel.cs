@@ -3,7 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace HUtil.UI.Panel {
+namespace HUI.Panel {
     public class HoveringPanel : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler {
         Coroutine hoverRoutine;
 

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace HUtil.UI.Panel {
+namespace HUI.Panel {
     public class ProxyPanel : MonoBehaviour,
         IBeginDragHandler, IDragHandler, IEndDragHandler,
         IPointerEnterHandler, IPointerExitHandler, IPointerMoveHandler,

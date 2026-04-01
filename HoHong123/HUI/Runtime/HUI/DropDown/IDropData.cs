@@ -1,1 +1,3 @@
-public interface IDropData {}
+﻿namespace HUI.Dropdown {
+    public interface IDropData { }
+}

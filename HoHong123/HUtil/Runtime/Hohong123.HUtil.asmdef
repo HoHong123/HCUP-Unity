@@ -2,8 +2,10 @@
     "name": "Hohong123.HUtil",
     "rootNamespace": "HUtil",
     "references": [
+        "Unity.Addressables",
+        "Unity.ResourceManager",
         "UniTask",
-        "Unity.TextMeshPro"
+        "UniTask.Addressables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

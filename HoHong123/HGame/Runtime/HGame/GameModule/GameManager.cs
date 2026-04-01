@@ -2,18 +2,19 @@ using System.Threading;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HUtil.Inspector;
 
 namespace HGame.Flow {
-    public class GameManager<TSelf> : HUtil.Core.SingletonBehaviour<TSelf>
-    where TSelf : GameManager<TSelf> {
-        [Title("Flow")]
+    public class GameManager<TSelf>:
+        HUtil.Core.SingletonBehaviour<TSelf>
+        where TSelf : GameManager<TSelf> {
+        [HTitle("Flow")]
         [SerializeField]
         protected bool autoPrepareOnEnable = true;
         [SerializeField]
         protected GamePhaseType phase = GamePhaseType.None;
         [SerializeField]
-        [InfoBox("Modules (children or same GameObject)")]
+        [Tooltip("Modules (children or same GameObject)")]
         List<BaseGameModule> modules = new();
 
         GameContext context = new GameContext();
@@ -43,8 +44,10 @@ namespace HGame.Flow {
         public virtual UniTask GamePrepareAsync() => SwitchGamePhaseAsync(GamePhaseType.Prepare);
         public virtual UniTask GameStartAsync() => SwitchGamePhaseAsync(GamePhaseType.Start);
         public virtual UniTask GameRunAsync() => SwitchGamePhaseAsync(GamePhaseType.Running);
-        public virtual UniTask GameOverAsync() => SwitchGamePhaseAsync(GamePhaseType.Over);
         public virtual UniTask GamePauseAsync() => SwitchGamePhaseAsync(GamePhaseType.Pause);
+        public virtual UniTask GameResumeAsync() => SwitchGamePhaseAsync(GamePhaseType.Resume);
+        public virtual UniTask GameOverAsync() => SwitchGamePhaseAsync(GamePhaseType.Over);
+        public virtual UniTask GameExitAsync() => SwitchGamePhaseAsync(GamePhaseType.Exit);
 
 
         protected async UniTask SwitchGamePhaseAsync(GamePhaseType phase) {
@@ -69,8 +72,14 @@ namespace HGame.Flow {
             case GamePhaseType.Pause:
                 foreach (var m in modules) await m.OnEnterPause(context, ct);
                 break;
+            case GamePhaseType.Resume:
+                foreach (var m in modules) await m.OnEnterResume(context, ct);
+                break;
             case GamePhaseType.Over:
                 foreach (var m in modules) await m.OnEnterOver(context, ct);
+                break;
+            case GamePhaseType.Exit:
+                foreach (var m in modules) await m.OnEnterExit(context, ct);
                 break;
             }
         }
