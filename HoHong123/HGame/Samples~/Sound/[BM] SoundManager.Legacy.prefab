@@ -222,7 +222,7 @@ MonoBehaviour:
     SerializationNodes: []
   dontDestroyOnLoad: 1
   load: 0
-  audioMix: {fileID: 24100000, guid: f8aaa7eb05efd0946b20b4017aeabd4f, type: 2}
+  audioMix: {fileID: 24100000, guid: fc59362cf2eb8844eb68aba79d0ca3de, type: 2}
   sfxAudio: {fileID: 5382712485931233371}
   bgmAudio: {fileID: 1199179675426585453}
   bgmAltAudio: {fileID: 4367073759004062679}
