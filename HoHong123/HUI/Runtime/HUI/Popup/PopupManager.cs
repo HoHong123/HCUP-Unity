@@ -127,16 +127,46 @@ namespace HUI.Popup {
         public void ShowImage(Sprite sprite, Action onClick = null) => ShowImage(sprite.texture, onClick);
         public void ShowImage(Texture texture, Action onClick = null) {
             background.SetActive(true);
+            _DisposeImageInstance();
+
             imgInstnace = Instantiate(imagePrefab, gameParent);
             imgInstnace.SetUi(texture);
-            imgInstnace.OnClickPanel += onClick;
+            if (onClick != null) imgInstnace.OnClickPanel += onClick;
         }
 
         public void ShowVideo(string address, Action onClick = null, int width = 0, int height = 0) {
             background.SetActive(true);
+            _DisposeVideoInstance();
+
             vidInstnace = Instantiate(videoPrefab, gameParent);
             vidInstnace.SetVideo(address, width, height);
-            vidInstnace.OnClickPanel += onClick;
+            if (onClick != null) vidInstnace.OnClickPanel += onClick;
+        }
+
+        // 싱글톤 파괴 시 자식 팝업 인스턴스와 큐에 남은 외부 Action 참조를 모두 끊는다.
+        protected override void OnDestroy() {
+            _DisposeImageInstance();
+            _DisposeVideoInstance();
+
+            if (textInstance != null) {
+                Destroy(textInstance.gameObject);
+                textInstance = null;
+            }
+
+            logHistory.Clear();
+            base.OnDestroy();
+        }
+
+        private void _DisposeImageInstance() {
+            if (imgInstnace == null) return;
+            Destroy(imgInstnace.gameObject);
+            imgInstnace = null;
+        }
+
+        private void _DisposeVideoInstance() {
+            if (vidInstnace == null) return;
+            Destroy(vidInstnace.gameObject);
+            vidInstnace = null;
         }
 
 
