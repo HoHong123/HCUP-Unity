@@ -1,12 +1,13 @@
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using UnityEngine.Assertions;
 using HUtil.AssetHandler.Cache;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Load;
 using HUtil.AssetHandler.Store;
 using HUtil.AssetHandler.Subscription;
 using HUtil.AssetHandler.Validation;
+using HUtil.Logger;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -39,10 +40,10 @@ namespace HUtil.AssetHandler.Provider {
             IAssetLoadGate<TKey, TAsset> assetLoadGate,
             IAssetStore<TKey, TAsset> assetStore = null) {
 
-            Assert.IsNotNull(assetLoaders, "[AssetProvider] loaders is null.");
-            Assert.IsNotNull(assetCache, "[AssetProvider] cache is null.");
-            Assert.IsNotNull(assetValidator, "[AssetProvider] validator is null.");
-            Assert.IsNotNull(assetLoadGate, "[AssetProvider] loadGate is null.");
+            if (assetLoaders == null) HLogger.Throw(new ArgumentNullException(nameof(assetLoaders)));
+            if (assetCache == null) HLogger.Throw(new ArgumentNullException(nameof(assetCache)));
+            if (assetValidator == null) HLogger.Throw(new ArgumentNullException(nameof(assetValidator)));
+            if (assetLoadGate == null) HLogger.Throw(new ArgumentNullException(nameof(assetLoadGate)));
 
             this.assetCache = assetCache;
             this.assetValidator = assetValidator;
@@ -51,7 +52,12 @@ namespace HUtil.AssetHandler.Provider {
             this.assetCache.OnAssetRemoved += _OnAssetRemoved;
 
             foreach (var assetLoader in assetLoaders) {
-                Assert.IsNotNull(assetLoader, "[AssetProvider] loader contains null.");
+                if (assetLoader == null) {
+                    HLogger.Throw(new ArgumentException(
+                        "[AssetProvider] asset loader collection contains null.",
+                        nameof(assetLoaders)));
+                }
+
                 loaderTable[assetLoader.LoadMode] = assetLoader;
 
                 if (assetLoader is IAssetReleasableLoader<TKey, TAsset> releasableLoader) {
@@ -59,7 +65,11 @@ namespace HUtil.AssetHandler.Provider {
                 }
             }
 
-            Assert.IsTrue(loaderTable.Count > 0, "[AssetProvider] No asset loader registered.");
+            if (loaderTable.Count < 1) {
+                HLogger.Throw(new ArgumentException(
+                    "[AssetProvider] No asset loader registered.",
+                    nameof(assetLoaders)));
+            }
         }
         #endregion
 
@@ -145,7 +155,8 @@ namespace HUtil.AssetHandler.Provider {
             case AssetFetchMode.SourceOnly:
                 return await _GetSourceOnlyAsync(request);
             default:
-                Assert.IsTrue(false, $"[AssetProvider] Unsupported fetchMode. fetchMode={request.FetchMode}");
+                HLogger.Throw(new NotSupportedException(
+                    $"[AssetProvider] Unsupported fetchMode. fetchMode={request.FetchMode}"));
                 return default;
             }
         }
@@ -168,9 +179,11 @@ namespace HUtil.AssetHandler.Provider {
 
         #region Private - Local Store
         private async UniTask<TAsset> _GetLocalStoreFirstAsync(AssetRequest<TKey> request) {
-            Assert.IsNotNull(
-                assetStore,
-                $"[AssetProvider] assetStore is required. fetchMode={request.FetchMode}");
+            if (assetStore == null) {
+                HLogger.Throw(new InvalidOperationException(
+                    $"[AssetProvider] assetStore is required. fetchMode={request.FetchMode}"));
+                return default;
+            }
 
             var storeAsset = await _LoadFromStoreAsync(request.Key);
             if (_IsValidAsset(request.Key, storeAsset)) {
@@ -187,9 +200,11 @@ namespace HUtil.AssetHandler.Provider {
         }
 
         private async UniTask<TAsset> _GetLocalStoreOnlyAsync(AssetRequest<TKey> request) {
-            Assert.IsNotNull(
-                assetStore,
-                $"[AssetProvider] assetStore is required. fetchMode={request.FetchMode}");
+            if (assetStore == null) {
+                HLogger.Throw(new InvalidOperationException(
+                    $"[AssetProvider] assetStore is required. fetchMode={request.FetchMode}"));
+                return default;
+            }
 
             var storeAsset = await _LoadFromStoreAsync(request.Key);
             if (!_IsValidAsset(request.Key, storeAsset)) return default;
@@ -228,12 +243,15 @@ namespace HUtil.AssetHandler.Provider {
         #region Private - Load
         private async UniTask<TAsset> _LoadFromSourceAsync(AssetRequest<TKey> request) {
             var assetLoader = _ResolveLoader(request.LoadMode);
-            var asset = await assetLoader.LoadAsync(request.Key);
-            return asset;
+            return await assetLoader.LoadAsync(request.Key);
         }
 
         private async UniTask<TAsset> _LoadFromStoreAsync(TKey key) {
-            Assert.IsNotNull(assetStore, "[AssetProvider] assetStore is null.");
+            if (assetStore == null) {
+                HLogger.Throw(new InvalidOperationException("[AssetProvider] assetStore is null."));
+                return default;
+            }
+
             if (!await assetStore.HasAsync(key)) return default;
             return await assetStore.LoadAsync(key);
         }
@@ -266,8 +284,10 @@ namespace HUtil.AssetHandler.Provider {
             if (loaderTable.TryGetValue(loadMode, out var assetLoader)) {
                 return assetLoader;
             }
-            Assert.IsTrue(false, $"[AssetProvider] Loader not registered. loadMode={loadMode}");
-            return default;
+
+            HLogger.Throw(new InvalidOperationException(
+                $"[AssetProvider] Loader not registered. loadMode={loadMode}"));
+            return null;
         }
         #endregion
 
