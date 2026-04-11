@@ -44,16 +44,22 @@ namespace HUtil.Core {
 
         // Use this for initialization
         protected virtual void Awake() {
-            if (dontDestroyOnLoad) {
-                DontDestroyOnLoad(gameObject);
-            }
-
             if (instance != null && instance != this) {
                 Destroy(gameObject);
                 return;
             }
 
             instance = (T)this;
+            if (dontDestroyOnLoad) {
+                DontDestroyOnLoad(gameObject);
+            }
+        }
+
+        // 자기 자신일 때만 static 참조를 해제한다. 다른 인스턴스를 덮어쓰는 사고 방지.
+        protected virtual void OnDestroy() {
+            if (instance == this) {
+                instance = null;
+            }
         }
     }
 }
