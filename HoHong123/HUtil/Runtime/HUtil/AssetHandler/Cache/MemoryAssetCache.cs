@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using HUtil.AssetHandler.Subscription;
+using HUtil.Logger;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -36,8 +37,9 @@ namespace HUtil.AssetHandler.Cache {
         #region Public - Load
         public bool TryLoad(TKey key, out TAsset asset) {
             asset = default;
-            if (!_TryGetItem(key, out var item, out asset))
+            if (!_TryGetItem(key, out var item, out asset)) {
                 return false;
+            }
 
             item.AnonymousDependency++;
             return true;
@@ -45,14 +47,17 @@ namespace HUtil.AssetHandler.Cache {
 
         public bool TryLoad(TKey key, AssetOwnerId ownerId, out TAsset asset) {
             asset = default;
-            if (!ownerId.IsValid)
+            if (!ownerId.IsValid) {
                 return TryLoad(key, out asset);
+            }
 
-            if (!_TryGetItem(key, out var item, out asset))
+            if (!_TryGetItem(key, out var item, out asset)) {
                 return false;
+            }
 
-            if (!item.Owners.Add(ownerId))
+            if (!item.Owners.Add(ownerId)) {
                 return true;
+            }
 
             _RegisterOwnerKey(ownerId, key);
             return true;
@@ -68,13 +73,16 @@ namespace HUtil.AssetHandler.Cache {
 
         #region Public - Save
         public bool Save(TKey key, TAsset asset) {
-            if (ReferenceEquals(asset, null))
-                return false;
+            if (ReferenceEquals(asset, null)) return false;
 
-            if (table.TryGetValue(key, out var item) && !ReferenceEquals(item.Asset, null)) {
-                item.Asset = asset;
-                item.AnonymousDependency++;
-                return true;
+            if (table.TryGetValue(key, out var item)) {
+                if (ReferenceEquals(item.Asset, asset)) {
+                    item.AnonymousDependency++;
+                    return true;
+                }
+
+                HLogger.Error($"[AssetCache] Save rejected. Key '{key}' already holds a different asset.");
+                return false;
             }
 
             table[key] = new Item {
@@ -86,26 +94,23 @@ namespace HUtil.AssetHandler.Cache {
         }
 
         public bool Save(TKey key, TAsset asset, AssetOwnerId ownerId) {
-            if (!ownerId.IsValid)
-                return Save(key, asset);
+            if (!ownerId.IsValid) return Save(key, asset);
 
-            if (ReferenceEquals(asset, null))
-                return false;
+            if (ReferenceEquals(asset, null)) return false;
 
-            if (table.TryGetValue(key, out var item) && !ReferenceEquals(item.Asset, null)) {
-                item.Asset = asset;
-
-                if (!item.Owners.Add(ownerId))
+            if (table.TryGetValue(key, out var item)) {
+                if (ReferenceEquals(item.Asset, asset)) {
+                    if (item.Owners.Add(ownerId)) _RegisterOwnerKey(ownerId, key);
                     return true;
+                }
 
-                _RegisterOwnerKey(ownerId, key);
-                return true;
+                HLogger.Error($"[AssetCache] Save rejected. Key '{key}' already holds a different asset.");
+                return false;
             }
 
-            table[key] = new Item {
-                Asset = asset,
-                Owners = new HashSet<AssetOwnerId> { ownerId },
-            };
+            var newItem = new Item { Asset = asset };
+            newItem.Owners.Add(ownerId);
+            table[key] = newItem;
 
             _RegisterOwnerKey(ownerId, key);
             return true;
@@ -114,36 +119,25 @@ namespace HUtil.AssetHandler.Cache {
 
         #region Public - Release
         public bool Release(TKey key) {
-            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null))
-                return false;
-
-            if (item.AnonymousDependency < 1)
-                return false;
-
+            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) return false;
+            if (item.AnonymousDependency < 1) return false;
             item.AnonymousDependency--;
             return _TryRemoveItem(key, item);
         }
 
         public bool Release(TKey key, AssetOwnerId ownerId) {
-            if (!ownerId.IsValid)
-                return Release(key);
+            if (!ownerId.IsValid) return Release(key);
 
-            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null))
-                return false;
-
-            if (!item.Owners.Remove(ownerId))
-                return false;
+            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) return false;
+            if (!item.Owners.Remove(ownerId)) return false;
 
             _UnregisterOwnerKey(ownerId, key);
             return _TryRemoveItem(key, item);
         }
 
         public int ReleaseOwner(AssetOwnerId ownerId) {
-            if (!ownerId.IsValid)
-                return 0;
-
-            if (!ownerTable.TryGetValue(ownerId, out var keys))
-                return 0;
+            if (!ownerId.IsValid) return 0;
+            if (!ownerTable.TryGetValue(ownerId, out var keys)) return 0;
 
             var releaseKeys = new List<TKey>(keys);
             int releasedCount = 0;
@@ -151,11 +145,8 @@ namespace HUtil.AssetHandler.Cache {
             ownerTable.Remove(ownerId);
 
             foreach (var key in releaseKeys) {
-                if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null))
-                    continue;
-
-                if (!item.Owners.Remove(ownerId))
-                    continue;
+                if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) continue;
+                if (!item.Owners.Remove(ownerId)) continue;
 
                 releasedCount++;
                 _TryRemoveItem(key, item);
@@ -178,31 +169,20 @@ namespace HUtil.AssetHandler.Cache {
             asset = default;
             item = null;
 
-            if (!table.TryGetValue(key, out item) || ReferenceEquals(item.Asset, null))
-                return false;
+            if (!table.TryGetValue(key, out item) || ReferenceEquals(item.Asset, null)) return false;
 
             asset = item.Asset;
             return true;
         }
 
         private bool _TryRemoveItem(TKey key, Item item) {
-            if (item.AnonymousDependency > 0)
-                return false;
-
-            if (item.Owners.Count > 0)
-                return false;
-
+            if (item.AnonymousDependency > 0) return false;
+            if (item.Owners.Count > 0) return false;
             return _RemoveItem(key, item);
         }
 
         private bool _RemoveItem(TKey key, Item item) {
-            if (!table.Remove(key))
-                return false;
-
-            foreach (var ownerId in item.Owners) {
-                _UnregisterOwnerKey(ownerId, key);
-            }
-
+            if (!table.Remove(key)) return false;
             _NotifyRemoved(key, item.Asset);
             return true;
         }
@@ -219,19 +199,16 @@ namespace HUtil.AssetHandler.Cache {
         }
 
         private void _UnregisterOwnerKey(AssetOwnerId ownerId, TKey key) {
-            if (!ownerTable.TryGetValue(ownerId, out var keys))
-                return;
+            if (!ownerTable.TryGetValue(ownerId, out var keys)) return;
 
             keys.Remove(key);
-            if (keys.Count < 1)
-                ownerTable.Remove(ownerId);
+            if (keys.Count < 1) ownerTable.Remove(ownerId);
         }
         #endregion
 
         #region Private - Clear
         private void _ClearItems() {
-            if (table.Count < 1)
-                return;
+            if (table.Count < 1) return;
 
             var removeItems = new List<KeyValuePair<TKey, Item>>(table);
             table.Clear();
@@ -245,9 +222,7 @@ namespace HUtil.AssetHandler.Cache {
 
         #region Private - Event
         private void _NotifyRemoved(TKey key, TAsset asset) {
-            if (ReferenceEquals(asset, null))
-                return;
-
+            if (ReferenceEquals(asset, null)) return;
             OnAssetRemoved?.Invoke(key, asset);
         }
         #endregion
@@ -273,6 +248,11 @@ namespace HUtil.AssetHandler.Cache {
  * 기타 ::
  * 1. lease 계층과는 독립적으로 동작합니다.
  * 2. 가장 얇은 기본 캐시이지만 owner-aware 구조를 포함합니다.
+ * =========================================================
+ * @Jason - PKH
+ * 양방향 멀티탭 패턴
+ *  - Item.Owners: "이 key를 누가 잡고 있나?"
+ *  - ownerTable: "이 owner가 뭘 잡고 있나?" 일괄 해제 성능을 위한 역인덱스.
  * =========================================================
  */
 #endif
