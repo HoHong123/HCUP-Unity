@@ -21,13 +21,24 @@ namespace HUI.Popup {
 
         protected override void Start() {
             base.Start();
-            closeBtn.onClick.AddListener(() => Destroy(panel));
-            panelBtn.onClick.AddListener(() => OnClickPanel?.Invoke());
+            panelBtn.onClick.AddListener(_HandlePanelClicked);
             video.Stop();
+        }
+
+        protected override void OnDestroy() {
+            if (panelBtn != null) {
+                panelBtn.onClick.RemoveListener(_HandlePanelClicked);
+            }
+            OnClickPanel = null;
+            base.OnDestroy();
         }
 
         private void OnDisable() {
             video.Stop();
+        }
+
+        private void _HandlePanelClicked() {
+            OnClickPanel?.Invoke();
         }
 
 
