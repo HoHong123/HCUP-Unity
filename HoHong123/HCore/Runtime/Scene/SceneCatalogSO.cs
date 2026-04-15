@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace HUtil.Scene {
+namespace HCore.Scene {
     [CreateAssetMenu(menuName = "HCUP/Scene/Scene Catalog")]
     public sealed class SceneCatalogSO : ScriptableObject {
         #region Nested

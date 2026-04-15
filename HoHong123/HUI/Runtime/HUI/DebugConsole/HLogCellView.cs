@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using HUI.ScrollView;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 namespace HUI.DebugConsole {
     public sealed class HLogCellView : BaseRecycleCellView<HLogCellData> {

@@ -12,7 +12,7 @@
 using System.Text;
 using System.Globalization;
 using UnityEngine;
-using HUtil.Encode;
+using HData.Encode;
 
 namespace HUtil.Data.Load {
     public static class PlayerPrefsHandler {

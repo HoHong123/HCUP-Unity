@@ -19,7 +19,7 @@
  */
 #endif
 
-namespace HUtil.Inspector {
+namespace HInspector {
     [System.Diagnostics.Conditional("UNITY_EDITOR")]
     [System.AttributeUsage(System.AttributeTargets.All, AllowMultiple = true, Inherited = true)]
     public class HTitleAttribute : HInspectorAttribute {

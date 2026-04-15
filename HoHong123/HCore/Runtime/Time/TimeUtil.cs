@@ -16,7 +16,7 @@
 
 using System;
 
-namespace HUtil.HTime {
+namespace HCore.HTime {
     public static class TimeUtil {
         #region Remain Time
         public static TimeSpan GetRemaining(this DateTime utcNow, long nextAvailableUtcTicks) {

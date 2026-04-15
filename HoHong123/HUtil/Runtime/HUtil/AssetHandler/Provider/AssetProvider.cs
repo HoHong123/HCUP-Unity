@@ -7,7 +7,7 @@ using HUtil.AssetHandler.Load;
 using HUtil.AssetHandler.Store;
 using HUtil.AssetHandler.Subscription;
 using HUtil.AssetHandler.Validation;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 #if UNITY_EDITOR
 /* =========================================================

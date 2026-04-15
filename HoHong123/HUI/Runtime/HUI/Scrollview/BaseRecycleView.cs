@@ -15,9 +15,9 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using HUtil.Core;
-using HUtil.Inspector;
-using HUtil.Logger;
+using HCore;
+using HInspector;
+using HDiagnosis.Logger;
 using HUtil.Pooling;
 
 namespace HUI.ScrollView {

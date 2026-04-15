@@ -14,7 +14,7 @@ using Debug = UnityEngine.Debug;
 using System.Collections.Generic;
 #endif
 
-namespace HUtil.Logger {
+namespace HDiagnosis.Logger {
     public class HLogger {
         #region Const
         const int MAX_QUE_SIZE = 1000;

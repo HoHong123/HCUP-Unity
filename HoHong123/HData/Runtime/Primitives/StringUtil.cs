@@ -18,7 +18,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 
-namespace HUtil.Formattable {
+namespace HData.Formattable {
     public static class StringUtil {
         #region Parsing Query
         public static Dictionary<string, string> ParseQueryString(this string query) {

@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using HUtil.Inspector;
+using HInspector;
 using HGame.Player;
 
 namespace HGame.Sample.Player {

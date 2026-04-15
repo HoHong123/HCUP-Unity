@@ -14,11 +14,11 @@
 
 using System;
 using System.Text;
-using HUtil.Encode;
-using HUtil.Encrypt;
+using HData.Encode;
+using HData.Encrypt;
 using HUtil.Data.Load;
 
-namespace HUtil.HTime {
+namespace HCore.HTime {
     public sealed class DateChecker {
         #region Const
         const string LAST_CHECK_KEY = "date_checker_last_utc_ticks";

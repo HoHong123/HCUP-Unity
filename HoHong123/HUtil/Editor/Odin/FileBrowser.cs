@@ -15,7 +15,7 @@ using UnityEditor;
 using UnityEngine;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 namespace HUtil.Editor {
     public class FileBrowser : OdinEditorWindow {

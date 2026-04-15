@@ -23,7 +23,7 @@
 
 using System;
 using System.Collections.Generic;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 namespace HUtil.Pooling {
     public abstract class BasePool<T> : IDisposable where T : class {

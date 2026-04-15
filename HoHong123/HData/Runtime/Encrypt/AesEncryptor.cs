@@ -22,7 +22,7 @@ using System;
 using System.Text;
 using System.Security.Cryptography;
 
-namespace HUtil.Encrypt {
+namespace HData.Encrypt {
     public sealed class AesEncryptor : IEncryptor {
         #region Fields
         readonly byte[] keyBytes;

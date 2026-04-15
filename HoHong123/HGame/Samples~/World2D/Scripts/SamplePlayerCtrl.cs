@@ -13,7 +13,7 @@
 
 using UnityEngine;
 using UnityEngine.Assertions;
-using HUtil.Inspector;
+using HInspector;
 
 namespace SWU.Player {
     [RequireComponent(typeof(Rigidbody2D))]

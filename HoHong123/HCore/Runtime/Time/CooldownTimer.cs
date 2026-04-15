@@ -19,7 +19,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace HUtil.HTime {
+namespace HCore.HTime {
     public enum CancelBehavior {
         SkipAllEvents = 0,
         InvokeCanceled = 1,

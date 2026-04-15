@@ -16,10 +16,10 @@ using BehaviourBase = Sirenix.OdinInspector.SerializedMonoBehaviour;
 using BehaviourBase = UnityEngine.MonoBehaviour;
 #endif
 using UnityEngine;
-using HUtil.Logger;
-using HUtil.Inspector;
+using HDiagnosis.Logger;
+using HInspector;
 
-namespace HUtil.Core {
+namespace HCore {
     public class SingletonBehaviour<T> : BehaviourBase where T : SingletonBehaviour<T> {
         [HTitle("Singleton")]
         [SerializeField]

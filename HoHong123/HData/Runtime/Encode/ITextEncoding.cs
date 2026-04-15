@@ -8,7 +8,7 @@
  */
 #endif
 
-namespace HUtil.Encode {
+namespace HData.Encode {
     public interface ITextEncoding {
         string Encode(byte[] data);
         bool TryDecode(string text, out byte[] data);

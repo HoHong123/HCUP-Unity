@@ -2,11 +2,11 @@ using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
-using HUtil.Inspector;
+using HInspector;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Provider;
 using HUtil.AssetHandler.Subscription;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 namespace HUI.Popup {
     public class ImagePopup : BasePopupUi, IAssetOwner {

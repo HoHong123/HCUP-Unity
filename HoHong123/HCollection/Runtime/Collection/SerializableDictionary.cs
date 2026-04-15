@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace HUtil.Collection {
+namespace HCollection {
     [Serializable]
     public class SerializableDictionary<TKey, TValue> : Dictionary<TKey, TValue>, ISerializationCallbackReceiver {
         #region Nested Class

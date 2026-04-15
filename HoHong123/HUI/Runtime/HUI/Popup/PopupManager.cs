@@ -15,8 +15,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Sirenix.OdinInspector;
-using HUtil.Core;
-using HUtil.Logger;
+using HCore;
+using HDiagnosis.Logger;
 
 namespace HUI.Popup {
     public abstract class PopupManager<T> : SingletonBehaviour<T> where T : PopupManager<T> {

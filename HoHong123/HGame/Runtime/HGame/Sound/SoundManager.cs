@@ -7,10 +7,10 @@ using Sirenix.OdinInspector;
 using HGame.Sound.AddOn;
 using HGame.Sound.Core;
 using HGame.Sound.Load;
-using HUtil.Core;
+using HCore;
 using HUtil.Data.Load;
-using HUtil.Inspector;
-using HUtil.Diagnosis;
+using HInspector;
+using HDiagnosis.HDebug;
 
 namespace HGame.Sound {
     public sealed class SoundManager : SingletonBehaviour<SoundManager> {

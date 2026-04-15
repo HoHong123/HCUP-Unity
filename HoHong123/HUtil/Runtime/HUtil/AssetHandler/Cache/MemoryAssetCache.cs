@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using HUtil.AssetHandler.Subscription;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 #if UNITY_EDITOR
 /* =========================================================

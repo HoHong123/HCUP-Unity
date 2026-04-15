@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Assertions;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 using HGame.Sound.Core;
 
 namespace HGame.Editor.Sound {

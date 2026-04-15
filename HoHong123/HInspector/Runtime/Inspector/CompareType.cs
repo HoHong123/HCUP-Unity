@@ -9,7 +9,7 @@
  */
 #endif
 
-namespace HUtil.Inspector {
+namespace HInspector {
     public enum HCompareType : byte {
         Equals = 0,
         NotEquals = 1,

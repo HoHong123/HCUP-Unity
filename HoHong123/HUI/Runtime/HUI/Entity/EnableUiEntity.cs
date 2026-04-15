@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEngine;
-using HUtil.Inspector;
+using HInspector;
 
 namespace HUI.Entity {
     [Serializable]

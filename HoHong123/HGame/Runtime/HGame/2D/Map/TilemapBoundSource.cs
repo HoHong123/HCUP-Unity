@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using Sirenix.OdinInspector;
 
-namespace HUtil._2D.Map {
+namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class TilemapBoundSource : MonoBehaviour, IWorldBoundSource {
         [Title("Boundary")]

@@ -7,7 +7,7 @@ using Sirenix.OdinInspector;
 using HGame.Player;
 
 namespace HGame.Skill {
-    public sealed class SkillManager : HUtil.Core.SingletonBehaviour<SkillManager> {
+    public sealed class SkillManager : HCore.SingletonBehaviour<SkillManager> {
         [Title("Player")]
         [SerializeField, Required]
         PlayerRefSO playerRef;

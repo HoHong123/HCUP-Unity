@@ -12,9 +12,9 @@
 #endif
 
 using System.Diagnostics;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
-namespace HUtil.Diagnosis {
+namespace HDiagnosis.HDebug {
     public static class HDebug {
         #region Public - Callers
         [Conditional("UNITY_EDITOR")]

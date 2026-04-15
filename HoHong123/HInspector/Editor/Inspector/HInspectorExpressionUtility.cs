@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace HUtil.Inspector {
+namespace HInspector.Editor {
     internal static class HInspectorExpressionUtility {
         sealed class IdentifierLiteral {
             public string Text { get; }

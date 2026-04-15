@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

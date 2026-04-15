@@ -11,7 +11,7 @@
 using UnityEngine;
 
 
-namespace HUtil.Mathx {
+namespace HData.Mathx {
     public static class VectorUtil {
         public static Vector2 GetRandomPositionWithin(this RectTransform rectTransform, Vector2 padding = default) {
             Vector2 size = rectTransform.rect.size;

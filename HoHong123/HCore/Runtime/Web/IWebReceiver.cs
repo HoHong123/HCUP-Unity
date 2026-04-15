@@ -11,7 +11,7 @@
  */
 #endif
 
-namespace HUtil.Web {
+namespace HCore.Web {
     public interface IWebReceiver {
         void ReceiveMessage();
         void ReceiveString(string message);

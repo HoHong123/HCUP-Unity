@@ -13,7 +13,7 @@
 
 using System;
 
-namespace HUtil.Encode {
+namespace HData.Encode {
     public sealed class Base64TextEncoding : ITextEncoding {
         #region Fields
         readonly string prefix;

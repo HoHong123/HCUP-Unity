@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace HUtil.Core {
+namespace HCore {
     public static class TransformExtension {
         public static void DestroyAllChildren(this Transform parent) {
             if (parent == null) return;

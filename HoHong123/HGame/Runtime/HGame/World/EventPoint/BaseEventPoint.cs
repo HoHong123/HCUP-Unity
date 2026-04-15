@@ -3,9 +3,9 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 using HGame.Character;
 using HGame.World.EventAction;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
-namespace HUtil._2D.Map {
+namespace HGame.H2D.Map {
     public abstract class BaseEventPoint<T> : MonoBehaviour where T : ICharacterCommand {
         [Title("Filter")]
         [SerializeField]
@@ -82,7 +82,7 @@ namespace HUtil._2D.Map {
             for (int k = 0; k < targetTags.Length; k++) {
                 var tag = targetTags[k];
                 if (string.IsNullOrEmpty(tag) || Array.IndexOf(allTags, tag) >= 0) continue;
-                HLogger.Error($"{name}: '{tag}' ÅÂ±×°¡ Tag Manager¿¡ ¾ø½À´Ï´Ù.", gameObject);
+                HLogger.Error($"{name}: '{tag}' íƒœê·¸ê°€ Tag Managerì— ì—†ìŠµë‹ˆë‹¤.", gameObject);
             }
         }
 

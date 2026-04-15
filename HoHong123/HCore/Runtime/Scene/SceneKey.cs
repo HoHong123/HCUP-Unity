@@ -8,7 +8,7 @@
  */
 #endif
 
-namespace HUtil.Scene {
+namespace HCore.Scene {
     public enum SceneKey : int {
         Bootstrap,
         Lobby,
