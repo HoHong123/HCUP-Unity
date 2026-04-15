@@ -3,7 +3,7 @@
   "rootNamespace": "Util.Tween",
   "autoReferenced": true,
   "references": [
-    "Hohong123.Util"
+    "Hohong123.HUtil"
   ],
   "defineConstraints": [
     "USE_DOTWEEN"

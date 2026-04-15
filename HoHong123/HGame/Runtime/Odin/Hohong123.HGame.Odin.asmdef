@@ -2,7 +2,7 @@
   "name": "Hohong123.HGame.Odin",
   "references": [
     "Hohong123.HGame",
-    "Hohong123.Util"
+    "Hohong123.HUtil"
   ],
   "defineConstraints": [
      "ODIN_INSPECTOR"
