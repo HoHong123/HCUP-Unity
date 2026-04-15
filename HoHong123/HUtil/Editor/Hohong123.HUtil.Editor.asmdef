@@ -5,7 +5,8 @@
         "Unity.TextMeshPro",
         "Unity.TextMeshPro.Editor",
         "Unity.Addressables.Editor",
-        "Hohong123.HUtil"
+        "Hohong123.HUtil",
+        "Hohong123.HDiagnosis"
     ],
     "includePlatforms": [
         "Editor"

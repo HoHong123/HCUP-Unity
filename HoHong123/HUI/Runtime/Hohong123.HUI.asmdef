@@ -5,6 +5,7 @@
         "UniTask",
         "Unity.TextMeshPro",
         "Hohong123.HUtil",
+        "Hohong123.HDiagnosis",
         "DOTween.Modules"
     ],
     "includePlatforms": [],

@@ -5,7 +5,8 @@
         "Hohong123.HUI",
         "Hohong123.HUtil",
         "Hohong123.HGame",
-        "Hohong123.HData"
+        "Hohong123.HData",
+        "Hohong123.HDiagnosis"
     ],
     "includePlatforms": [
         "Editor"
