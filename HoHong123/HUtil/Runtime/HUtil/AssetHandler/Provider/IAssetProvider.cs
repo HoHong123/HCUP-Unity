@@ -54,6 +54,11 @@ namespace HUtil.AssetHandler.Provider {
  * 기타 ::
  * 1. 도메인 계층이 source 세부를 모르도록 감싸는 경계입니다.
  * 2. generic key와 asset 타입을 지원합니다.
+ * 3. Provider는 자산의 실제 Load/Cache/Validate/Release 책임을 소유하는 유일한 경계입니다.
+ *    Subscription 네임스페이스의 IAssetLeaseManager/IAssetLease는 이 위에 얹힌 선택 계층일 뿐이며,
+ *    실제 자산 수명은 언제나 provider(cache)의 Release 경로를 통해 종료됩니다.
+ * 4. 오너 단위 일괄 해제(ReleaseOwner)와 전역 해제(ReleaseAll)는 provider에만 존재합니다.
+ *    lease 계층은 개별 key 짝맞춤(Acquire/Dispose)만 제공하므로, 대량 정리는 provider를 직접 호출합니다.
  * =========================================================
  */
 #endif
