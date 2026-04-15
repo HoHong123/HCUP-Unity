@@ -5,6 +5,7 @@ using HUtil.AssetHandler.Data;
 /* =========================================================
  * @Jason - PKH
  * lease 발급 계약 인터페이스 스크립트입니다.
+ * IAssetProvider의 Owner 기능 구독을 강제하여 메모리 리크를 방지하도록 만드는 선택 계층입니다.
  *
  * 주의사항 ::
  * 1. owner 객체와 ownerId 직접 전달 경로를 구분해서 사용해야 합니다.
@@ -47,6 +48,11 @@ namespace HUtil.AssetHandler.Subscription {
  * 기타 ::
  * 1. 일반 provider 경계를 래핑합니다.
  * 2. 수명 관리를 Dispose 패턴으로 드러내기 위한 계약입니다.
+ * 3. 역할 제한: Acquire/Dispose 짝맞춤(단일 key 단위)만 제공합니다.
+ *    오너 단위 일괄 해제(ReleaseOwner)나 전역 해제(ReleaseAll)는 제공하지 않으며,
+ *    해당 경로가 필요하면 IAssetProvider를 직접 호출해야 합니다.
+ * 4. provider를 감추는 파사드가 아니라 Dispose 편의 표현이므로,
+ *    두 경계를 함께 참조하는 사용처(예: 오너가 OnDestroy에서 lease.Dispose + provider.ReleaseOwner)가 자연스럽습니다.
  * =========================================================
  */
 #endif
