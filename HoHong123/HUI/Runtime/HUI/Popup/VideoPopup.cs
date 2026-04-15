@@ -26,9 +26,7 @@ namespace HUI.Popup {
         }
 
         protected override void OnDestroy() {
-            if (panelBtn != null) {
-                panelBtn.onClick.RemoveListener(_HandlePanelClicked);
-            }
+            panelBtn.onClick.RemoveAllListeners();
             OnClickPanel = null;
             base.OnDestroy();
         }
