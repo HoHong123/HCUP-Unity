@@ -155,8 +155,10 @@ namespace HUtil.AssetHandler.Provider {
             case AssetFetchMode.SourceOnly:
                 return await _GetSourceOnlyAsync(request);
             default:
-                HLogger.Throw(new NotSupportedException(
-                    $"[AssetProvider] Unsupported fetchMode. fetchMode={request.FetchMode}"));
+                HLogger.Throw(
+                        new NotSupportedException(),
+                        $"[AssetProvider] Unsupported fetchMode. fetchMode={request.FetchMode}"
+                    );
                 return default;
             }
         }
@@ -339,6 +341,14 @@ namespace HUtil.AssetHandler.Provider {
  * 기타 ::
  * 1. AssetHandler 구조의 핵심 오케스트레이터입니다.
  * 2. source 세부 구현은 loader와 store에 위임합니다.
+ * 3. 역할 경계:
+ *    - Provider(이 클래스) : cache/store/loader 조율 + owner 기반 reference counting 소유. 실 보유자.
+ *    - AssetLeaseManager  : provider.GetAsync + Release 짝맞춤을 IDisposable로 표현하는 보조 계층.
+ *    - IAssetLease        : 단일 key 한 점의 수명 핸들. Dispose 시 provider.Release(key, ownerId) 호출.
+ * 4. 직접 사용 vs 래핑 사용 기준:
+ *    - 오너 수명이 단순하고 한두 건의 수동 Release로 충분하면 provider.GetAsync + Release 를 직접 호출.
+ *    - 오너가 다수의 asset을 보유하거나 Dispose 짝을 실수 없이 보장하고 싶으면 AssetLeaseManager를 얹어 사용.
+ *    - 오너가 파괴될 때 전체 일괄 회수가 필요하면 ReleaseOwner(ownerId) 는 provider에서만 호출 가능.
  * =========================================================
  */
 #endif
