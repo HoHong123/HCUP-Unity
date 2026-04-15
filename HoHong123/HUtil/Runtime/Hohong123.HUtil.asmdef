@@ -6,7 +6,8 @@
         "Unity.ResourceManager",
         "UniTask",
         "UniTask.Addressables",
-        "Hohong123.HData"
+        "Hohong123.HData",
+        "Hohong123.HDiagnosis"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

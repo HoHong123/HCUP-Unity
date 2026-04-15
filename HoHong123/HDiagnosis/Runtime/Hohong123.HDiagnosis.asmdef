@@ -1,12 +1,7 @@
 {
-    "name": "Hohong123.HGame",
-    "rootNamespace": "HGame",
-    "references": [
-        "UniTask",
-        "Hohong123.HUtil",
-        "Hohong123.HUI",
-        "Hohong123.HDiagnosis"
-    ],
+    "name": "Hohong123.HDiagnosis",
+    "rootNamespace": "HDiagnosis",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
