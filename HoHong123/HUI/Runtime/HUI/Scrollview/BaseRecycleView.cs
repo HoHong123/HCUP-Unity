@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * Recycle ScrollView 시스템의 베이스 클래스입니다.
  * 대량의 리스트 데이터를 효율적으로 표시하기 위해 Cell 재사용(Recycling) 기반 ScrollView 구조를 제공합니다.
@@ -19,21 +19,19 @@ using HUtil.Core;
 using HUtil.Inspector;
 using HUtil.Logger;
 using HUtil.Pooling;
-#if ODIN_INSPECTOR
-using Sirenix.OdinInspector;
-#endif
 
 namespace HUI.ScrollView {
     [Serializable]
     [RequireComponent(typeof(ScrollRect))]
     public abstract class BaseRecycleView<TCellView, TCellData> :
 #if ODIN_INSPECTOR
-        SerializedMonoBehaviour
+        Sirenix.OdinInspector.SerializedMonoBehaviour
 #else
         MonoBehaviour
 #endif
         where TCellData : class
         where TCellView : BaseRecycleCellView<TCellData> {
+        #region Fields
         [HTitle("Require")]
         [SerializeField]
         protected ScrollRect scrollRect;
@@ -57,12 +55,15 @@ namespace HUI.ScrollView {
         protected int lastEndIndex = -1;
 
         bool isInitialized = false;
+        #endregion
 
+        #region Properties
         public int VisibleCount { get; protected set; } = 0;
         public int Count => dataList.Count;
         public IReadOnlyList<TCellData> Datas => dataList ?? new();
+        #endregion
 
-
+        #region Unity Callbacks
         protected virtual void Awake() {
             if (scrollRect == null) scrollRect = GetComponent<ScrollRect>();
         }
@@ -73,18 +74,24 @@ namespace HUI.ScrollView {
                 InitializeScrollView();
             }
         }
+        #endregion
 
+        #region Init
         protected virtual void InitializeScrollView() {
             if (dataList != null) {
                 SetData(dataList);
             }
         }
+        #endregion
 
+        #region Public - Item Control
         public void DestroyAll() {
             itemPool?.Dispose();
             content?.DestroyAllChildren();
         }
+        #endregion
 
+        #region Public - Data Control
         public virtual void SetData(
             IEnumerable<TCellData> data,
             int initSize = 0,
@@ -123,12 +130,11 @@ namespace HUI.ScrollView {
 
             if (Count == 0) return;
 
-            //itemPool.Init(VisibleCount + 1);
             UpdateVisibleItems();
         }
+        #endregion
 
-
-
+        #region Public - Scroll Control
         public virtual void ScrollTo(float normalizedY) {
             normalizedY = Mathf.Clamp01(normalizedY);
             scrollRect.verticalNormalizedPosition = normalizedY;
@@ -156,15 +162,17 @@ namespace HUI.ScrollView {
                 activeItems.Remove(key);
             }
         }
+        #endregion
 
+        #region Protected - Cell Control
         protected virtual void OnCellCreated(TCellView cell, int index, TCellData data) { }
-
 
         public abstract void ScrollToIndex(int index, bool center = true);
         protected abstract void UpdateVisibleCount();
         protected abstract void UpdateContentSize();
         protected abstract void UpdateVisibleItems();
         protected abstract void CreateCell(int index);
+        #endregion
     }
 }
 
