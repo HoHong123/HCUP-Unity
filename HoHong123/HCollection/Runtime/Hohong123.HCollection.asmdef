@@ -1,13 +1,8 @@
 {
-    "name": "Hohong123.HGame",
-    "rootNamespace": "HGame",
+    "name": "Hohong123.HCollection",
+    "rootNamespace": "HCollection",
     "references": [
-        "UniTask",
-        "Hohong123.HUtil",
-        "Hohong123.HUI",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HInspector",
-        "Hohong123.HCollection"
+        "Hohong123.HDiagnosis"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
