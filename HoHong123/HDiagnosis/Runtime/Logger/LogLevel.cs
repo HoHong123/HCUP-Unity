@@ -6,7 +6,7 @@
  */
 #endif
 
-namespace HUtil.Logger {
+namespace HDiagnosis.Logger {
     public enum LogLevel : byte {
         Debug,
         Log,

@@ -13,7 +13,7 @@
  */
 #endif
 #if UNITY_EDITOR
-namespace HUtil.Inspector {
+namespace HInspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public class HBoxGroupAttribute : HInspectorAttribute {
         public string GroupName { get; }

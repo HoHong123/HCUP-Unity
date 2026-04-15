@@ -12,7 +12,7 @@
  * =========================================================
  */
 
-namespace HUtil.Inspector {
+namespace HInspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public class HMinAttribute : HInspectorAttribute {
         public float Min { get; }

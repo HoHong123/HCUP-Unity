@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 
-namespace HUtil.Inspector {
+namespace HInspector.Editor {
     internal static class HInspectorPropertyUtility {
         static readonly Dictionary<Type, Dictionary<string, MemberInfo>> memberCache = new Dictionary<Type, Dictionary<string, MemberInfo>>();
 

@@ -9,7 +9,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HUtil.Primitives {
+namespace HData.Primitives {
     public static class EnumUtil {
         public static IEnumerable<T> GetValues<T>() where T : Enum {
             return (T[])Enum.GetValues(typeof(T));

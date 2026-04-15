@@ -21,7 +21,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
-using HUtil.Inspector;
+using HInspector;
 
 namespace HUI.ScrollView {
     [Serializable]

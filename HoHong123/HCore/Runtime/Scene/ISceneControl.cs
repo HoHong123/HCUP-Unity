@@ -14,7 +14,7 @@ using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine.SceneManagement;
 
-namespace HUtil.Scene {
+namespace HCore.Scene {
     public interface ISceneControl {
         #region Scene Key API
         UniTask LoadSceneAsync(

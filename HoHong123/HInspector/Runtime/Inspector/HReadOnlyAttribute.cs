@@ -22,7 +22,7 @@
  */
 #endif
 
-namespace HUtil.Inspector {
+namespace HInspector {
     public class HReadOnlyAttribute : HInspectorAttribute {
         public string ConditionMemberName { get; }
         public bool Inverse { get; }

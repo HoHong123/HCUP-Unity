@@ -13,7 +13,7 @@
 using System;
 using UnityEngine;
 
-namespace HUtil.Collection {
+namespace HCollection {
     [Serializable]
     public sealed class EnumArray<TEnum, TValue>
         where TEnum : unmanaged, Enum {

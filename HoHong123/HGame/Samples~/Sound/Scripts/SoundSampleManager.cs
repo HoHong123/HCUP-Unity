@@ -1,5 +1,5 @@
 using HGame.Sound.Core;
-using HUtil.Inspector;
+using HInspector;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;

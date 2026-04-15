@@ -1,7 +1,7 @@
 using UnityEngine;
 using Sirenix.OdinInspector;
 
-namespace HUtil._2D.Map {
+namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class Box2DBoundSource : MonoBehaviour, IWorldBoundSource {
         [Title("Boundary")]

@@ -3,7 +3,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
 using HUtil.Pooling;
-using HUtil.Inspector;
+using HInspector;
 
 namespace HGame.Sound.AddOn {
     public class SoundSpatialPool : MonoBehaviour {

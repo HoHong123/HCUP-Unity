@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 
-namespace HUtil.Primitives {
+namespace HData.Primitives {
     public static class JTokenUtil {
         public static bool IsNull(this JToken token) {
             return token == null || token.Type == JTokenType.Null;

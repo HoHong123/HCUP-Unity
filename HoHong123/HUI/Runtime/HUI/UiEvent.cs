@@ -14,7 +14,7 @@
  */
 #endif
 
-using HUtil.Diagnosis;
+using HDiagnosis.HDebug;
 
 public static class UiEvent {
     public static bool IsDragging { get; private set; } = false;

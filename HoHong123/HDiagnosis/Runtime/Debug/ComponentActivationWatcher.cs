@@ -13,7 +13,7 @@
 
 using UnityEngine;
 
-namespace HUtil.Diagnosis {
+namespace HDiagnosis.HDebug {
     /// <summary>
     /// 컴포넌트의 활성화 상태 변화를 감지하여 로그를 출력하는 유틸리티 클래스입니다.
     /// </summary>

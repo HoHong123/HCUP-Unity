@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using HUtil.Core;
-using HUtil.Inspector;
-using HUtil.Logger;
+using HCore;
+using HInspector;
+using HDiagnosis.Logger;
 
 namespace HGame.Skill.Sample {
     public sealed class DemoSkillManager : SingletonBehaviour<DemoSkillManager> {

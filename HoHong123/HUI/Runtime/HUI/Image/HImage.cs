@@ -32,8 +32,8 @@
  */
 #endif
 
-using HUtil.Inspector;
-using HUtil.Logger;
+using HInspector;
+using HDiagnosis.Logger;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;

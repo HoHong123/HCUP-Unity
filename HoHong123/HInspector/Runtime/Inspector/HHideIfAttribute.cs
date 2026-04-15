@@ -16,7 +16,7 @@
  */
 #endif
 
-namespace HUtil.Inspector {
+namespace HInspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public class HHideIfAttribute : HShowIfAttribute {
         public HHideIfAttribute(string condition, int order = -100)

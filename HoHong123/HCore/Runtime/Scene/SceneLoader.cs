@@ -16,9 +16,9 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
-namespace HUtil.Scene {
+namespace HCore.Scene {
     public static class SceneLoader {
         #region Nested
         private static class SceneLoaderCore {

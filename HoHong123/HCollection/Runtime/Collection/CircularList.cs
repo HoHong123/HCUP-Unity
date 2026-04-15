@@ -15,9 +15,9 @@ using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
-namespace HUtil.Collection {
+namespace HCollection {
     [Serializable]
     public class CircularList<T> : IEnumerable<T>, IDisposable {
         #region Fields

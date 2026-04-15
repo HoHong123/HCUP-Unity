@@ -2,7 +2,7 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 
 namespace HGame.Cam {
-    public class CameraManager : HUtil.Core.SingletonBehaviour<CameraManager> {
+    public class CameraManager : HCore.SingletonBehaviour<CameraManager> {
         [Title("Camera Follow")]
         [SerializeField]
         BaseCameraBoundry follow;

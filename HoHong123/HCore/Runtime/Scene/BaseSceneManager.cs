@@ -19,10 +19,10 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
-using HUtil.Core;
-using HUtil.Inspector;
+using HCore;
+using HInspector;
 
-namespace HUtil.Scene {
+namespace HCore.Scene {
     public class BaseSceneManager : SingletonBehaviour<BaseSceneManager>, ISceneControl {
         #region Fields
         [HTitle("Release Scene Reference")]

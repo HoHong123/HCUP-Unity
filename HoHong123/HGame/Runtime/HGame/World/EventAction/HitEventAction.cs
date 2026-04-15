@@ -1,5 +1,5 @@
 using HGame.Character;
-using HUtil._2D.Map;
+using HGame.H2D.Map;
 
 namespace HGame.World.EventAction {
     public sealed class HitEventAction : BaseEventAction {

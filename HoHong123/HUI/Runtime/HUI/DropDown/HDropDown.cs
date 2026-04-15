@@ -19,7 +19,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
-using HUtil.Inspector;
+using HInspector;
 
 namespace HUI.Dropdown {
     public class HDropDown : BaseDropDown<HDropDown.HData, HDropDown.HUnit> {

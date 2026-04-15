@@ -12,8 +12,8 @@
  */
 #endif
 
-namespace HUtil.Web {
-    public class WebExternalReceiverManager : Core.SingletonBehaviour<WebExternalReceiverManager> {
+namespace HCore.Web {
+    public class WebExternalReceiverManager : HCore.SingletonBehaviour<WebExternalReceiverManager> {
         #region Fields
         [UnityEngine.SerializeField]
         BaseExternalReceiver[] receivers;

@@ -12,7 +12,7 @@
  */
 #endif
 
-namespace HUtil.Inspector {
+namespace HInspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public abstract class HInspectorAttribute : UnityEngine.PropertyAttribute {
         public int Order { get; }

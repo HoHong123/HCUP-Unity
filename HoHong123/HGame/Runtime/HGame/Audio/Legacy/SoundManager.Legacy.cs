@@ -1,5 +1,5 @@
 using UnityEngine;
-using HUtil.Diagnosis;
+using HDiagnosis.HDebug;
 using HGame.Sound;
 
 #if UNITY_EDITOR

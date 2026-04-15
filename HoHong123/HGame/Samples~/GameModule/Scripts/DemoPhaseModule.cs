@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using HUtil.Inspector;
+using HInspector;
 using HGame.Sample.Module;
 
 namespace HGame.Flow.Sample {

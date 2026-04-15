@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-using HUtil.Diagnosis;
+using HDiagnosis.HDebug;
 
 namespace HGame.Player {
     [Serializable]

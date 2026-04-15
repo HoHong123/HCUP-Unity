@@ -6,7 +6,7 @@ using System.Text;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using HUtil.Formattable;
+using HData.Formattable;
 using HGame.Sound;
 using HGame.Sound.Core;
 

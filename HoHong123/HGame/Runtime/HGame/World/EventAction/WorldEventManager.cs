@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Sirenix.OdinInspector;
-using HUtil.Core;
-using HUtil._2D.Map;
+using HCore;
+using HGame.H2D.Map;
 using HGame.Character;
 
 namespace HGame.World.EventAction {

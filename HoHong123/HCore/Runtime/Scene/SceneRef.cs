@@ -15,7 +15,7 @@
 using System;
 using UnityEngine;
 
-namespace HUtil.Scene {
+namespace HCore.Scene {
     [Serializable]
     public sealed class SceneRef {
         [SerializeField]

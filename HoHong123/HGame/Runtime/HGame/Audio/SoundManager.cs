@@ -9,10 +9,10 @@ using HGame.Sound.AddOn;
 using HGame.Sound.Core;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Subscription;
-using HUtil.Core;
+using HCore;
 using HUtil.Data.Load;
-using HUtil.Inspector;
-using HUtil.Diagnosis;
+using HInspector;
+using HDiagnosis.HDebug;
 #if UNITY_EDITOR && ODIN_INSPECTOR
 using Sirenix.OdinInspector;
 #endif

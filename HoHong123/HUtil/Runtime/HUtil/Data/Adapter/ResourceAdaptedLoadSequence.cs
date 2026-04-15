@@ -44,7 +44,7 @@ namespace HUtil.Data.Adapter {
         #region Protected - Load By Key
         protected override async UniTask<TResult> _LoadByKeyAsync(string key) {
 #if UNITY_EDITOR
-            Logger.HLogger.Log($"Load Adapted Resource :: {key}");
+            HDiagnosis.Logger.HLogger.Log($"Load Adapted Resource :: {key}");
 #endif
             var asset = await assetLoader.LoadAsync(key);
             return asset != null ? Convert(asset) : null;

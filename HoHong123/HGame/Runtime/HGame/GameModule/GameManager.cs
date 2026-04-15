@@ -2,11 +2,11 @@ using System.Threading;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using HUtil.Inspector;
+using HInspector;
 
 namespace HGame.Flow {
     public class GameManager<TSelf>:
-        HUtil.Core.SingletonBehaviour<TSelf>
+        HCore.SingletonBehaviour<TSelf>
         where TSelf : GameManager<TSelf> {
         [HTitle("Flow")]
         [SerializeField]

@@ -8,7 +8,7 @@
  */
 #endif
 
-namespace HUtil.Encrypt {
+namespace HData.Encrypt {
     public interface IEncryptor {
         byte[] Encrypt(byte[] plain);
         bool TryDecrypt(byte[] cipher, out byte[] plain);

@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace HUtil.Primitives {
+namespace HData.Primitives {
     public static class FloatUtil {
         public static float MidAngleDegree(this float a, float b) {
             float mid = a + Mathf.DeltaAngle(a, b) * 0.5f;

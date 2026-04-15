@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace HUtil.Inspector {
+namespace HInspector.Editor {
     [CustomPropertyDrawer(typeof(HInspectorAttribute), true)]
     public class HInspectorPropertyDrawer : PropertyDrawer {
         #region Private Fields

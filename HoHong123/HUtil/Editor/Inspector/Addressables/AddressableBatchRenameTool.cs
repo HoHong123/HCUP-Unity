@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 namespace HUtil.Editor.Addressables {
     public static class AddressableBatchRenameTool {

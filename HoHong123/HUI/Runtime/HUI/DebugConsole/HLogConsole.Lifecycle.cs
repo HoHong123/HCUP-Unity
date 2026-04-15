@@ -1,5 +1,5 @@
 using UnityEngine;
-using HUtil.Logger;
+using HDiagnosis.Logger;
 
 namespace HUI.DebugConsole {
     public partial class HLogConsole {

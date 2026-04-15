@@ -1,8 +1,8 @@
 using UnityEngine;
-using HUtil.Collection;
-using HUtil.Inspector;
+using HCollection;
+using HInspector;
 
-namespace HGame._2D.Layer {
+namespace HGame.H2D.Layer {
     public class ParallexLayer : MonoBehaviour {
         #region Fields
         [HTitle("Camera")]

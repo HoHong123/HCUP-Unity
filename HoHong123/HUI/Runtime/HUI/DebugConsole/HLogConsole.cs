@@ -1,6 +1,6 @@
-using HUtil.Core;
-using HUtil.Inspector;
-using HUtil.Logger;
+using HCore;
+using HInspector;
+using HDiagnosis.Logger;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
