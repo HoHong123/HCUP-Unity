@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using HUtil.Collection;
 using HUtil.Inspector;
 

@@ -1,13 +1,7 @@
 {
-    "name": "Hohong123.HUtil",
-    "rootNamespace": "HUtil",
-    "references": [
-        "Unity.Addressables",
-        "Unity.ResourceManager",
-        "UniTask",
-        "UniTask.Addressables",
-        "Hohong123.HData"
-    ],
+    "name": "Hohong123.HData",
+    "rootNamespace": "HData",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

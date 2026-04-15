@@ -4,7 +4,8 @@
     "references": [
         "Hohong123.HUI",
         "Hohong123.HUtil",
-        "Hohong123.HGame"
+        "Hohong123.HGame",
+        "Hohong123.HData"
     ],
     "includePlatforms": [
         "Editor"
