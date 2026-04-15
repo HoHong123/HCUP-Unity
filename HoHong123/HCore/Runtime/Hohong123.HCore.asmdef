@@ -1,17 +1,17 @@
 {
-    "name": "Hohong123.HGame.Editor",
-    "rootNamespace": "HGame.Editor",
+    "name": "Hohong123.HCore",
+    "rootNamespace": "HCore",
     "references": [
-        "Hohong123.HUI",
-        "Hohong123.HUtil",
-        "Hohong123.HGame",
         "Hohong123.HData",
         "Hohong123.HDiagnosis",
-        "Hohong123.HCore"
+        "Hohong123.HInspector",
+        "Hohong123.HUtil",
+        "UniTask",
+        "UniTask.Addressables",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

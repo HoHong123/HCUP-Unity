@@ -3,7 +3,8 @@
     "rootNamespace": "HUI.Editor",
     "references": [
         "Hohong123.HUtil",
-        "Hohong123.HUI"
+        "Hohong123.HUI",
+        "Hohong123.HCore"
     ],
     "includePlatforms": [
         "Editor"
