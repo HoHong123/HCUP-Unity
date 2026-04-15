@@ -27,10 +27,12 @@ namespace HUI.Popup {
         [SerializeField]
         Button panelBtn;
 
-        // AssetProvider : Resources/Addressable 에셋의 실제 Load/Cache/Validate/Release 를 소유.
-        //                 OnDestroy의 ReleaseOwner(ownerId)로 이 인스턴스 소유 자산을 일괄 회수한다.
-        // currentMode / currentKey : 직전 로드 요청의 (mode, key). 새 요청 시 이전 자원을 Release해
-        //                            "단 하나의 스프라이트만 유지" 제약을 단순 필드 교체로 보장한다.
+        // AssetProvider
+        // - Resources/Addressable 에셋의 실제 Load/Cache/Validate/Release 를 소유.
+        // - OnDestroy의 ReleaseOwner(ownerId)로 이 인스턴스 소유 자산을 일괄 회수한다.
+        // currentMode / currentKey
+        // - 직전 로드 요청의 (mode, key). 새 요청 시 이전 자원을 Release
+        // - "단 하나의 스프라이트만 유지" 제약을 단순 필드 교체로 보장한다.
         AssetProvider<string, Sprite> resourcesProvider;
         AssetProvider<string, Sprite> addressableProvider;
         AssetLoadMode? currentMode;
