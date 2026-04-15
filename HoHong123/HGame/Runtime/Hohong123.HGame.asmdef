@@ -5,7 +5,8 @@
         "UniTask",
         "Hohong123.HUtil",
         "Hohong123.HUI",
-        "Hohong123.HDiagnosis"
+        "Hohong123.HDiagnosis",
+        "Hohong123.HInspector"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

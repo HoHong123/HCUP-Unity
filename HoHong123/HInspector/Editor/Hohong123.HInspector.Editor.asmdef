@@ -1,15 +1,12 @@
 {
-    "name": "Hohong123.HUI",
-    "rootNamespace": "HUI",
+    "name": "Hohong123.HInspector.Editor",
+    "rootNamespace": "HInspector.Editor",
     "references": [
-        "UniTask",
-        "Unity.TextMeshPro",
-        "Hohong123.HUtil",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HInspector",
-        "DOTween.Modules"
+        "Hohong123.HInspector"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
