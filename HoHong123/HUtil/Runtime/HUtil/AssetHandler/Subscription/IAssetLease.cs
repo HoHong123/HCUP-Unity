@@ -39,6 +39,9 @@ namespace HUtil.AssetHandler.Subscription {
  * 기타 ::
  * 1. IDisposable 기반 경계입니다.
  * 2. owner-aware provider를 래핑하는 보조 표현입니다.
+ * 3. Dispose는 내부적으로 provider.Release(Key, OwnerId)를 호출할 뿐이며,
+ *    lease 자체는 자산을 복제 소유하지 않습니다. 실제 reference counting은 provider(cache)에 있습니다.
+ * 4. 따라서 동일 key에 대해 다수의 lease가 발급되어도 자산 실체는 provider 쪽에 단 한 벌만 존재합니다.
  * =========================================================
  */
 #endif
