@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Linq;
 using UnityEditor;
@@ -25,38 +25,36 @@ namespace HInspector.Editor {
         #region Public Functions
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label) {
             HInspectorAttribute[] attributes = _GetAttributes();
-            if (!_IsVisible(property, attributes))
-                return 0f;
+            if (!_IsVisible(property, attributes)) return 0f;
 
             float totalHeight = EditorGUI.GetPropertyHeight(property, label, true);
 
             HTitleAttribute titleAttribute = attributes.OfType<HTitleAttribute>().FirstOrDefault();
-            if (titleAttribute != null)
-                totalHeight += _GetTitleExtraHeight();
+            if (titleAttribute != null) totalHeight += _GetTitleExtraHeight();
 
             HMinMaxSliderAttribute minMaxSliderAttribute = attributes.OfType<HMinMaxSliderAttribute>().FirstOrDefault();
-            if (minMaxSliderAttribute != null && property.propertyType == SerializedPropertyType.Vector2)
+            if (minMaxSliderAttribute != null && property.propertyType == SerializedPropertyType.Vector2) {
                 totalHeight += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            }
 
             HRequiredAttribute requiredAttribute = attributes.OfType<HRequiredAttribute>().FirstOrDefault();
-            if (requiredAttribute != null && _IsRequiredEmpty(property))
+            if (requiredAttribute != null && _IsRequiredEmpty(property)) {
                 totalHeight += RequiredBoxHeight + RequiredBoxTopGap;
+            }
 
             return totalHeight;
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) {
             HInspectorAttribute[] attributes = _GetAttributes();
-            if (!_IsVisible(property, attributes))
-                return;
+            if (!_IsVisible(property, attributes)) return;
 
             Rect fieldRect = _DrawTitleIfNeeded(position, attributes);
             bool isReadOnly = _EvaluateReadOnly(property, attributes);
             GUIContent resolvedLabel = _ResolveLabel(label, attributes);
 
             bool previousEnabled = GUI.enabled;
-            if (isReadOnly)
-                GUI.enabled = false;
+            if (isReadOnly) GUI.enabled = false;
 
             EditorGUI.BeginChangeCheck();
             _DrawProperty(fieldRect, property, resolvedLabel, attributes);
@@ -66,8 +64,7 @@ namespace HInspector.Editor {
 
             _DrawRequiredWarning(fieldRect, property, attributes);
 
-            if (!isChanged)
-                return;
+            if (!isChanged) return;
 
             _ApplyPostConstraints(property, attributes);
             property.serializedObject.ApplyModifiedProperties();
@@ -79,8 +76,7 @@ namespace HInspector.Editor {
 
         #region Private Functions
         HInspectorAttribute[] _GetAttributes() {
-            if (fieldInfo == null)
-                return Array.Empty<HInspectorAttribute>();
+            if (fieldInfo == null) return Array.Empty<HInspectorAttribute>();
 
             return fieldInfo
                 .GetCustomAttributes(typeof(HInspectorAttribute), true)
@@ -99,8 +95,7 @@ namespace HInspector.Editor {
 
         Rect _DrawTitleIfNeeded(Rect position, HInspectorAttribute[] attributes) {
             HTitleAttribute titleAttribute = attributes.OfType<HTitleAttribute>().FirstOrDefault();
-            if (titleAttribute == null)
-                return position;
+            if (titleAttribute == null) return position;
 
             float extraHeight = _GetTitleExtraHeight();
 
@@ -121,23 +116,20 @@ namespace HInspector.Editor {
 
         bool _IsVisible(SerializedProperty property, HInspectorAttribute[] attributes) {
             object parentObject = HInspectorPropertyUtility.GetParentObject(property);
-            if (parentObject == null)
-                return true;
+            if (parentObject == null) return true;
 
-            for (int i = 0; i < attributes.Length; i++) {
-                if (attributes[i] is HHideIfAttribute hideIfAttribute) {
+            for (int k = 0; k < attributes.Length; k++) {
+                if (attributes[k] is HHideIfAttribute hideIfAttribute) {
                     if (_TryEvaluateCondition(parentObject, hideIfAttribute, out bool hideResult)) {
-                        if (hideResult)
-                            return false;
+                        if (hideResult) return false;
                     }
 
                     continue;
                 }
 
-                if (attributes[i] is HShowIfAttribute showIfAttribute) {
+                if (attributes[k] is HShowIfAttribute showIfAttribute) {
                     if (_TryEvaluateCondition(parentObject, showIfAttribute, out bool showResult)) {
-                        if (!showResult)
-                            return false;
+                        if (!showResult) return false;
                     }
                     else {
                         return false;
@@ -150,33 +142,32 @@ namespace HInspector.Editor {
 
         bool _EvaluateReadOnly(SerializedProperty property, HInspectorAttribute[] attributes) {
             HEnableIfAttribute enableIfAttribute = attributes.OfType<HEnableIfAttribute>().FirstOrDefault();
-            if (enableIfAttribute != null)
-                return !_EvaluateEnableIf(property, enableIfAttribute);
+            if (enableIfAttribute != null) return !_EvaluateEnableIf(property, enableIfAttribute);
 
             HReadOnlyAttribute readOnlyAttribute = attributes.OfType<HReadOnlyAttribute>().FirstOrDefault();
-            if (readOnlyAttribute == null)
-                return false;
+            if (readOnlyAttribute == null) return false;
 
-            if (string.IsNullOrEmpty(readOnlyAttribute.ConditionMemberName))
+            if (string.IsNullOrEmpty(readOnlyAttribute.ConditionMemberName)) {
                 return true;
+            }
 
             object parentObject = HInspectorPropertyUtility.GetParentObject(property);
-            if (parentObject == null)
-                return true;
+            if (parentObject == null) return true;
 
-            if (!HInspectorPropertyUtility.TryGetMemberValue(parentObject, readOnlyAttribute.ConditionMemberName, out object value))
+            if (!HInspectorPropertyUtility.TryGetMemberValue(parentObject, readOnlyAttribute.ConditionMemberName, out object value)) {
                 return true;
+            }
 
-            if (value is bool boolValue)
+            if (value is bool boolValue) {
                 return readOnlyAttribute.Inverse ? !boolValue : boolValue;
+            }
 
             return true;
         }
 
         bool _EvaluateEnableIf(SerializedProperty property, HEnableIfAttribute attribute) {
             object parentObject = HInspectorPropertyUtility.GetParentObject(property);
-            if (parentObject == null)
-                return true;
+            if (parentObject == null) return true;
 
             if (attribute.IsExpression)
                 return HInspectorExpressionUtility.TryEvaluate(parentObject, attribute.Expression, out bool exprResult) && exprResult;
@@ -195,12 +186,10 @@ namespace HInspector.Editor {
 
         GUIContent _ResolveLabel(GUIContent originalLabel, HInspectorAttribute[] attributes) {
             HHideLabelAttribute hideLabelAttribute = attributes.OfType<HHideLabelAttribute>().FirstOrDefault();
-            if (hideLabelAttribute != null)
-                return GUIContent.none;
+            if (hideLabelAttribute != null) return GUIContent.none;
 
             HLabelTextAttribute labelTextAttribute = attributes.OfType<HLabelTextAttribute>().FirstOrDefault();
-            if (labelTextAttribute != null)
-                return new GUIContent(labelTextAttribute.Text, originalLabel.tooltip);
+            if (labelTextAttribute != null) return new GUIContent(labelTextAttribute.Text, originalLabel.tooltip);
 
             return originalLabel;
         }
@@ -220,11 +209,9 @@ namespace HInspector.Editor {
 
         void _DrawRequiredWarning(Rect fieldRect, SerializedProperty property, HInspectorAttribute[] attributes) {
             HRequiredAttribute requiredAttribute = attributes.OfType<HRequiredAttribute>().FirstOrDefault();
-            if (requiredAttribute == null)
-                return;
+            if (requiredAttribute == null) return;
 
-            if (!_IsRequiredEmpty(property))
-                return;
+            if (!_IsRequiredEmpty(property)) return;
 
             string message = string.IsNullOrEmpty(requiredAttribute.Message)
                 ? $"'{property.displayName}' is required"
@@ -238,8 +225,7 @@ namespace HInspector.Editor {
         bool _TryEvaluateCondition(object parentObject, HShowIfAttribute attribute, out bool result) {
             result = false;
 
-            if (parentObject == null)
-                return false;
+            if (parentObject == null) return false;
 
             if (attribute.IsExpression)
                 return HInspectorExpressionUtility.TryEvaluate(parentObject, attribute.Expression, out result);
