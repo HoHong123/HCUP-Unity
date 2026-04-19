@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -21,8 +21,8 @@ namespace HInspector.Editor {
             string normalizedPath = property.propertyPath.Replace(".Array.data[", "[");
             string[] elements = normalizedPath.Split('.');
 
-            for (int i = 0; i < elements.Length - 1; i++) {
-                currentObject = _ResolvePathElement(currentObject, elements[i]);
+            for (int k = 0; k < elements.Length - 1; k++) {
+                currentObject = _ResolvePathElement(currentObject, elements[k]);
                 if (currentObject == null)
                     return null;
             }
@@ -67,8 +67,7 @@ namespace HInspector.Editor {
         public static bool TryCompare(object left, object right, out int result) {
             result = 0;
 
-            if (left == null || right == null)
-                return false;
+            if (left == null || right == null) return false;
 
             Type leftType = left.GetType();
             Type rightType = right.GetType();
@@ -184,13 +183,10 @@ namespace HInspector.Editor {
         }
 
         static object _GetIndexedValue(object collectionObject, int index) {
-            if (collectionObject == null || index < 0)
-                return null;
+            if (collectionObject == null || index < 0) return null;
 
             if (collectionObject is IList list) {
-                if (index >= list.Count)
-                    return null;
-
+                if (index >= list.Count) return null;
                 return list[index];
             }
 
@@ -199,9 +195,7 @@ namespace HInspector.Editor {
                 int currentIndex = 0;
 
                 while (enumerator.MoveNext()) {
-                    if (currentIndex == index)
-                        return enumerator.Current;
-
+                    if (currentIndex == index) return enumerator.Current;
                     currentIndex++;
                 }
             }
@@ -212,7 +206,6 @@ namespace HInspector.Editor {
         static object _GetDirectMemberValue(object targetObject, string memberName) {
             if (!_TryGetMemberValue(targetObject, memberName, out object value))
                 return null;
-
             return value;
         }
 
