@@ -8,18 +8,8 @@ namespace HInspector.Editor {
     [CustomPropertyDrawer(typeof(HInspectorAttribute), true)]
     public class HInspectorPropertyDrawer : PropertyDrawer {
         #region Private Fields
-        const float TitleTopPadding = 6f;
-        const float TitleToLineGap = 3f;
-        const float TitleLineThickness = 1f;
-        const float TitleLineToFieldGap = 4f;
         const float RequiredBoxHeight = 24f;
         const float RequiredBoxTopGap = 2f;
-
-        static readonly GUIStyle titleStyle = new GUIStyle(EditorStyles.boldLabel) {
-            fontSize = 11,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleLeft
-        };
         #endregion
 
         #region Public Functions
@@ -28,9 +18,6 @@ namespace HInspector.Editor {
             if (!_IsVisible(property, attributes)) return 0f;
 
             float totalHeight = EditorGUI.GetPropertyHeight(property, label, true);
-
-            HTitleAttribute titleAttribute = attributes.OfType<HTitleAttribute>().FirstOrDefault();
-            if (titleAttribute != null) totalHeight += _GetTitleExtraHeight();
 
             HMinMaxSliderAttribute minMaxSliderAttribute = attributes.OfType<HMinMaxSliderAttribute>().FirstOrDefault();
             if (minMaxSliderAttribute != null && property.propertyType == SerializedPropertyType.Vector2) {
@@ -49,7 +36,6 @@ namespace HInspector.Editor {
             HInspectorAttribute[] attributes = _GetAttributes();
             if (!_IsVisible(property, attributes)) return;
 
-            Rect fieldRect = _DrawTitleIfNeeded(position, attributes);
             bool isReadOnly = _EvaluateReadOnly(property, attributes);
             GUIContent resolvedLabel = _ResolveLabel(label, attributes);
 
@@ -57,12 +43,12 @@ namespace HInspector.Editor {
             if (isReadOnly) GUI.enabled = false;
 
             EditorGUI.BeginChangeCheck();
-            _DrawProperty(fieldRect, property, resolvedLabel, attributes);
+            _DrawProperty(position, property, resolvedLabel, attributes);
             bool isChanged = EditorGUI.EndChangeCheck();
 
             GUI.enabled = previousEnabled;
 
-            _DrawRequiredWarning(fieldRect, property, attributes);
+            _DrawRequiredWarning(position, property, attributes);
 
             if (!isChanged) return;
 
@@ -83,35 +69,6 @@ namespace HInspector.Editor {
                 .Cast<HInspectorAttribute>()
                 .OrderBy(attribute => attribute.Order)
                 .ToArray();
-        }
-
-        float _GetTitleExtraHeight() {
-            return TitleTopPadding
-                   + EditorGUIUtility.singleLineHeight
-                   + TitleToLineGap
-                   + TitleLineThickness
-                   + TitleLineToFieldGap;
-        }
-
-        Rect _DrawTitleIfNeeded(Rect position, HInspectorAttribute[] attributes) {
-            HTitleAttribute titleAttribute = attributes.OfType<HTitleAttribute>().FirstOrDefault();
-            if (titleAttribute == null) return position;
-
-            float extraHeight = _GetTitleExtraHeight();
-
-            float titleY = position.y + TitleTopPadding;
-            Rect titleRect = new Rect(position.x, titleY, position.width, EditorGUIUtility.singleLineHeight);
-            EditorGUI.LabelField(titleRect, titleAttribute.Title, titleStyle);
-
-            float lineY = titleRect.y + titleRect.height + TitleToLineGap;
-            Color lineColor = EditorGUIUtility.isProSkin
-                ? new Color(0.45f, 0.45f, 0.45f)
-                : new Color(0.55f, 0.55f, 0.55f);
-
-            Rect lineRect = new Rect(position.x, lineY, position.width, TitleLineThickness);
-            EditorGUI.DrawRect(lineRect, lineColor);
-
-            return new Rect(position.x, position.y + extraHeight, position.width, position.height - extraHeight);
         }
 
         bool _IsVisible(SerializedProperty property, HInspectorAttribute[] attributes) {
