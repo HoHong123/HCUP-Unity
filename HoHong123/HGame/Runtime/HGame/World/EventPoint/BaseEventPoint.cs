@@ -1,24 +1,24 @@
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HGame.Character;
 using HGame.World.EventAction;
 using HDiagnosis.Logger;
+using HInspector;
 
 namespace HGame.H2D.Map {
     public abstract class BaseEventPoint<T> : MonoBehaviour where T : ICharacterCommand {
-        [Title("Filter")]
+        [HTitle("Filter")]
         [SerializeField]
         protected EventTargetType filterType = EventTargetType.Layer;
-        [ShowIf("@filterType == EventTargetType.Tag || filterType == EventTargetType.TagAndLayer")]
-        [SerializeField][LabelText("Target Tag")]
+        [HShowIf("@filterType == EventTargetType.Tag || filterType == EventTargetType.TagAndLayer")]
+        [SerializeField][HLabelText("Target Tag")]
         protected string[] targetTags;
-        [ShowIf("@filterType == EventTargetType.Layer || filterType == EventTargetType.TagAndLayer")]
-        [SerializeField][LabelText("Target Layer")]
+        [HShowIf("@filterType == EventTargetType.Layer || filterType == EventTargetType.TagAndLayer")]
+        [SerializeField][HLabelText("Target Layer")]
         protected LayerMask targetMask = ~0; // Everything
 
-        [Title("Collider")]
-        [SerializeField][Required]
+        [HTitle("Collider")]
+        [SerializeField][HRequired]
         protected Collider2D eventCollider;
 
         public string[] TargetTags => targetTags;
@@ -70,7 +70,7 @@ namespace HGame.H2D.Map {
         #endregion
 
 #if UNITY_EDITOR
-        [Title("Debug")]
+        [HTitle("Debug")]
         [SerializeField]
         bool fillArea = false;
         [SerializeField]
