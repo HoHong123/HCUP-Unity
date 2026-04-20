@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * 이 스크립트는 UI Graphic 또는 Image를 대상으로 색상 및 스프라이트 변경 상태를
  * 관리하는 엔티티 클래스입니다.
@@ -16,8 +16,8 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
 using DG.Tweening;
+using Sirenix.OdinInspector;
 
 namespace HUI.Entity {
     [Serializable]
