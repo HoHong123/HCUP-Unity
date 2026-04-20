@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HCore;
 using HGame.H2D.Map;
 using HGame.Character;
+using HInspector;
 
 namespace HGame.World.EventAction {
     public class WorldEventManager : SingletonBehaviour<WorldEventManager> {
-        [Title("Controllers")]
+        [HTitle("Controllers")]
         [SerializeField]
         readonly HashSet<BaseEventPoint<ICharacterCommand>> endpoints = new();
 
