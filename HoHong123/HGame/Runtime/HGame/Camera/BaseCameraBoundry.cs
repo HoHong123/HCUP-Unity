@@ -1,18 +1,18 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Cam {
     [DisallowMultipleComponent]
     public abstract class BaseCameraBoundry : MonoBehaviour {
         #region Fields
-        [Title("Camera")]
+        [HTitle("Camera")]
         [SerializeField]
         Camera cam;
         [SerializeField]
         [Range(0f, 1f)]
         float smooth = 0.15f;
 
-        [Title("Target")]
+        [HTitle("Target")]
         [SerializeField]
         Transform target;
         [SerializeField]
