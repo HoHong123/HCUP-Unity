@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * 버튼 입력에 따라 UI Graphic의 색상을 변경하는 컴포넌트입니다.
@@ -14,26 +14,26 @@
 #endif
 
 using System.Linq;
-using HUI.Entity;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Assertions;
+using HUI.Entity;
+using HInspector;
 
 namespace HUI.ButtonUI {
     public class ColorOnPressButton : BaseOnPressButton {
         #region Fields
-        [Title("Mode")]
+        [HTitle("Mode")]
         [SerializeField]
         ButtonEventMode interactionMode = ButtonEventMode.UsePress;
 
-        [Title("Target")]
-        [SerializeField][ListDrawerSettings]
+        [HTitle("Target")]
+        [SerializeField]
         ColorUiEntity[] targets;
 
-        [Title("Interaction Targets")]
-        [ShowIf("@interactionMode == ButtonEventMode.UseInteraction")]
-        [SerializeField][ListDrawerSettings]
+        [HTitle("Interaction Targets")]
+        [HShowIf("@interactionMode == ButtonEventMode.UseInteraction")]
+        [SerializeField]
         ColorUiEntity[] interactionTargets;
         #endregion
 
@@ -118,35 +118,35 @@ namespace HUI.ButtonUI {
 
         #region Debug
 #if UNITY_EDITOR
-        [Title("Debug / Press")]
-        [Button("Press Down")]
+        [HTitle("Debug / Press")]
+        [HButton("Press Down")]
         private void _DebugPressDown() => OnPointDown();
-        [Button("Press Up")]
+        [HButton("Press Up")]
         private void _DebugPressUp() => OnPointUp();
 
-        [Title("Debug / Interaction")]
-        [Button("Set Interactive = true")]
+        [HTitle("Debug / Interaction")]
+        [HButton("Set Interactive = true")]
         private void _DebugSetInteractiveTrue() {
             if (Button == null) Button = GetComponent<DelegateButton>();
             UnityEngine.Debug.Assert(Button != null, "[ColorOnPressButton] DelegateButton is null.");
             Button.Interaction = true;
         }
 
-        [Button("Set Interactive = false")]
+        [HButton("Set Interactive = false")]
         private void _DebugSetInteractiveFalse() {
             if (Button == null) Button = GetComponent<DelegateButton>();
             UnityEngine.Debug.Assert(Button != null, "[ColorOnPressButton] DelegateButton is null.");
             Button.Interaction = false;
         }
 
-        [Button("Mode = UsePressColors")]
+        [HButton("Mode = UsePressColors")]
         private void _DebugSetModeUsePressColors() {
             interactionMode = ButtonEventMode.UsePress;
             useInteractionChangeEvent = true;
             ConnectButton();
         }
 
-        [Button("Mode = UseCustomInteractionColors")]
+        [HButton("Mode = UseCustomInteractionColors")]
         private void _DebugSetModeUseCustomInteractionColors() {
             interactionMode = ButtonEventMode.UseInteraction;
             useInteractionChangeEvent = true;
