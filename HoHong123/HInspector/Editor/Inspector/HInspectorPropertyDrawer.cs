@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -10,12 +12,17 @@ namespace HInspector.Editor {
         #region Private Fields
         const float RequiredBoxHeight = 24f;
         const float RequiredBoxTopGap = 2f;
+
+        // HListDrawer의 DefaultExpandedState는 세션당 1회만 초기화되어 사용자의 접기 조작을 방해하지 않아야 한다.
+        static readonly HashSet<string> _listDefaultExpandedApplied = new HashSet<string>();
         #endregion
 
         #region Public Functions
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label) {
             HInspectorAttribute[] attributes = _GetAttributes();
             if (!_IsVisible(property, attributes)) return 0f;
+
+            _ApplyListDrawerState(property, attributes);
 
             float totalHeight = EditorGUI.GetPropertyHeight(property, label, true);
 
@@ -35,6 +42,8 @@ namespace HInspector.Editor {
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) {
             HInspectorAttribute[] attributes = _GetAttributes();
             if (!_IsVisible(property, attributes)) return;
+
+            _ApplyListDrawerState(property, attributes);
 
             bool isReadOnly = _EvaluateReadOnly(property, attributes);
             GUIContent resolvedLabel = _ResolveLabel(label, attributes);
@@ -98,6 +107,9 @@ namespace HInspector.Editor {
         }
 
         bool _EvaluateReadOnly(SerializedProperty property, HInspectorAttribute[] attributes) {
+            HListDrawerAttribute listAttribute = attributes.OfType<HListDrawerAttribute>().FirstOrDefault();
+            if (listAttribute != null && listAttribute.IsReadOnly && _IsCollectionField()) return true;
+
             HEnableIfAttribute enableIfAttribute = attributes.OfType<HEnableIfAttribute>().FirstOrDefault();
             if (enableIfAttribute != null) return !_EvaluateEnableIf(property, enableIfAttribute);
 
@@ -359,6 +371,34 @@ namespace HInspector.Editor {
 
             HInspectorPropertyUtility.TryInvokeParameterlessOrSingleParameterMethod(parentObject, onValueChangedAttribute.MethodName, currentValue);
             EditorUtility.SetDirty(property.serializedObject.targetObject);
+        }
+
+        void _ApplyListDrawerState(SerializedProperty property, HInspectorAttribute[] attributes) {
+            if (!_IsCollectionField()) return;
+
+            HListDrawerAttribute listAttribute = attributes.OfType<HListDrawerAttribute>().FirstOrDefault();
+            if (listAttribute == null) return;
+            if (!listAttribute.DefaultExpandedState) return;
+
+            UnityEngine.Object targetObject = property.serializedObject.targetObject;
+            if (targetObject == null) return;
+
+            // 세션당 1회만 isExpanded를 강제. 이후 프레임은 사용자 조작을 존중한다.
+            string key = targetObject.GetInstanceID() + ":" + property.propertyPath;
+            if (_listDefaultExpandedApplied.Contains(key)) return;
+
+            _listDefaultExpandedApplied.Add(key);
+            property.isExpanded = true;
+        }
+
+        bool _IsCollectionField() {
+            if (fieldInfo == null) return false;
+
+            Type fieldType = fieldInfo.FieldType;
+            if (fieldType.IsArray) return true;
+            if (typeof(IList).IsAssignableFrom(fieldType)) return true;
+
+            return false;
         }
         #endregion
     }
