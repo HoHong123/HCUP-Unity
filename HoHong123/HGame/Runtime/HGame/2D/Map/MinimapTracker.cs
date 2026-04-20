@@ -1,23 +1,23 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HGame.Character;
+using HInspector;
 
 namespace HGame.Map {
     [DisallowMultipleComponent]
     public class MinimapTrackable : MonoBehaviour {
-        [Title("Config")]
-        [SerializeField, ReadOnly]
+        [HTitle("Config")]
+        [SerializeField, HReadOnly]
         BaseCharacterConfig config;
 
-        [Title("Collider")]
+        [HTitle("Collider")]
         [SerializeField]
         Transform target;
 
-        [Title("Collider")]
+        [HTitle("Collider")]
         [SerializeField]
         Collider2D charCollider;
 
-        [Title("Icon")]
+        [HTitle("Icon")]
         [SerializeField]
         bool useIcon = false;
         [SerializeField]
@@ -27,7 +27,7 @@ namespace HGame.Map {
         [SerializeField]
         float iconSizeMax = 18f;
 
-        [Title("Visibility")]
+        [HTitle("Visibility")]
         [SerializeField]
         bool showWhenOutOfBounds = false;
 
