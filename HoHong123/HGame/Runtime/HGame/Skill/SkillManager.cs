@@ -3,19 +3,22 @@ using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Random = UnityEngine.Random;
-using Sirenix.OdinInspector;
 using HGame.Player;
+using HInspector;
 
 namespace HGame.Skill {
     public sealed class SkillManager : HCore.SingletonBehaviour<SkillManager> {
-        [Title("Player")]
-        [SerializeField, Required]
+        [HTitle("Player")]
+        [HRequired]
+        [SerializeField]
         PlayerRefSO playerRef;
 
-        [Title("Skill")]
-        [SerializeField][Required]
+        [HTitle("Skill")]
+        [HRequired]
+        [SerializeField]
         SkillCatalogSO catalog;
-        [SerializeField][Required]
+        [HRequired]
+        [SerializeField]
         SkillStats stats;
 
         int pendingLevelUps = 0;
@@ -30,7 +33,7 @@ namespace HGame.Skill {
 
         public void OnPrepareGame() {
             playerRef.ReadOnly.OnLevelUp += _OnLevelUp;
-            //OnStacksChanged += UI¿¡ º¯°æ³»¿ë Àû¿ë;
+            //OnStacksChanged += UIì— ë³€ê²½ë‚´ìš© ì ìš©;
         }
 
         public void OnGameOver() {
@@ -96,15 +99,15 @@ namespace HGame.Skill {
         }
 
         private async UniTask<int> _ShowChoicesAsync(List<SkillOffer> offers) {
-            // UI¸¦ ÅëÇØ ½ºÅ³ ¼±ÅÃ
+            // UIë¥¼ í†µí•´ ìŠ¤í‚¬ ì„ íƒ
             //int picked = await ui.SkillSelect.ShowAsync(offers);
             int picked = -1;
-            return picked; // -1 ÀÌ¸é Ãë¼Ò·Î °£ÁÖ °¡´É
+            return picked; // -1 ì´ë©´ ì·¨ì†Œë¡œ ê°„ì£¼ ê°€ëŠ¥
         }
 
         private async UniTaskVoid _ProcessLevelUpQueueAsync() {
             processingQueue = true;
-            // °ÔÀÓ ÀÏ½ÃÁ¤Áö
+            // ê²Œì„ ì¼ì‹œì •ì§€
             //await Game.Instance.GamePauseAsync();
 
             try {
@@ -115,7 +118,7 @@ namespace HGame.Skill {
                 }
             }
             finally {
-                // °ÔÀÓ Àç°³
+                // ê²Œì„ ì¬ê°œ
                 //await Game.Instance.GameRunAsync();
                 processingQueue = false;
             }
