@@ -1,10 +1,10 @@
+using HInspector;
 using UnityEngine;
-using Sirenix.OdinInspector;
 
 namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class SpriteRendererBoundsSource : MonoBehaviour, IWorldBoundSource {
-        [Title("Boundary")]
+        [HTitle("Boundary")]
         [SerializeField]
         SpriteRenderer spriteRender;
 
