@@ -1,13 +1,13 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Skill {
-    public abstract class BaseSkillSO : SerializedScriptableObject {
-        [Title("Meta")]
+    public abstract class BaseSkillSO : ScriptableObject {
+        [HTitle("Meta")]
         [SerializeField]
         int uid;
 
-        [Title("Display")]
+        [HTitle("Display")]
         [SerializeField]
         string displayName;
         [SerializeField]
@@ -17,7 +17,7 @@ namespace HGame.Skill {
         [SerializeField, TextArea]
         string description;
 
-        [Title("Stack")]
+        [HTitle("Stack")]
         [SerializeField]
         int maxStacks = 10;
         [SerializeField]
