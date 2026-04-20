@@ -1,23 +1,23 @@
 using System;
 using UnityEngine;
 using Random = UnityEngine.Random;
-using Sirenix.OdinInspector;
 using HGame.Character;
+using HInspector;
 
 namespace HGame.Player {
-    // ±âº» ½ºÅÈ ÀúÀå Å¬·¡½º
+    // ê¸°ë³¸ ìŠ¤íƒ¯ ì €ì¥ í´ë˜ìŠ¤
     [Serializable]
     [CreateAssetMenu(
         fileName = "PlayerConfig",
         menuName = "HCUP/Player/Config")]
     public class PlayerConfig : BaseCharacterConfig {
-        [Title("Leveling")]
+        [HTitle("Leveling")]
         [SerializeField]
         float baseExp = 100;
         [SerializeField]
         float expMultiplier = 1.25f;
 
-        [Title("Stats")]
+        [HTitle("Stats")]
         [SerializeField]
         int baseHp = 5;
         [SerializeField]
