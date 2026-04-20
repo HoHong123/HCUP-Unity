@@ -14,7 +14,8 @@ namespace HGame.H2D.Layer {
         [HTitle("Motion")]
         [SerializeField]
         bool useParallaxFollow = true;
-        [SerializeField][Range(0f, 1f)]
+        [SerializeField]
+        [Range(0f, 1f)]
         [HShowIf("useParallaxFollow")]
         float parallaxFactor = 0.2f;
 
@@ -31,9 +32,10 @@ namespace HGame.H2D.Layer {
         [Tooltip("X = min, Y = max")]
         Vector2 randomRange = new Vector2(0, 50);
         [SerializeField]
-        SpriteRenderer[] tiles;
-        [SerializeField, HReadOnly]
+        [HReadOnly]
         Vector2 tileWorldSize;
+        [SerializeField]
+        SpriteRenderer[] tiles;
 
         int leftCount = 0;
         int rightCount = 0;
