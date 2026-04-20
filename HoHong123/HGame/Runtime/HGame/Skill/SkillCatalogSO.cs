@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Skill {
     [CreateAssetMenu(
@@ -8,7 +8,7 @@ namespace HGame.Skill {
         menuName = "HCUP/Skill/Catalog",
         order = 0)]
     public class SkillCatalogSO : ScriptableObject {
-        [Title("Skills")]
+        [HTitle("Skills")]
         [SerializeField]
         List<BaseSkillSO> skills = new();
 
