@@ -1,19 +1,19 @@
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using HUtil.Data;
+using HInspector;
 
 namespace HGame.Sound.AddOn {
     public class SfxAgent : MonoBehaviour, IDataSubscriber {
         #region Fields
-        [Title("Settings")]
+        [HTitle("Settings")]
         [SerializeField]
         bool useNewManager = true;
 
-        [Title("Clips")]
+        [HTitle("Clips")]
         [SerializeField]
-        [ListDrawerSettings(DefaultExpandedState = true)]
+        [HListDrawer(DefaultExpandedState = true)]
         List<SfxView> preloadUids = new();
         #endregion
 
