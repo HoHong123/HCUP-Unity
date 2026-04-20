@@ -1,0 +1,7 @@
+{
+  "name": "Hohong123.HInspector.Odin.Editor",
+  "rootNamespace": "HInspector.Odin.Editor",
+  "includePlatforms": ["Editor"],
+  "references": ["Hohong123.HInspector"],
+  "defineConstraints": ["ODIN_INSPECTOR"]
+}
