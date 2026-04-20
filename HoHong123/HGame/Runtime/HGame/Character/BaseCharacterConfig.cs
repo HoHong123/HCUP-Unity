@@ -1,9 +1,9 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Character {
     public class BaseCharacterConfig : ScriptableObject, ICharacterReadOnly {
-        [Title("Meta")]
+        [HTitle("Meta")]
         [SerializeField]
         protected int uid;
         [SerializeField]
