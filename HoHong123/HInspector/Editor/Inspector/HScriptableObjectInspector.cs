@@ -17,10 +17,19 @@
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEngine;
 
 namespace HInspector.Editor {
     [CustomEditor(typeof(HInspectorScriptableObject), true)]
     [CanEditMultipleObjects]
     public sealed class HScriptableObjectInspector : HInspectorEditor { }
+
+#if !ODIN_INSPECTOR
+    // Odin 미설치 환경에서만 활성. ScriptableObject 전역 + isFallback으로 등록하여
+    // 일반 ScriptableObject에도 HInspectorEditor가 적용되게 한다.
+    [CustomEditor(typeof(ScriptableObject), true, isFallback = true)]
+    [CanEditMultipleObjects]
+    public sealed class HGlobalScriptableObjectInspector : HInspectorEditor { }
+#endif
 }
 #endif
