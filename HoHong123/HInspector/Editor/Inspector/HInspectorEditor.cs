@@ -442,6 +442,8 @@ namespace HInspector.Editor {
                 for (int k = 0; k < fields.Length; k++) {
                     if (fields[k].IsDefined(typeof(HInspectorAttribute), true)) return true;
                     if (fields[k].IsDefined(typeof(HShowInInspectorAttribute), true)) return true;
+                    // HTitle은 HInspectorAttribute 계열 밖(System.Attribute 직접 상속)이므로 별도 체크한다.
+                    if (fields[k].IsDefined(typeof(HTitleAttribute), true)) return true;
                 }
 
                 PropertyInfo[] properties = current.GetProperties(MEMBER_FLAGS);
