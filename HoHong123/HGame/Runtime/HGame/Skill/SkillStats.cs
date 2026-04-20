@@ -1,10 +1,10 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Skill {
     public class SkillStats : MonoBehaviour {
-        // ¸ğµç ½ºÅÈÀº °ö¿¬»ê Ã³¸®Áß. 
-        [Title("Multipliers (1 = No change)")]
+        // ëª¨ë“  ìŠ¤íƒ¯ì€ ê³±ì—°ì‚° ì²˜ë¦¬ì¤‘. 
+        [HTitle("Multipliers (1 = No change)")]
         [SerializeField]
         float attackMul = 1f;
         [SerializeField]
@@ -14,7 +14,7 @@ namespace HGame.Skill {
         [SerializeField]
         float knockbackMul = 1f;
 
-        [Title("Explosive (Multiplier)")]
+        [HTitle("Explosive (Multiplier)")]
         [SerializeField]
         bool enableExplosive = false;
         [SerializeField]
