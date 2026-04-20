@@ -1,15 +1,20 @@
 using UnityEngine;
+using HInspector;
 
 namespace HGame.Skill {
     [System.Serializable]
     public struct RarityStackGrant {
-        [SerializeField, Min(0)]
+        [HMin(0)]
+        [SerializeField]
         int normal;
-        [SerializeField, Min(0)]
+        [HMin(0)]
+        [SerializeField]
         int common;
-        [SerializeField, Min(0)]
+        [HMin(0)]
+        [SerializeField]
         int rare;
-        [SerializeField, Min(0)]
+        [HMin(0)]
+        [SerializeField]
         int epic;
 
         public int Get(SkillRarity rarity) => rarity switch {
