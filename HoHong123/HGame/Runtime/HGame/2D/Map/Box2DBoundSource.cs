@@ -1,10 +1,10 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class Box2DBoundSource : MonoBehaviour, IWorldBoundSource {
-        [Title("Boundary")]
+        [HTitle("Boundary")]
         [SerializeField]
         BoxCollider2D box;
 
