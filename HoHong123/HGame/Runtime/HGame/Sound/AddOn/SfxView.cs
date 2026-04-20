@@ -3,34 +3,37 @@ using System.Collections.Generic;
 using UnityEngine;
 using Sirenix.OdinInspector;
 using HGame.Sound.Core;
+using HInspector;
 
 namespace HGame.Sound.AddOn {
     [Serializable]
     public sealed class SfxView {
         #region Fields
-        [Title("Catalogs")]
-        [SerializeField][ListDrawerSettings]
+#if UNITY_EDITOR && ODIN_INSPECTOR
+        [ListDrawerSettings(DefaultExpandedState = true)]
         [OnValueChanged("_EditorRebuildPreview", includeChildren: true)]
+#endif
+        [SerializeField]
         List<SoundCatalogSO> catalogs = new();
 
         public IReadOnlyList<SoundCatalogSO> Catalogs => catalogs;
         #endregion
 
         #region ======== Editor Only ========
-#if UNITY_EDITOR
-        [Title("Preview (Editor Only)")]
+#if UNITY_EDITOR && ODIN_INSPECTOR
         [SerializeField]
-        [ListDrawerSettings(IsReadOnly = true)]
         List<EntryPreview> previews = new();
 
         [Serializable]
         public sealed class EntryPreview {
-            [HideLabel][ReadOnly]
-            [HorizontalGroup("Row", Width = 0.3f), LabelWidth(25)]
+            [HHideLabel]
+            [HReadOnly]
+            [HHorizontalGroup("Row")]
             public int Id;
 
-            [HideLabel][ReadOnly]
-            [HorizontalGroup("Row", Width = 0.7f), LabelWidth(75)]
+            [HHideLabel]
+            [HReadOnly]
+            [HHorizontalGroup("Row")]
             public AudioClips Clip;
         }
 
