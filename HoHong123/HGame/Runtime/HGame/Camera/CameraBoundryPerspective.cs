@@ -1,15 +1,15 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Cam {
     [DisallowMultipleComponent]
     public class CameraBoundryPerspective : BaseCameraBoundry {
         #region Fields
-        [Title("TPS Camera")]
+        [HTitle("TPS Camera")]
         [SerializeField]
         Vector3 followOffset = new Vector3(0f, 2f, -4f);
 
-        [Title("Bounds")]
+        [HTitle("Bounds")]
         [SerializeField]
         BoxCollider worldBounds;
 
