@@ -1,11 +1,11 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class TilemapBoundSource : MonoBehaviour, IWorldBoundSource {
-        [Title("Boundary")]
+        [HTitle("Boundary")]
         [SerializeField]
         Tilemap tilemap;
 
