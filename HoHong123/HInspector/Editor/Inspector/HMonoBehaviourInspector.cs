@@ -17,10 +17,20 @@
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEngine;
 
 namespace HInspector.Editor {
     [CustomEditor(typeof(HInspectorBehaviour), true)]
     [CanEditMultipleObjects]
     public sealed class HMonoBehaviourInspector : HInspectorEditor { }
+
+#if !ODIN_INSPECTOR
+    // Odin 미설치 환경에서만 활성. Odin이 있으면 defineConstraints에 의해 이 쉘이 컴파일되지 않아 Odin과 경쟁하지 않는다.
+    // MonoBehaviour 전역 + isFallback으로 등록하여, H-속성이 하나라도 있는 일반 MonoBehaviour에는 HInspectorEditor가 적용되고,
+    // H-속성이 없는 타입은 HInspectorEditor 내부 가드(_HasAnyHInspectorAttribute)가 DrawDefaultInspector로 자동 폴백한다.
+    [CustomEditor(typeof(MonoBehaviour), true, isFallback = true)]
+    [CanEditMultipleObjects]
+    public sealed class HGlobalMonoBehaviourInspector : HInspectorEditor { }
+#endif
 }
 #endif
