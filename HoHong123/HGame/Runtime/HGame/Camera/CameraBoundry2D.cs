@@ -1,20 +1,22 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Cam {
     [DisallowMultipleComponent]
     public class CameraBoundry2D : BaseCameraBoundry {
         #region Fields
-        [Title("2D Camera")]
+        [HTitle("2D Camera")]
         [SerializeField]
         float zPos = -10f;
         
-        [Title("Bounds")]
+        [HTitle("Bounds")]
         [SerializeField]
         MapBoundType boundType;
-        [SerializeField][ShowIf("boundType", MapBoundType.WorldBox)]
+        [HShowIf("boundType", MapBoundType.WorldBox)]
+        [SerializeField]
         BoxCollider2D worldBoundsB2D;
-        [SerializeField][ShowIf("boundType", MapBoundType.Absolute)]
+        [HShowIf("boundType", MapBoundType.Absolute)]
+        [SerializeField]
         Rect absolutBound;
 
         bool hasRect;
