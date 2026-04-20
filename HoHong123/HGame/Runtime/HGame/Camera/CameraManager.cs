@@ -1,13 +1,13 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Cam {
     public class CameraManager : HCore.SingletonBehaviour<CameraManager> {
-        [Title("Camera Follow")]
+        [HTitle("Camera Follow")]
         [SerializeField]
         BaseCameraBoundry follow;
 
-        [Title("Camera Effect")]
+        [HTitle("Camera Effect")]
         // Add effect modules
 
         public void ResetFollow() => follow.ResetTarget();
