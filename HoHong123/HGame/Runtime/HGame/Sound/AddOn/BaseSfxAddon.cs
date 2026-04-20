@@ -1,13 +1,13 @@
 ﻿using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Sound.AddOn {
     public class BaseSfxAddon : MonoBehaviour {
         #region Field
-        [Title("Sound Policy")]
+        [HTitle("Sound Policy")]
         [SerializeField]
         protected bool useOverride = false;
-        [ShowIf(nameof(useOverride))]
+        [HShowIf(nameof(useOverride))]
         [SerializeField]
         protected int overrideClickUid = 0;
         #endregion
