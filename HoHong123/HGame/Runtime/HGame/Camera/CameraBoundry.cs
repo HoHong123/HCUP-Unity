@@ -1,30 +1,34 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 // Legacy Script
 namespace HGame.Cam {
     [DisallowMultipleComponent]
     public class CameraBoundry : MonoBehaviour {
-        [Title("Camear")]
+        [HTitle("Camear")]
         [SerializeField]
         Camera cam;
-        [SerializeField][Range(0f, 1f)]
+        [Range(0f, 1f)]
+        [SerializeField]
         float smooth = 0.15f;
         [SerializeField]
         float zPos = -10f;
 
-        [Title("Target")]
+        [HTitle("Target")]
         [SerializeField]
         Transform target;
-        [SerializeField][Required]
+        [HRequired]
+        [SerializeField]
         Transform originalTarget;
 
-        [Title("Bounds")]
+        [HTitle("Bounds")]
         [SerializeField]
         MapBoundType boundType;
-        [SerializeField][ShowIf("boundType", MapBoundType.WorldBox)]
+        [SerializeField]
+        [HShowIf("boundType", MapBoundType.WorldBox)]
         BoxCollider worldBound;
-        [SerializeField][ShowIf("boundType", MapBoundType.Absolute)]
+        [SerializeField]
+        [HShowIf("boundType", MapBoundType.Absolute)]
         Rect absolutBound;
 
 
