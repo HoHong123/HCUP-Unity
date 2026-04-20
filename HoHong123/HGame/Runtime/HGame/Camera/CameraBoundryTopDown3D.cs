@@ -1,28 +1,28 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HGame.Cam {
     [DisallowMultipleComponent]
     public class CameraBoundryTopDown3D : BaseCameraBoundry {
         #region Fields
-        [Title("TopDown 3D Camera")]
+        [HTitle("TopDown 3D Camera")]
         [SerializeField]
         float cameraHeight = 10f;
 
-        [Title("Bounds")]
+        [HTitle("Bounds")]
         [SerializeField]
         MapBoundType boundType;
 
+        [HShowIf("boundType", MapBoundType.WorldBox)]
         [SerializeField]
-        [ShowIf("boundType", MapBoundType.WorldBox)]
         BoxCollider worldBounds;
 
+        [HShowIf("boundType", MapBoundType.Absolute)]
         [SerializeField]
-        [ShowIf("boundType", MapBoundType.Absolute)]
         Vector3 absoluteCenterXZ;
 
+        [HShowIf("boundType", MapBoundType.Absolute)]
         [SerializeField]
-        [ShowIf("boundType", MapBoundType.Absolute)]
         Vector2 absoluteSizeXZ;
 
         bool hasBounds;
