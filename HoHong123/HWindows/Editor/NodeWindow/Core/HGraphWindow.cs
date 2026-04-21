@@ -1,13 +1,10 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace HWindows.NodeWindow.Editor
-{
-    public sealed class HGraphWindow : EditorWindow
-    {
+namespace HWindows.Editor.NodeWindow {
+    public sealed class HGraphWindow : EditorWindow {
         [MenuItem("Window/HWindows/Node Window/Graph Editor")]
-        public static void Open()
-        {
+        public static void Open() {
             HGraphWindow window = GetWindow<HGraphWindow>();
             window.titleContent = new GUIContent("Graph Editor");
             window.minSize = new Vector2(400, 300);
@@ -15,14 +12,12 @@ namespace HWindows.NodeWindow.Editor
 
         private HGraphCanvas _canvas;
 
-        private void CreateGUI()
-        {
+        private void CreateGUI() {
             _canvas = new HGraphCanvas();
             rootVisualElement.Add(_canvas);
         }
 
-        private void OnDisable()
-        {
+        private void OnDisable() {
             // L1: no cleanup needed. Reserved as guard point for L2+ event/subscription unhooks.
         }
     }
