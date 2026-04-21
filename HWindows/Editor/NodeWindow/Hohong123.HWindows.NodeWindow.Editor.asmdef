@@ -1,6 +1,6 @@
 {
     "name": "Hohong123.HWindows.NodeWindow.Editor",
-    "rootNamespace": "HWindows.NodeWindow.Editor",
+    "rootNamespace": "HWindows.Editor.NodeWindow",
     "references": [
         "Hohong123.HUtil",
         "Hohong123.HUtil.Editor",
