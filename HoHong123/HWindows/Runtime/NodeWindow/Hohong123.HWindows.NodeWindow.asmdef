@@ -1,0 +1,16 @@
+{
+    "name": "Hohong123.HWindows.NodeWindow",
+    "rootNamespace": "HWindows.NodeWindow",
+    "references": [
+        "Hohong123.HCollection"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
