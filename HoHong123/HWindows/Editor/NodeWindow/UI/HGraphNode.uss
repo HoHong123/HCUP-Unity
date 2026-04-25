@@ -1,0 +1,36 @@
+.hgraph-node {
+    background-color: #353535;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-color: #1F1F1F;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    overflow: hidden;
+    min-width: 180px;
+    min-height: 64px;
+}
+
+.hgraph-node-header {
+    height: 24px;
+    padding-left: 10px;
+    padding-right: 10px;
+    flex-direction: row;
+    align-items: center;
+    -unity-font-style: bold;
+    font-size: 10px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-left;
+}
+
+.hgraph-node-title {
+    flex-grow: 1;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 14px;
+    color: rgb(232, 232, 232);
+    -unity-text-align: middle-center;
+}
