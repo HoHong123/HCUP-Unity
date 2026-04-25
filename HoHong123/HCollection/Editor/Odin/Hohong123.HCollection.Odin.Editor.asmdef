@@ -1,0 +1,7 @@
+{
+  "name": "Hohong123.HCollection.Odin.Editor",
+  "rootNamespace": "HCollection.Odin.Editor",
+  "includePlatforms": ["Editor"],
+  "references": ["Hohong123.HCollection"],
+  "defineConstraints": ["ODIN_INSPECTOR"]
+}
