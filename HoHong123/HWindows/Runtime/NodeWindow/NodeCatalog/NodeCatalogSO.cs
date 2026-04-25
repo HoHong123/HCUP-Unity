@@ -16,6 +16,11 @@ namespace HWindows.NodeWindow {
         [SerializeField]
         NodeUID rootUID = NodeUID.None;
 
+#if UNITY_EDITOR
+        [SerializeField]
+        HDictionary<NodeUID, Vector2> editorNodeLayouts = new();
+#endif
+
         [System.NonSerialized]
         Dictionary<(NodeUID Branch, NodeUID Leaf), BaseNodeEdge> edgeByPair;
         #endregion
@@ -34,6 +39,9 @@ namespace HWindows.NodeWindow {
         public int EdgeCount => edges.Count;
         public NodeUID RootUID => rootUID;
         public bool HasRoot => rootUID.IsValid;
+#if UNITY_EDITOR
+        public IReadOnlyDictionary<NodeUID, Vector2> EditorNodeLayouts => editorNodeLayouts;
+#endif
         #endregion
 
         #region Public - Serialization
@@ -104,6 +112,16 @@ namespace HWindows.NodeWindow {
         internal void InternalClearRoot() {
             rootUID = NodeUID.None;
         }
+
+#if UNITY_EDITOR
+        internal void InternalSetLayout(NodeUID uid, Vector2 pos) {
+            editorNodeLayouts[uid] = pos;
+        }
+
+        internal void InternalRemoveLayout(NodeUID uid) {
+            editorNodeLayouts.Remove(uid);
+        }
+#endif
         #endregion
 
         #region Private
@@ -154,5 +172,12 @@ namespace HWindows.NodeWindow {
 //   - 조회: Nodes / Edges / EdgeByPair / RootUID / Get*Edges / Get*Nodes /
 //     HasEdgeBetween / TryGetEdge.
 //   - 수정: NodeCatalogAuthor 정적 함수 5개 경유.
+//
+//   [Phase 1-A 확장 - 2026-04-24]
+//   - editorNodeLayouts: HDictionary<NodeUID, Vector2> 추가 (#if UNITY_EDITOR 가드)
+//   + 노드 위치 저장소. catalog 가 "노드 + 엣지 + 루트 + 레이아웃" 단일 소유자로 확장.
+//   + Runtime 빌드 바이너리에 침투 X. Phase 0 "Runtime SO = 순수 데이터" 계약 유지.
+//   - InternalSetLayout / InternalRemoveLayout: Author 전용 mutation 진입점 (Editor-only).
+//   - EditorNodeLayouts 프로퍼티: read-only 외부 조회용 (HGraphCanvas Populate 가 소비).
 // =============================================================================
 #endif
