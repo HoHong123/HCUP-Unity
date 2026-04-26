@@ -1,17 +1,36 @@
 #if UNITY_EDITOR
 /* =========================================================
- * 이 스크립트는 Span 정보를 가지는 셀 데이터를 Grid 형태로 재배치하여 표시하는 RecycleView 스크립트입니다.
- * 셀마다 서로 다른 SpanX, SpanY를 가질 수 있으며, primary/secondary 축 기준으로 배치 정보를 계산하여
- * 현재 가시 범위의 셀만 생성 및 유지합니다.
+ * @Jason - PKH
+ * Span 정보 (SpanX/SpanY) 를 가지는 셀 데이터를 Grid 형태로 재배치하는 RecycleView 변종.
+ * 셀마다 서로 다른 점유 영역을 가질 수 있으며, primary/secondary 축 기준으로 배치 정보를
+ * 사전 계산 (LayoutInfo) 후 가시 범위 셀만 생성/유지.
  *
- * 주의사항 ::
- * 1. 이 스크립트는 IGridSpanData를 구현한 데이터에 대해서만 Span 정보를 사용하며, 미구현 데이터는 1x1 셀로 처리합니다.
- * 2. secondary 라인 점유 계산은 비트 마스크 기반이므로 최대 32라인까지만 지원합니다.
- * 3. scrollRect, viewport, content, itemPrefab은 반드시 유효하게 연결되어 있어야 합니다.
- * 4. ScrollToIndex, 가시 범위 계산, 컨텐츠 길이 계산은 내부 LayoutInfo 캐시가 정상적으로 빌드되어야만 올바르게 동작합니다.
- * 5. 셀 크기(cellSize), 간격(spacing), 패딩(startPadding/endPadding), 방향(isHorizontal)이 실제 UI 구성과 일치해야 합니다.
- * ********** 중요 **********
- *  6. 사용되는 Item UI와 Context 모두 좌상 Anchore와 Pivot (0, 1)로 사용하셔야 합니다. 
+ * 주요 기능 ::
+ * Span 셀 자동 배치 (가변 크기 셀이 그리드 빈 공간에 패킹) + primary/secondary 축 추상화로
+ * 가로/세로 방향 공통 로직 + LayoutInfo 사전 계산 캐시 + 비트 마스크 기반 라인 점유 추적 +
+ * 이진 탐색 기반 가시 범위 계산.
+ *
+ * 사용법 ::
+ * 1. TCellData 가 IGridSpanData 를 구현하면 SpanX/SpanY 값이 레이아웃 계산에 반영.
+ *    미구현 데이터는 1x1 셀로 자동 처리.
+ * 2. isHorizontal 로 스크롤 방향 결정 (가로/세로).
+ * 3. useFixedCount=true 면 fixedCount 를 secondary 라인 수로 사용. false 면 viewport 크기
+ *    기준으로 자동 계산.
+ * 4. SetData 호출 시 레이아웃 Dirty 처리 후 가시 셀 재계산.
+ *
+ * 주의 ::
+ * 1. IGridSpanData 미구현 데이터는 1x1 셀로 처리.
+ * 2. secondary 라인 점유 계산이 비트 마스크 기반 — 최대 32 라인까지만 지원.
+ * 3. scrollRect / viewport / content / itemPrefab 모두 유효 연결 필수.
+ * 4. ScrollToIndex / 가시 범위 / 컨텐츠 길이 계산은 LayoutInfo 캐시가 정상 빌드되어야만 작동.
+ * 5. cellSize / spacing / startPadding / endPadding / isHorizontal 가 실제 UI 구성과 일치해야 함.
+ * 6. Item UI 와 Context 모두 좌상 Anchor + Pivot (0, 1) 필수 (전제 조건).
+ *
+ * 내부 구조 ::
+ * LayoutInfo (셀별 Primary/Secondary/Span/SizePx/AnchoredPos 캐시) +
+ * startPrimaryPxList / endPrimaryPxList (이진 탐색용 정렬 배열) +
+ * _FindPlacement (비트 마스크로 secondary 라인 점유 추적, 첫 빈 위치 반환) +
+ * _LowerBoundEndPrimary / _UpperBoundStartPrimary (가시 범위 이진 탐색).
  * =========================================================
  */
 #endif
@@ -391,31 +410,52 @@ namespace HUI.ScrollView {
 
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
+ * Dev Log
+ * =========================================================
  *
- * 주요 기능 ::
- * 1. SpanX, SpanY를 가지는 셀 데이터를 Grid 레이아웃으로 배치합니다.
- * 2. primary/secondary 축 개념을 사용하여 가로/세로 방향을 공통 로직으로 처리합니다.
- * 3. 각 셀의 SizePx, AnchoredPos, StartPrimaryPx, EndPrimaryPx를 사전 계산하여 레이아웃 캐시를 구성합니다.
- * 4. 가시 범위를 벗어난 셀은 회수하고, 현재 보이는 범위의 셀만 생성합니다.
- * 5. ScrollToIndex를 통해 특정 인덱스 셀 위치로 스크롤 이동할 수 있습니다.
- * 6. fixedCount 또는 viewport 크기를 기준으로 secondary 라인 수를 계산합니다.
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 기존 헤더 (상단 도입+주의사항 + 하단 주요기능/사용법/기타) 를 한 곳에 통합하여 §11 형틀
+ * 통일. 하단 Dev Log 영역 추가. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
+ * 헤더의 "주의" 6 항목 + "내부 구조" 섹션 모두 통합 헤더에 흡수.
  *
- * 사용법 ::
- * 1. TCellData가 IGridSpanData를 구현하면 SpanX, SpanY 값이 레이아웃 계산에 반영됩니다.
- * 2. isHorizontal로 스크롤 방향을 결정합니다.
- * 3. useFixedCount가 true면 fixedCount를 secondary 라인 수로 사용합니다.
- * 4. useFixedCount가 false면 viewport 크기를 기준으로 secondary 라인 수를 자동 계산합니다.
- * 5. SetData 호출 시 레이아웃을 Dirty 처리한 뒤 가시 셀을 다시 계산합니다.
- * 6. 스크롤 이동 또는 RectTransform 크기 변경 시 레이아웃과 가시 범위를 갱신합니다.
+ * 이유 ::
+ * 글로벌 CLAUDE.md §11 룰 일괄 적용. SpanningGridRecycleView 가 RecycleView 시스템의 가장
+ * 복잡한 변종이라 헤더에서 의도/주의/내부 구조를 한 화면에 모두 노출.
  *
- * 기타 ::
- * 1. LayoutInfo는 각 셀의 배치 결과를 캐싱하기 위한 내부 구조체입니다.
- * 2. _FindPlacement는 secondary 라인 점유 상태를 비트 마스크로 관리하며, 배치 가능한 첫 위치를 탐색합니다.
- * 3. _LowerBoundEndPrimary / _UpperBoundStartPrimary는 현재 스크롤 범위와 겹치는 셀 인덱스를 빠르게 찾기 위한 이진 탐색 함수입니다.
- * 4. _EnsureLayoutBuilt 내부의 `var pos = _FindPlacement(...)` 반환값은 실제로 사용되지 않으므로 제거 대상입니다.
- * 5. `_SecondaryCount <= 0`일 때 `_SecondaryCount.ToString();`을 호출하는 코드는 의미 없는 잔여 코드입니다.
- * 6. ScrollToIndex와 UpdateVisibleItems는 anchoredPosition 부호 기준이 실제 ScrollRect 설정과 일치해야 정상 동작합니다.
+ * =========================================================
+ * 2026-04-25 (최초 설계, @Jason - PKH) :: SpanningGridRecycleView 초기 구현
+ * =========================================================
+ * RecycleView 시스템에서 가장 복잡한 변종. 핵심 결정 4 가지:
+ *
+ * (1) primary/secondary 축 추상화 ::
+ * 가로/세로 두 방향을 공통 로직으로 처리. isHorizontal 플래그 한 개로 layout 코드의 두 갈래를
+ * 통합. primary = 스크롤 방향, secondary = 스크롤 직교 방향.
+ *
+ * (2) LayoutInfo 사전 계산 캐시 ::
+ * 각 셀의 (Primary / Secondary / PrimarySpan / SecondarySpan / SizePx / AnchoredPos +
+ * startPrimaryPx / endPrimaryPx) 를 SetData 시 일괄 계산하여 메모리에 보유. 매 프레임
+ * 가시 범위 계산이 이 캐시 위에서 이진 탐색만 수행 — O(log n).
+ *
+ * (3) 비트 마스크 기반 라인 점유 추적 ::
+ * _FindPlacement 가 secondary 라인의 빈 위치를 비트 마스크로 추적. SpanX 칸을 점유 가능한
+ * 첫 위치를 한 번의 비트 연산으로 탐색. 32 라인 한계는 int 비트 폭에서 옴 — 더 많은 라인이
+ * 필요하면 long 또는 BitArray 로 확장 가능.
+ *
+ * (4) 이진 탐색 기반 가시 범위 ::
+ * _LowerBoundEndPrimary / _UpperBoundStartPrimary 가 정렬된 startPrimaryPxList /
+ * endPrimaryPxList 위에서 가시 범위 시작/끝 인덱스를 O(log n) 으로 찾음. 1만 개 셀에서도
+ * 가시 범위 계산이 ~14 비교만에 끝남.
+ *
+ * 알려진 정리 후보 ::
+ * - _EnsureLayoutBuilt 내부의 `var pos = _FindPlacement(...)` 반환값 미사용 → 제거 가능.
+ * - `_SecondaryCount <= 0` 분기의 `_SecondaryCount.ToString();` 잔여 코드.
+ *
+ * 전제 조건 ::
+ * Item UI / Context 모두 좌상 Anchor + Pivot (0, 1). ScrollRect 의 anchoredPosition 부호
+ * 기준이 본 클래스의 layout 계산과 일치해야 함.
  * =========================================================
  */
 #endif
