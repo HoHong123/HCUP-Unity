@@ -1,18 +1,26 @@
-using Cysharp.Threading.Tasks;
-using HUtil.AssetHandler.Data;
-
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * lease 발급 계약 인터페이스 스크립트입니다.
- * IAssetProvider의 Owner 기능 구독을 강제하여 메모리 리크를 방지하도록 만드는 선택 계층입니다.
+ * lease 발급 계약 인터페이스. IAssetProvider 의 owner 기능 구독을 강제하여 메모리 리크를
+ * 방지하는 선택 계층.
  *
- * 주의사항 ::
- * 1. owner 객체와 ownerId 직접 전달 경로를 구분해서 사용해야 합니다.
- * 2. lease 계층은 선택 기능이라는 점을 전제로 합니다.
+ * 주요 기능 ::
+ * AcquireAsync(IAssetOwner / AssetOwnerId, key, loadMode, fetchMode) — lease 비동기 발급.
+ *
+ * 사용법 ::
+ * 구독형 acquire/release 표현이 필요할 때 사용. 도메인 코드는 `using lease = await mgr.AcquireAsync(...)`
+ * 패턴으로 acquire/release 짝맞춤을 컴파일러가 강제하게 만듦.
+ *
+ * 주의 ::
+ * lease 계층은 선택 기능. provider 직접 호출도 동등 효과. 본 인터페이스는 Acquire/Dispose
+ * 짝맞춤 (단일 key 단위) 만 제공 — 오너 단위 일괄 해제 (ReleaseOwner) 나 전역 해제 (ReleaseAll)
+ * 는 IAssetProvider 직접 호출.
  * =========================================================
  */
 #endif
+
+using Cysharp.Threading.Tasks;
+using HUtil.AssetHandler.Data;
 
 namespace HUtil.AssetHandler.Subscription {
     public interface IAssetLeaseManager<TKey, TAsset> {
@@ -32,27 +40,26 @@ namespace HUtil.AssetHandler.Subscription {
 
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
- * 주요 기능 ::
- * 1. IAssetOwner 기준 AcquireAsync를 제공합니다.
- * 2. AssetOwnerId 직접 지정 AcquireAsync를 제공합니다.
+ * Dev Log
+ * =========================================================
  *
- * 사용법 ::
- * 1. 구독형 asset 사용 표현이 필요한 경우에만 참조합니다.
- * 2. provider 직접 사용보다 상위 표현이 필요할 때 사용합니다.
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 기존 헤더 (도입 + 주의사항) 에 "주요 기능 / 사용법" 섹션 추가하여 §11 형틀 통일.
+ * 하단 Dev Log 영역 추가. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
  *
- * 이벤트 ::
- * 1. 직접 이벤트는 없습니다.
- * 2. Acquire 결과는 IAssetLease로 반환됩니다.
+ * 이유 ::
+ * 글로벌 CLAUDE.md §11 룰 일괄 적용.
  *
- * 기타 ::
- * 1. 일반 provider 경계를 래핑합니다.
- * 2. 수명 관리를 Dispose 패턴으로 드러내기 위한 계약입니다.
- * 3. 역할 제한: Acquire/Dispose 짝맞춤(단일 key 단위)만 제공합니다.
- *    오너 단위 일괄 해제(ReleaseOwner)나 전역 해제(ReleaseAll)는 제공하지 않으며,
- *    해당 경로가 필요하면 IAssetProvider를 직접 호출해야 합니다.
- * 4. provider를 감추는 파사드가 아니라 Dispose 편의 표현이므로,
- *    두 경계를 함께 참조하는 사용처(예: 오너가 OnDestroy에서 lease.Dispose + provider.ReleaseOwner)가 자연스럽습니다.
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: IAssetLeaseManager 초기 구현
+ * =========================================================
+ * Provider 위에 얹는 IDisposable 표현 계층. 두 AcquireAsync 오버로드는 owner 객체 전달 vs
+ * ownerId 직접 전달 두 경로 분리. 일반 provider 경계를 래핑하는 역할 — 파사드가 아니라
+ * Dispose 편의 표현. 두 경계 (provider + leaseManager) 를 함께 참조하는 사용처가 자연스러움
+ * (예: OnDestroy 에서 lease.Dispose + provider.ReleaseOwner).
  * =========================================================
  */
 #endif
