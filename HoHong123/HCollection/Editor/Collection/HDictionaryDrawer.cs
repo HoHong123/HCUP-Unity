@@ -1,38 +1,29 @@
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * HDictionary<TKey, TValue>의 Inspector 렌더를 Odin Dictionary 수준으로 재구성하는
- * 제네릭 PropertyDrawer입니다.
+ * HDictionary<TKey, TValue> 의 Inspector 렌더를 Odin Dictionary 수준으로 재구성하는 제네릭 PropertyDrawer.
  *
- * 렌더 구성 (외곽 박스로 감싸 시각 경계를 명확히 함) ::
- * 1. Header Row 1 - Foldout + Count 뱃지 + 추가(+) 버튼
- * 2. Header Row 2 - Sort by Key 버튼 (접힌 상태에서는 숨김)
- * 3. Search       - Entry 수가 SEARCH_THRESHOLD 이상이면 표시되는 Key 검색 필드
- * 4. Entries      - ReorderableList 기반 드래그 재정렬 + 한 행 [Key | Value | X]
+ * 렌더 구성 ::
+ * 외곽 박스 안에 Header (Foldout + Count + Add) + Sort by Key 버튼 (펼침 시) + Search 필드
+ * (Entry 수가 SEARCH_THRESHOLD 이상) + ReorderableList ([Key | Value | X] 한 행).
  *
  * 특수 동작 ::
- * 중복 Key 감지 시 해당 행들에 붉은 오버레이 배경 표시 (하드 에러 정책의 시각적 경고)
- * 빈 Dictionary는 "Dictionary is empty - use + to add an entry." 안내 메시지 표시
- * Value가 복합 타입(Vector3, struct 등)이면 자동 foldout + 자식 필드 표시
- * + 버튼으로 신규 Entry 추가 시 직전 요소의 값이 아닌 기본값(0/null/empty)으로 초기화
- *   (SerializedProperty.InsertArrayElementAtIndex는 기존 요소를 복제하므로,
- *    삽입 직후 모든 하위 프로퍼티를 타입별로 기본값 설정하는 재귀 리셋을 수행)
+ * 중복 Key → 붉은 오버레이. 빈 Dictionary → 안내 메시지. Value 가 복합 타입 → 자동 foldout.
+ * + 버튼 추가 시 직전 요소 복제가 아니라 기본값 (0/null/empty) 으로 재귀 리셋
+ * (InsertArrayElementAtIndex 가 기존 요소를 복제하므로 삽입 직후 모든 하위 프로퍼티를 타입별 리셋).
  *
  * 중복 검증 정책 ::
- * 중복 Key가 존재하는 상태에서는 HDictionaryValidator가 Play Mode 진입, Build,
- * Scene/Asset Save를 모두 차단하고 Debug.LogError로 해당 경로를 출력한다.
- * 이 Drawer는 그 상태를 UI에서 시각화하는 역할만 맡는다.
+ * 중복 상태에서는 HDictionaryValidator 가 PlayMode 진입 / Build / Save 를 모두 차단.
+ * 본 Drawer 는 그 상태를 UI 에서 시각화하는 역할만 한다.
  *
  * 캐시 전략 ::
- * ReorderableList / 검색어 / 중복 인덱스 집합은 (InstanceID + propertyPath) 키로 캐시
- * 이유: ReorderableList는 드래그 hot-index 등 UI 상태를 내부에 보유하므로
- * 매 OnGUI마다 새로 만들면 드래그가 풀린다
+ * ReorderableList / 검색어 / 중복 인덱스 집합을 (InstanceID + propertyPath) 키로 캐시.
+ * 매 OnGUI 마다 새로 만들면 ReorderableList 의 드래그 hot-index 가 풀리기 때문.
  *
  * 주의사항 ::
- * SerializedProperty에서 private 필드명 "entries"/"logDuplicateKeyWarning"을 직접 참조
- * → HDictionary 쪽 필드명을 바꾸면 이 Drawer도 동기화해야 함 (호환성 계약)
- * Sort/Search는 PropertyToString 기반 단순 문자열 비교이므로
- * 사용자 정의 타입 Key는 ToString()에 의존
+ * SerializedProperty 에서 private 필드명 "entries" / "logDuplicateKeyWarning" 을 직접 참조 -
+ * HDictionary 쪽 필드명을 바꾸면 본 Drawer 도 동기화해야 함 (호환성 계약).
+ * Sort/Search 는 PropertyToString 기반이라 사용자 정의 Key 는 ToString () 에 의존.
  * =========================================================
  */
 #endif
@@ -753,4 +744,71 @@ namespace HCollection.Editor {
         #endregion
     }
 }
+#endif
+
+#if UNITY_EDITOR
+/* =========================================================
+ * Dev Log
+ * =========================================================
+ *
+ * =========================================================
+ * 2026-04-26 (수정 2) :: 헤더 형틀 복원 + 헤더/Dev Log #if UNITY_EDITOR 가드 적용
+ * =========================================================
+ * 변경 ::
+ * 1. 헤더 주석을 "도입 + 렌더 구성 / 특수 동작 / 중복 검증 정책 / 캐시 전략 / 주의사항"
+ *    6 섹션 형틀로 복원. 각 섹션 내용은 압축.
+ * 2. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드로 감쌈 (이전 "수정 1" 에서 제거했던 가드 복원).
+ *
+ * 이유 ::
+ * 직전 "수정 1" 이 헤더를 1~3 줄로 통째 압축해 형틀 (섹션 라벨) 자체를 손상시켰다.
+ * reader 가 "이 Drawer 가 어떤 축으로 설명되는가" 를 섹션 라벨만으로 한눈에 파악할 수
+ * 있도록 형틀을 보존하면서 각 섹션 내용만 압축하는 방향이 맞다. #if UNITY_EDITOR 가드는
+ * IL 영향은 없지만 IDE 가 회색조로 표시해 "이 영역은 빌드에 안 들어간다" 를 시각화한다.
+ *
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 주석 간략화 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 1. 헤더 주석을 5 줄 (구분선 제외) 로 압축. 기존 "렌더 구성 / 특수 동작 / 중복 검증 정책 /
+ *    캐시 전략 / 주의사항" 5 섹션을 본 Dev Log 의 "2026-04-25 (최초 설계)" 엔트리로 이관.
+ * 2. 헤더 주석 자체를 감쌌던 #if UNITY_EDITOR 가드 제거. 클래스 본체의 #if UNITY_EDITOR 가드는 유지.
+ *
+ * 이유 ::
+ * 헤더 주석이 36 줄 + 코드 720 여 줄 구조라 첫 화면에서 코드가 안 보였다. 핵심 의도만
+ * 헤더에 남기고 자세한 자료는 Dev Log 영역으로 분리.
+ *
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: HDictionaryDrawer 초기 구현
+ * =========================================================
+ * 렌더 구성 (외곽 박스로 감싸 시각 경계를 명확히 함) ::
+ * 1. Header Row 1 - Foldout + Count 뱃지 + 추가 (+) 버튼
+ * 2. Header Row 2 - Sort by Key 버튼 (접힌 상태에서는 숨김)
+ * 3. Search       - Entry 수가 SEARCH_THRESHOLD 이상이면 표시되는 Key 검색 필드
+ * 4. Entries      - ReorderableList 기반 드래그 재정렬 + 한 행 [Key | Value | X]
+ *
+ * 특수 동작 ::
+ * - 중복 Key 감지 시 해당 행들에 붉은 오버레이 배경 표시 (하드 에러 정책의 시각적 경고).
+ * - 빈 Dictionary 는 "Dictionary is empty - use + to add an entry." 안내 메시지 표시.
+ * - Value 가 복합 타입 (Vector3, struct 등) 이면 자동 foldout + 자식 필드 표시.
+ * - + 버튼으로 신규 Entry 추가 시 직전 요소의 값이 아닌 기본값 (0/null/empty) 으로 초기화.
+ *   (SerializedProperty.InsertArrayElementAtIndex 는 기존 요소를 복제하므로,
+ *    삽입 직후 모든 하위 프로퍼티를 타입별로 기본값 설정하는 재귀 리셋을 수행.)
+ *
+ * 중복 검증 정책 ::
+ * 중복 Key 가 존재하는 상태에서는 HDictionaryValidator 가 Play Mode 진입, Build,
+ * Scene/Asset Save 를 모두 차단하고 Debug.LogError 로 해당 경로를 출력한다.
+ * 이 Drawer 는 그 상태를 UI 에서 시각화하는 역할만 맡는다.
+ *
+ * 캐시 전략 ::
+ * ReorderableList / 검색어 / 중복 인덱스 집합은 (InstanceID + propertyPath) 키로 캐시.
+ * 이유: ReorderableList 는 드래그 hot-index 등 UI 상태를 내부에 보유하므로 매 OnGUI 마다
+ * 새로 만들면 드래그가 풀린다.
+ *
+ * 주의사항 ::
+ * - SerializedProperty 에서 private 필드명 "entries" / "logDuplicateKeyWarning" 을 직접 참조.
+ *   HDictionary 쪽 필드명을 바꾸면 이 Drawer 도 동기화해야 함 (호환성 계약).
+ * - Sort/Search 는 PropertyToString 기반 단순 문자열 비교이므로 사용자 정의 타입 Key 는
+ *   ToString() 에 의존.
+ * =========================================================
+ */
 #endif
