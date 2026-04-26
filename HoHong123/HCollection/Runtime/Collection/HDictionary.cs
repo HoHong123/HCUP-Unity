@@ -1,58 +1,44 @@
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * Unity 기본 직렬화가 지원하지 않는 Dictionary를 Inspector에서 직렬화·편집할 수 있도록 만든 커스텀 래퍼 클래스입니다.
+ * Unity 기본 직렬화가 지원하지 않는 Dictionary 를 Inspector 에서 직렬화·편집할 수 있도록 만든 커스텀 래퍼.
  *
  * 사용 예 ::
- * [SerializeField] HDictionary<string, int> stats = new();
+ *   [SerializeField] HDictionary<string, int> stats = new();
  *
  * 특징 ::
- * Dictionary<TKey, TValue>를 상속하므로 런타임 조회는 O(1) 해시 경로를 그대로 유지합니다.
- * 데이터 모델은 "entries List가 영속 source of truth, Dictionary는 런타임 조회 뷰"입니다.
- *   OnAfterDeserialize : entries를 순회해 Dictionary를 재구축 (중복 키는 first-wins, entries는 불변)
- *   OnBeforeSerialize  : entries를 절대 wipe하지 않고, Dictionary에만 존재하는 신규 키를 append
- *   Add/Remove/TryAdd/indexer 오버라이드 : 런타임 변경을 즉시 entries에 반영하여
- *                                          HDictionary 참조 경로에서는 두 컬렉션이 항상 동기 상태를 유지
- * 이 구조는 Inspector에서 편집한 중복 엔트리(에러 상태)가 직렬화 라운드트립으로 인해
- * 소실되지 않도록 보장합니다. 중복은 상위 Validator가 workflow를 차단해 해소를 강제합니다.
+ * Dictionary<TKey, TValue> 상속 + ISerializationCallbackReceiver. 런타임 조회 O(1) 보존.
+ * entries List = 영속 source of truth (에디터), Dictionary = 런타임 조회 뷰.
  *
  * 동기화 경계 ::
- * HDictionary 참조로 호출하는 모든 변경 API(Add, TryAdd, Remove, TryAddOrReplace, this[key] = ...,
- * Clear)는 entries와 Dictionary를 함께 갱신합니다.
- * 단, 베이스 Dictionary<TKey, TValue>로 업캐스팅 후 호출하는 경우는 `new` 키워드 은닉 한계로
- * entries가 동기화되지 않습니다. 이 경로로 "새 키"가 추가된 경우 OnBeforeSerialize의 append 경로가
- * 수습하지만, 기존 키의 Value 변경·삭제는 직렬화 시 반영되지 않을 수 있습니다.
+ * 변경 API (Add / TryAdd / TryAddOrReplace / Remove x2 / Clear / indexer setter) 는
+ * #if UNITY_EDITOR 로 통째 가드. 빌드에서는 `new` 키워드 hide 가 사라져 base 동명 API 가
+ * 자동 노출 (사용자 코드 동작 동일). base 업캐스팅 후 호출은 entries 동기화 누락.
+ * Odin reflection 같은 우회 경로는 IsEntriesOutOfSync + ForceSyncEntriesFromDictionary 로 보정.
  *
  * 빌드 메모리 최적화 ::
- * 배포 빌드(!UNITY_EDITOR)에서는 OnAfterDeserialize 말미에 entries 프록시 List를
- * null로 대체해 백엔드 배열과 List 헤더를 모두 GC 회수 대상으로 만듭니다.
- * 즉 빌드 런타임에서 HDictionary의 실제 메모리는 Dictionary 본체만 남습니다.
- * JsonUtility.ToJson 같은 런타임 직렬화 요청이 들어오면 OnBeforeSerialize에서
- * entries를 lazy 재할당해 일시적으로만 복원합니다.
- * 에디터(UNITY_EDITOR)에서는 Inspector 표시·편집·반복 저장을 위해 entries를 유지합니다.
+ * OnAfterDeserialize 말미에 entries = null. 그 시점부터 entries 책임 종료.
+ * OnBeforeSerialize 본문도 #if UNITY_EDITOR 가드 (시그니처는 보존). 빌드 ToJson 결과는
+ * { "entries": null } 로 의도된 빈 직렬화.
  *
- * 중복 키 정책 (하드 에러, first-wins) ::
- * 중복 Key는 오류입니다. Editor 측 HDictionaryValidator가 Play Mode 진입, Build,
- * Scene/Asset Save 경로를 차단하므로 정상 워크플로우에서는 중복이 있는 상태로
- * 런타임에 진입할 수 없습니다. 혹시 검증을 우회해 런타임에 도달하면 첫 번째 키의
- * 값을 보존(first-wins)하고 Debug.LogError를 남깁니다.
+ * 중복 키 정책 ::
+ * 하드 에러 + first-wins. HDictionaryValidator 가 PlayMode / Build / Save 3 게이트를 차단.
+ * 검증 우회 시 OnAfterDeserialize 가 첫 키 보존 + Debug.LogError.
  *
  * 주의사항 ::
- * entries 필드는 빌드 런타임에 null일 수 있으므로 외부에서 직접 접근하지 말 것.
- * OnBeforeSerialize / OnAfterDeserialize 경로 외의 접근은 비보장입니다.
- * HasDuplicateKeys / DuplicateKeyCount는 entries가 있는 Editor 맥락에서만 유의미한
- * 결과를 반환합니다. 배포 빌드에서는 엔트리 해제 이후 false/0을 반환할 수 있습니다.
- * Add/Remove/indexer 오버라이드의 entries 선형 탐색 비용은 O(n)입니다.
- * Inspector 주도 편집 모델에서는 수용 가능하지만, 고빈도 런타임 변경에는 부적합할 수 있습니다.
- * OnAfterDeserialize 내부는 반드시 base.Clear / base.Add를 호출해야 합니다.
- * 오버라이드된 Clear/Add는 entries를 건드리므로 역직렬화 도중 데이터 소실 또는 무한 루프를 유발합니다.
+ * - HDictionary 참조로만 변경 API 를 호출할 것. base 업캐스팅 후 호출은 entries 동기화 끊김.
+ * - entries 필드는 빌드에서 null. 외부 직접 접근 금지.
+ * - HasDuplicateKeys / DuplicateKeyCount 는 빌드에서 false / 0 을 반환.
+ * - Add / Remove / indexer 의 entries 선형 탐색은 O(n). Inspector 편집 모델에서 수용 가능.
+ * - OnAfterDeserialize 내부는 반드시 base.Clear / base.Add 를 호출. 오버라이드된 Clear / Add
+ *   는 entries 를 건드리므로 역직렬화 도중 데이터 소실 또는 무한 루프를 유발한다.
  * =========================================================
  */
 #endif
 
 using System;
-using System.Collections.Generic;
 using System.Text;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace HCollection {
@@ -71,15 +57,14 @@ namespace HCollection {
         List<Entry> entries = new();
         #endregion
 
+#if UNITY_EDITOR
         #region Public - Indexer
-        // 기존 키의 값 변경 또는 신규 키 추가 모두 entries를 동기화한다.
+        // 기존 키의 값 변경 또는 신규 키 추가 모두 entries 를 동기화한다.
         public new TValue this[TKey key] {
             get => base[key];
             set {
                 bool existed = base.ContainsKey(key);
                 base[key] = value;
-
-                if (entries == null) return;
 
                 if (existed) {
                     _UpdateFirstEntryValue(key, value);
@@ -93,11 +78,13 @@ namespace HCollection {
             }
         }
         #endregion
+#endif
 
         #region Public - Serialization
         public void OnBeforeSerialize() {
-            if (entries == null) entries = new List<Entry>(Count);
-
+#if UNITY_EDITOR
+            // entries 는 에디터에서 항상 살아있으므로 lazy 재할당 불필요.
+            // Dictionary 에만 존재하는 신규 키만 append (Public API 우회 경로의 safety net).
             HashSet<TKey> existingKeys = new HashSet<TKey>(entries.Count, Comparer);
             for (int k = 0; k < entries.Count; k++) {
                 existingKeys.Add(entries[k].Key);
@@ -113,11 +100,10 @@ namespace HCollection {
 
                 existingKeys.Add(kv.Key);
             }
+#endif
         }
 
         public void OnAfterDeserialize() {
-            // 반드시 base.Clear()를 호출한다.
-            // 오버라이드된 Clear()는 entries까지 비우므로 바로 다음 라인의 복원 루프가 읽어야 할 entries 데이터가 사라진다.
             base.Clear();
 
             if (entries != null && entries.Count > 0) {
@@ -138,17 +124,46 @@ namespace HCollection {
             }
 
 #if !UNITY_EDITOR
-            // 배포 빌드 = 프록시 List를 완전히 놓아 GC 대상으로 전환.
-            // 이후 JsonUtility.ToJson 등으로 직렬화 요청이 오면 OnBeforeSerialize에서 lazy 재할당으로 일시 복원.
+            // 빌드 = 프록시 List 를 완전히 놓아 GC 대상으로 전환. 이후 entries 는 책임 종료.
             entries = null;
 #endif
         }
         #endregion
 
+        #region Public - IHDictionary Validation
+        public bool HasDuplicateKeys() {
+            if (entries == null || entries.Count < 2)
+                return false;
+
+            HashSet<TKey> seen = new HashSet<TKey>(entries.Count, Comparer);
+            for (int k = 0; k < entries.Count; k++) {
+                if (!seen.Add(entries[k].Key))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public int DuplicateKeyCount() {
+            if (entries == null || entries.Count < 2)
+                return 0;
+
+            HashSet<TKey> seen = new HashSet<TKey>(entries.Count, Comparer);
+            int duplicates = 0;
+            for (int k = 0; k < entries.Count; k++) {
+                if (!seen.Add(entries[k].Key))
+                    duplicates++;
+            }
+
+            return duplicates;
+        }
+        #endregion
+
+#if UNITY_EDITOR
         #region Public - Add
         public new void Add(TKey key, TValue value) {
             base.Add(key, value);
-            entries?.Add(new Entry {
+            entries.Add(new Entry {
                 Key = key,
                 Value = value
             });
@@ -156,7 +171,7 @@ namespace HCollection {
 
         public new bool TryAdd(TKey key, TValue value) {
             if (!base.TryAdd(key, value)) return false;
-            entries?.Add(new Entry {
+            entries.Add(new Entry {
                 Key = key,
                 Value = value
             });
@@ -171,12 +186,6 @@ namespace HCollection {
 
             Add(key, value);
             return true;
-        }
-        #endregion
-
-        #region Public - Get
-        public TValue GetValueOrDefault(TKey key, TValue defaultValue = default) {
-            return TryGetValue(key, out TValue value) ? value : defaultValue;
         }
         #endregion
 
@@ -197,63 +206,11 @@ namespace HCollection {
         #region Public - Clear
         public new void Clear() {
             base.Clear();
-            entries?.Clear();
+            entries.Clear();
         }
         #endregion
 
-        #region IHDictionary - Validation
-        public bool HasDuplicateKeys() {
-            if (entries == null || entries.Count < 2) return false;
-
-            HashSet<TKey> seen = new HashSet<TKey>(entries.Count, Comparer);
-            for (int k = 0; k < entries.Count; k++) {
-                if (!seen.Add(entries[k].Key)) return true;
-            }
-
-            return false;
-        }
-
-        public int DuplicateKeyCount() {
-            if (entries == null || entries.Count < 2) return 0;
-
-            HashSet<TKey> seen = new HashSet<TKey>(entries.Count, Comparer);
-            int duplicates = 0;
-            for (int k = 0; k < entries.Count; k++) {
-                if (!seen.Add(entries[k].Key)) duplicates++;
-            }
-
-            return duplicates;
-        }
-        #endregion
-
-        #region Private - Entry Sync
-        private void _UpdateFirstEntryValue(TKey key, TValue value) {
-            Debug.Log("[HDictionary] Updating value of existing key in entries. Key='" + key + "'.");
-            IEqualityComparer<TKey> comparer = Comparer;
-            for (int k = 0; k < entries.Count; k++) {
-                if (!comparer.Equals(entries[k].Key, key)) continue;
-                entries[k] = new Entry {
-                    Key = key,
-                    Value = value
-                };
-                return;
-            }
-        }
-
-        private void _RemoveFirstEntryByKey(TKey key) {
-            if (entries == null) return;
-
-            IEqualityComparer<TKey> comparer = Comparer;
-            for (int k = 0; k < entries.Count; k++) {
-                if (!comparer.Equals(entries[k].Key, key)) continue;
-                entries.RemoveAt(k);
-                return;
-            }
-        }
-        #endregion
-
-#if UNITY_EDITOR
-        #region Editor - Sync Check
+        #region Public - Editor Sync Check
         public bool NeedsEntriesSync() {
             if (entries == null) return Count > 0;
             if (Count == 0) return false;
@@ -348,11 +305,35 @@ namespace HCollection {
         }
         #endregion
 
-        #region Debug
+        #region Public - Debug
         public IReadOnlyList<(TKey Key, TValue Value)> DebugSnapshot() {
             List<(TKey, TValue)> snapshot = new List<(TKey, TValue)>(Count);
             foreach (var kvp in this) snapshot.Add((kvp.Key, kvp.Value));
             return snapshot;
+        }
+        #endregion
+        
+        #region Private - Entry Sync
+        private void _UpdateFirstEntryValue(TKey key, TValue value) {
+            Debug.Log($"[HDictionary] Updating value of existing key in entries. Key='{key}'.");
+            IEqualityComparer<TKey> comparer = Comparer;
+            for (int k = 0; k < entries.Count; k++) {
+                if (!comparer.Equals(entries[k].Key, key)) continue;
+                entries[k] = new Entry {
+                    Key = key,
+                    Value = value
+                };
+                return;
+            }
+        }
+
+        private void _RemoveFirstEntryByKey(TKey key) {
+            IEqualityComparer<TKey> comparer = Comparer;
+            for (int k = 0; k < entries.Count; k++) {
+                if (!comparer.Equals(entries[k].Key, key)) continue;
+                entries.RemoveAt(k);
+                return;
+            }
         }
         #endregion
 #endif
@@ -361,110 +342,174 @@ namespace HCollection {
 
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
+ * Dev Log
+ * =========================================================
  *
- * 주요 기능 ::
- * 1. OnBeforeSerialize
- *    + Dictionary에만 존재하는 신규 키를 entries에 append (append-only safety net)
- *    + entries가 null이면 즉석 재할당 (lazy 복원)
- *    + 기존 entries는 절대 wipe하지 않음 (중복 에러 상태 보존)
- *    + Dictionary.Comparer를 HashSet에도 전달하여 커스텀 비교자 일관성 확보
- * 2. OnAfterDeserialize
- *    + base.Clear로 Dictionary만 비움 (entries는 복원 소스이므로 건드리지 않음)
- *    + Entry List를 base.Add로 Dictionary에 복원 (O(n), 1회)
- *    + 중복 키는 first-wins, 초과분은 Debug.LogError
- *    + 배포 빌드에서는 복원 후 entries를 null 처리하여 메모리 해제
- * 3. Add / TryAdd
- *    + base API 호출 후 entries에 append
- *    + Add는 중복 시 ArgumentException 그대로 전파, entries는 미변경
- *    + TryAdd는 실패 시 no-op
- * 4. Remove(TKey) / Remove(TKey, out TValue)
- *    + base 제거 성공 시 entries에서 첫 번째 일치 항목 제거 (first-wins 일관성)
- * 5. this[TKey] setter
- *    + 기존 키면 entries 값 교체, 신규 키면 entries에 append
- * 6. TryAddOrReplace
- *    + 존재 시 값 교체(false 반환) / 없으면 신규 추가(true 반환)
- *    + 내부 indexer·Add 오버라이드를 경유하므로 entries가 함께 동기화됨
- * 7. Clear
- *    + Dictionary와 entries를 동시에 비움
- * 8. GetValueOrDefault
- *    + Key 미존재 시 기본값 반환 (읽기 전용)
- * 9. NeedsEntriesSync (Editor 전용)
- *    + Dictionary에 있지만 entries에 없는 키가 하나라도 있으면 true
- *    + Odin DictionaryDrawer 등 reflection 편집 경로가 base Dictionary만 수정해
- *      entries 동기화가 끊긴 상태를 감지
- *    + 컨테이너 Object가 OnValidate에서 이 값을 보고 EditorUtility.SetDirty(this)를
- *      호출하면 Ctrl+S 저장 파이프라인이 복구됨
- *    + append-only 정책 일관성을 위해 entries에만 있는 키(고아 엔트리)는 검사 제외
- * 10. ForceSyncEntriesFromDictionary (Editor 전용)
- *    + entries 전체를 Clear한 뒤 현재 Dictionary 내용으로 재구축 (O(n))
- *    + Odin DictionaryDrawer가 편집한 Dictionary 본체를 수동으로 entries에 플러시하는 용도
- *    + 중복 키·고아 엔트리 등 이전 오류 상태도 함께 리셋됨
- *    + 호출 후 컨테이너 Object에서 EditorUtility.SetDirty(this)를 호출해야 저장 경로로 반영
- * 11. DescribeEntriesSyncState (Editor 전용)
- *    + Dictionary vs entries의 불일치 현황을 리포트 문자열로 반환
- *    + only-in-dict / only-in-entries / value-mismatch / entries-duplicates 4개 축으로 분리
- *    + Odin Button에서 호출해 콘솔에 찍어보는 디버그 용도, 저장 실패·동기화 끊김 추적에 사용
- * 12. IsEntriesOutOfSync (Editor 전용)
- *    + entries가 Dictionary와 완전히 일치하는지 단일 boolean으로 반환 (O(n) 단일 순회)
- *    + 감지 대상 : Count 불일치 / entries 중복 / 고아 엔트리 / 공통 키의 Value 변경
- *    + NeedsEntriesSync는 append-only 관점의 부분 체크(신규 키만)인 반면
- *      IsEntriesOutOfSync는 Odin 편집의 추가/수정/삭제 3경로를 모두 커버
- *    + 컨테이너 Object의 Odin [OnInspectorGUI] 훅에서 매 Inspector repaint마다 호출하여
- *      자동 동기화 트리거 조건으로 사용
+ * =========================================================
+ * 2026-04-26 (수정 3) :: 헤더 형틀 복원 + 헤더/Dev Log #if UNITY_EDITOR 가드 적용
+ * =========================================================
+ * 변경 ::
+ * 1. 헤더 주석을 "도입 + 사용 예 / 특징 / 동기화 경계 / 빌드 메모리 최적화 / 중복 키 정책 /
+ *    주의사항" 7 섹션 형틀로 복원. 각 섹션 내용은 1~3 줄로 압축.
+ * 2. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드로 감쌈 (이전 "수정 1" 에서 제거했던 가드 복원).
  *
- * 자동 동기화 전략 (Odin DictionaryDrawer 환경) ::
- * Odin DictionaryDrawer는 reflection으로 base Dictionary<K,V>를 직접 조작하여
- * HDictionary의 `new` shadowed Add/Remove/indexer 오버라이드를 우회한다. 결과적으로
- * Odin UI로 편집한 추가/수정/삭제가 [SerializeField] entries에 반영되지 않아 YAML
- * 저장 시점에 변경사항이 누락된다. (추가만 OnBeforeSerialize의 append-only safety net이
- * 우연히 커버하고, 수정/삭제는 완전히 누락됨)
+ * 이유 ::
+ * 직전 "수정 1" 이 헤더를 1~3 줄로 통째 압축해 형틀 (섹션 라벨) 자체를 손상시켰다.
+ * reader 가 "이 클래스가 어떤 축으로 설명되는가" 를 섹션 라벨만으로 한눈에 파악할 수
+ * 있도록 형틀을 보존하면서 각 섹션 내용만 압축하는 방향이 맞다. #if UNITY_EDITOR 가드는
+ * IL 영향은 없지만 IDE (VS / Rider / VS Code C# 확장) 가 회색조로 표시해 "이 영역은 빌드에
+ * 안 들어간다" 를 reader 의 시야에 미리 인식시킨다. 글로벌 CLAUDE.md §11 의 헤더 컨벤션으로
+ * 모든 미래 시스템에 동일 적용.
  *
- * 이 문제는 HDictionary 내부에서 해결 불가 — 컨테이너 Object 참조가 부재하고
- * serialization 콜백 내 Unity API 호출은 비권장이기 때문. 따라서 컨테이너 Object
- * 레이어에서 Odin [OnInspectorGUI] 훅을 사용해 매 Inspector repaint마다
- * IsEntriesOutOfSync를 확인하고 불일치 시 ForceSyncEntriesFromDictionary +
- * EditorUtility.SetDirty 콤보로 복구하는 패턴이 권장된다. OnValidate / [OnValueChanged]
- * 등 Unity·Odin 이벤트 기반 훅은 Odin reflection 편집 경로를 완전히 커버하지 못해
- * 부분적 실패를 유발했으므로, 이벤트 중심이 아닌 "매 repaint 상태 검사" 방식을 택한다.
+ * =========================================================
+ * 2026-04-26 (수정 2) :: GetValueOrDefault 제거
+ * =========================================================
+ * 변경 ::
+ * 1. Public - Get region 전체 제거 (GetValueOrDefault 단일 메서드).
+ * 2. 인접한 #endif + #if UNITY_EDITOR 페어를 통합하여 Add/Remove/Clear region 을
+ *    한 #if UNITY_EDITOR 블록 안으로 정리.
+ * 3. 본 Dev Log 의 "2026-04-25 (최초 설계) > Public API 목록" 에서
+ *    GetValueOrDefault 줄 제거.
+ *
+ * 이유 ::
+ * GetValueOrDefault 는 entries 와 무관한 읽기 API 였고 본문이 단순히 TryGetValue 호출 후
+ * ternary 반환만 했다. .NET Standard 2.1 의 System.Collections.Generic.CollectionExtensions
+ * 가 동일 시그니처 (1-arg / 2-arg, defaultValue 인자명까지 일치) 의 extension method 를
+ * 이미 제공하므로 HDictionary 에서 별도 정의할 이유가 없었다.
+ *
+ * "entries 와의 관계가 없으면 HDictionary 가 정의하지 않는다" 라는 단일 결정 기준을 끝까지
+ * 적용한 결과 - HDictionary 가 책임질 이유가 없는 메서드를 책임 범위에서 제거.
+ *
+ * 결과 ::
+ * 1. 사용자 코드 변화 0 - `dict.GetValueOrDefault(key, fallback)` 호출이 .NET Standard 2.1
+ *    extension method 로 자동 바인딩 (Dictionary<K,V> 가 IReadOnlyDictionary<K,V> 구현).
+ *    `using System.Collections.Generic;` 만 있으면 자동 노출.
+ * 2. HDictionary 의 책임 경계 명료화 - entries 동기화 + 직렬화 콜백 + IHDictionary 구현 +
+ *    Editor 진단 도구만 유지.
+ * 3. LOC -7 (region 헤더 + 본문 + 인접 #endif + #if UNITY_EDITOR + 빈 줄 정리).
+ *
+ * 호출처 검증 (2026-04-26 시점 grep) ::
+ * - VFoldersLibs / UniTask Sum.cs 의 Nullable<T>.GetValueOrDefault() 호출만 존재.
+ * - HDictionary 인스턴스의 명시 호출 0건.
+ * - portfolio bundle sample (HDictionaryUsageSample.cs) 의 4 곳은 extension method 로 자동
+ *   바인딩되어 동작 변화 없음.
+ *
+ * =========================================================
+ * 2026-04-26 (수정) :: 변경 API + OnBeforeSerialize 본문 #if UNITY_EDITOR 가드 적용
+ * =========================================================
+ * 변경 ::
+ * 1. OnBeforeSerialize 본문 전체를 #if UNITY_EDITOR 로 감쌌다 (시그니처는 보존).
+ *    - lazy 재할당 (`if (entries == null) entries = new List<Entry>(Count);`) 제거.
+ *    - 빌드에서는 본문이 빈 메서드로 통과한다.
+ * 2. 모든 변경 API (Add / TryAdd / TryAddOrReplace / Remove x2 / Clear / indexer setter)
+ *    + private helper (_UpdateFirstEntryValue, _RemoveFirstEntryByKey) 를
+ *    통째로 #if UNITY_EDITOR 로 감쌌다.
+ *    - 빌드에서는 `new` 키워드 hide 가 사라져 base Dictionary<K,V> 의 동명 API 가
+ *      자동 노출된다 (사용자 코드 동작 동일).
+ *    - entries 동기화 분기와 Entry struct 생성 IL 이 빌드 바이너리에서 제거된다.
+ * 3. 변경 API 본문에서 `entries?.Add(...)` / `entries?.Clear()` / null 가드를 제거하고
+ *    `entries.Add(...)` / `entries.Clear()` 직접 호출로 단순화.
+ *    - #if UNITY_EDITOR 가드 안에서는 entries 가 항상 살아있음이 보장되므로
+ *      null check 자체가 dead code.
+ * 4. 헤더 주석을 1~3줄로 간략화하고 기존 긴 자료를 본 Dev Log 의 "2026-04-25 (최초 설계)"
+ *    엔트리로 이관.
+ *
+ * 이유 ::
+ * 기존 설계는 변경 API 와 OnBeforeSerialize 의 entries 동기화 분기를 빌드에 그대로
+ * 두고 null-safe (?. 연산자) 로 무력화했다. 이 방식은 다음 두 가지 over-engineering 을 동반.
+ *   (a) 빌드 바이너리에 dead code 가 잔존 (변경 API 본문 + Entry struct 생성 + null check IL).
+ *   (b) OnBeforeSerialize 의 lazy 재할당이 "혹시 빌드에서 ToJson 호출되면" 시나리오만을
+ *       위해 깔린 안전망인데, 이 시나리오는 HDictionary 의 1차 의도 ("Inspector 에서
+ *       직렬화·편집할 수 있는 Dictionary") 에 포함되지 않는다.
+ *
+ * 사용자 정신 모델 정의:
+ *   - 인스펙터: entries 직렬 관련 기능 모두 필요.
+ *   - 에디터 PlayMode: entries 살아있어야 인스펙터에서 데이터 확인 가능. Public API 가
+ *     entries 동기화하므로 OnBeforeSerialize 의 append-only safety net 은 불필요.
+ *   - 빌드: OnAfterDeserialize 가 entries → Dictionary 복원 후 entries = null,
+ *     그 시점부터 entries 책임 종료. 변경 API 의 entries 동기화는 dead code.
+ * 위 정의를 받아들이면 본 리팩토링이 1차 의도와 정합하면서 빌드 바이너리도 슬림화한다.
+ *
+ * 결과 ::
+ * 1. 빌드 바이너리에서 entries 동기화 관련 IL 제거 (Entry struct 생성, null check, 분기 모두).
+ * 2. lazy 재할당 제거로 "빌드에서 ToJson 한 번 호출 시 entries 가 영구 살아남던" 미묘한
+ *    메모리 누수 가능성도 제거.
+ * 3. 빌드에서 ToJson 호출 시 entries 는 null 인 채로 직렬화된다 ({"entries": null}).
+ *    이는 의도된 동작 - 빌드 환경에서 HDictionary 를 ToJson 해야 한다면 도메인 코드가
+ *    별도 직렬화 도구로 Dictionary 자체를 처리한다.
+ * 4. ISerializationCallbackReceiver 인터페이스 일관성은 시그니처 보존으로 유지
+ *    (OnBeforeSerialize 시그니처는 빌드에 노출, 본문만 #if 가드).
+ * 5. 변경 API 통째 가드 후에도 사용자 코드는 동작 변화 없음 - `dict.Add(...)` 가
+ *    빌드에서 base.Dictionary.Add 로 자동 결정됨 (`new` 키워드 hide 의 자연스런 부작용).
+ *
+ * 주의 ::
+ * 1. 빌드에서 `dict.TryAddOrReplace(...)` 를 호출하면 컴파일 에러 (base 에 없는 신규 API).
+ *    리팩토링 시점 기준 코드베이스 호출처 0건 (헤더 주석 외). 향후 빌드 호출 추가 시 본
+ *    메서드만 본문 가드 형태로 별도 보존할 것.
+ * 2. PlayMode 도중 인스펙터 데이터 동기화는 Public API 의 entries 동기화에 100% 의존.
+ *    Public API 를 우회하는 경로 (예: Odin reflection 직접 편집) 는 IsEntriesOutOfSync
+ *    + ForceSyncEntriesFromDictionary 콤보로 별도 처리 (Editor - Sync Check 영역).
+ *
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: HDictionary 초기 구현
+ * =========================================================
+ * 설계 모델 ::
+ * 1. entries List 가 영속 source of truth, Dictionary 는 런타임 조회 뷰.
+ *    - OnAfterDeserialize: entries -> Dictionary 재구축 (중복 키 first-wins, entries 불변)
+ *    - OnBeforeSerialize: entries 는 절대 wipe 하지 않고 Dictionary 에만 존재하는 신규 키 append
+ *    - 변경 API 오버라이드: 두 컬렉션 동기 갱신
+ * 2. 중복 키 정책 = 하드 에러 + first-wins.
+ *    - HDictionaryValidator 가 PlayMode/Build/Save 3 게이트로 차단.
+ *    - 검증 우회 시 OnAfterDeserialize 가 첫 키 보존 + Debug.LogError.
+ * 3. 빌드 메모리 최적화:
+ *    - OnAfterDeserialize 말미에서 entries = null (빌드 한정).
+ *    - Dictionary 본체만 잔존.
+ * 4. base 업캐스팅 후 호출은 `new` 키워드 hide 한계로 entries 동기화 누락.
+ *    - OnBeforeSerialize append-only safety net 이 신규 키만 수습.
+ *    - 기존 키의 Value 변경/삭제는 직렬화 시 누락 가능 (Odin DictionaryDrawer 한정 함정).
+ *
+ * 메모리 모델 ::
+ * - 에디터: Dictionary<K,V> + List<Entry> (Inspector 표시용 유지)
+ * - 빌드:   Dictionary<K,V> 만 잔존 (entries 는 OnAfterDeserialize 직후 GC 대상)
+ *
+ * 성능 요약 ::
+ * - 런타임 조회: O(1) (Dictionary 상속)
+ * - Add / TryAdd: O(1) (단순 append)
+ * - Remove / indexer-set (기존 키): O(n) (entries 선형 탐색)
+ * - 저장/로드: O(n) 1회 변환
+ *
+ * 사용법 ::
+ * 1. [SerializeField] HDictionary<K,V> field = new();
+ * 2. 일반 Dictionary 처럼 접근: field[key], field.Add(...), field.ContainsKey(...)
+ * 3. HDictionary 참조로만 변경 API 를 호출할 것.
+ *    Dictionary<K,V> 로 업캐스팅 후 호출하면 `new` 은닉 한계로 entries 가 동기화되지 않는다.
+ *
+ * Public API 목록 ::
+ * - 변경 API (entries 동기화 동반): Add / TryAdd / TryAddOrReplace / Remove x2 / Clear / indexer setter
+ * - IHDictionary 구현: HasDuplicateKeys / DuplicateKeyCount (빌드 노출, entries == null 시 false/0)
+ * - Editor 진단: NeedsEntriesSync / ForceSyncEntriesFromDictionary / DescribeEntriesSyncState /
+ *               IsEntriesOutOfSync / DebugSnapshot (#if UNITY_EDITOR 가드)
+ *
+ * Odin DictionaryDrawer 자동 동기화 전략 ::
+ * Odin DictionaryDrawer 는 reflection 으로 base Dictionary<K,V> 를 직접 조작하여 HDictionary 의
+ * `new` shadowed Add/Remove/indexer 오버라이드를 우회한다. 결과적으로 Odin UI 로 편집한
+ * 추가/수정/삭제가 [SerializeField] entries 에 반영되지 않아 YAML 저장 시점에 변경사항이 누락된다.
+ * (추가만 OnBeforeSerialize 의 append-only safety net 이 우연히 커버, 수정/삭제는 완전히 누락)
+ *
+ * 이 문제는 HDictionary 내부에서 해결 불가 - 컨테이너 Object 참조가 부재하고 serialization
+ * 콜백 내 Unity API 호출은 비권장이기 때문. 컨테이너 Object 레이어에서 Odin [OnInspectorGUI]
+ * 훅으로 IsEntriesOutOfSync + ForceSyncEntriesFromDictionary + EditorUtility.SetDirty 콤보를 적용.
  *
  * 구현 예 (컨테이너 Object) ::
  *   [Sirenix.OdinInspector.OnInspectorGUI]
  *   private void _AutoSync() {
- *       bool changed = false;
  *       if (field != null && field.IsEntriesOutOfSync()) {
  *           field.ForceSyncEntriesFromDictionary();
- *           changed = true;
+ *           UnityEditor.EditorUtility.SetDirty(this);
  *       }
- *       if (changed) UnityEditor.EditorUtility.SetDirty(this);
  *   }
  *
- * 성능 ::
- * IsEntriesOutOfSync는 O(n) 단일 순회이고 매 Inspector repaint마다 실행되지만
- * 안정 상태(동기화 완료)에서는 short-circuit return으로 비용이 미미하다. n이 수십~수백
- * 수준인 일반적 에셋 스케일에서는 무시 가능.
- *
- * 메모리 모델 ::
- * 에디터 - Dictionary<K,V> + List<Entry> (Inspector 표시용 유지)
- * 배포 빌드 - Dictionary<K,V>만 잔존 (entries는 초기화 후 GC 대상)
- *
- * 성능 요약 ::
- * 런타임 조회 - O(1) (Dictionary 상속)
- * Add / TryAdd - O(1) (단순 append)
- * Remove / indexer-set (기존 키) - O(n) (entries 선형 탐색)
- * 저장/로드 - O(n) 1회 변환
- *
- * 사용법 ::
- * 1. [SerializeField] HDictionary<K,V> field = new();
- * 2. 일반 Dictionary처럼 접근: field[key], field.Add(...), field.ContainsKey(...)
- * 3. HDictionary 참조로만 변경 API를 호출할 것.
- *    Dictionary<K,V>로 업캐스팅 후 호출하면 `new` 은닉 한계로 entries가 동기화되지 않는다.
- *
- * 기타 ::
- * 1. DebugSnapshot()은 에디터 전용 디버그 스냅샷 반환 (읽기 전용 투영)
- * 2. 중복 Key는 Inspector 편집 중에만 정상적으로 발생 가능하며 first-wins 정책 적용
- * 3. ContainsKey / TryGetValue / ContainsValue 등 읽기 전용 API는 오버라이드하지 않음
- *    (entries 동기화 필요가 없으므로 베이스 O(1) 경로를 그대로 노출)
+ * 안정 상태에서는 IsEntriesOutOfSync 가 short-circuit return 으로 비용 미미.
  * =========================================================
  */
 #endif
