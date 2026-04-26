@@ -12,11 +12,33 @@ using HDiagnosis.Logger;
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * AssetHandler의 중심 진입점 provider 구현 스크립트입니다.
+ * AssetHandler 의 중심 진입점 provider 구현. 5 컴포넌트 (Cache / Store / Loader[] / Validator
+ * / LoadGate) 의 단일 오케스트레이터.
  *
- * 주의사항 ::
- * 1. cache, store, source 책임을 한곳에 직접 섞지 않고 조율만 해야 합니다.
- * 2. owner release와 source release는 각각 다른 경계를 통해 연결됩니다.
+ * 주요 기능 ::
+ * 5 가지 fetch mode (CacheFirst / LocalStoreFirst / LocalStoreOnly / SourceFirst / SourceOnly)
+ * 를 _GetByFetchModeAsync switch 한 곳에 모아 cache/store/source 호출 순서 조율.
+ * SharedAssetLoadGate 로 동일 key 동시 요청 dedupe.
+ * cache 제거 시 OnAssetRemoved → releasable loader 자동 release 연쇄.
+ * owner-aware reference counting 의 실제 보유자 (Subscription/IAssetLease 는 표현 계층).
+ *
+ * 사용법 ::
+ * 도메인 코드나 repository 가 IAssetProvider 경계로 자산 조회. AssetProviderFactory 로 빠른
+ * 조립 또는 생성자 직접 호출로 컴포넌트 커스텀. owner lifecycle 짝맞춤은 ReleaseOwner.
+ *
+ * 주의 ::
+ * cache, store, source 책임을 한곳에 직접 섞지 않고 조율만 함. owner release 와 source release
+ * 는 각각 다른 경계를 통해 연결 (cache.OnAssetRemoved → releasableLoader.Release).
+ *
+ * 역할 경계 ::
+ * - Provider (이 클래스) : cache/store/loader 조율 + owner 기반 reference counting 소유. 실 보유자.
+ * - AssetLeaseManager   : provider.GetAsync + Release 짝맞춤을 IDisposable 로 표현하는 보조 계층.
+ * - IAssetLease         : 단일 key 한 점의 수명 핸들. Dispose 시 provider.Release(key, ownerId) 호출.
+ *
+ * 직접 사용 vs 래핑 사용 기준 ::
+ * - 오너 수명 단순 + 한두 건의 수동 Release 로 충분 → provider.GetAsync + Release 직접 호출.
+ * - 오너가 다수 자산 보유 + Dispose 짝을 실수 없이 보장 → AssetLeaseManager 얹어 사용.
+ * - 오너 파괴 시 전체 일괄 회수 → ReleaseOwner(ownerId) 는 provider 에서만 호출 가능.
  * =========================================================
  */
 #endif
@@ -323,32 +345,35 @@ namespace HUtil.AssetHandler.Provider {
 
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
- * 주요 기능 ::
- * 1. fetch mode에 따라 cache, store, source 순서를 조율합니다.
- * 2. load gate로 중복 로드를 합칩니다.
- * 3. owner 기반 release와 releasable loader release를 연결합니다.
+ * Dev Log
+ * =========================================================
  *
- * 사용법 ::
- * 1. 도메인 코드나 repository가 asset 조회 진입점으로 사용합니다.
- * 2. GetAsync와 ReleaseOwner를 통해 owner lifecycle과 연결합니다.
- * 3. loader 조합은 factory 또는 생성자로 주입합니다.
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 기존 헤더 (상단 도입+주의사항 + 하단 주요기능/사용법/이벤트/기타 + 역할 경계 + 직접/래핑
+ * 사용 기준 등 다중 섹션) 를 한 곳에 통합하여 §11 형틀 통일. 하단 Dev Log 영역 추가.
+ * 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
  *
- * 이벤트 ::
- * 1. cache에서 실제 제거가 일어나면 source release 경로가 이어질 수 있습니다.
- * 2. 직접 공개 이벤트는 없지만 하위 cache 이벤트를 구독합니다.
+ * 이유 ::
+ * 글로벌 CLAUDE.md §11 룰 일괄 적용. AssetProvider 가 시스템의 핵심 진입점이라 역할 경계와
+ * 사용 기준을 헤더에 두어 reader 가 파일 진입 즉시 시스템 전체를 조망할 수 있도록.
  *
- * 기타 ::
- * 1. AssetHandler 구조의 핵심 오케스트레이터입니다.
- * 2. source 세부 구현은 loader와 store에 위임합니다.
- * 3. 역할 경계:
- *    - Provider(이 클래스) : cache/store/loader 조율 + owner 기반 reference counting 소유. 실 보유자.
- *    - AssetLeaseManager  : provider.GetAsync + Release 짝맞춤을 IDisposable로 표현하는 보조 계층.
- *    - IAssetLease        : 단일 key 한 점의 수명 핸들. Dispose 시 provider.Release(key, ownerId) 호출.
- * 4. 직접 사용 vs 래핑 사용 기준:
- *    - 오너 수명이 단순하고 한두 건의 수동 Release로 충분하면 provider.GetAsync + Release 를 직접 호출.
- *    - 오너가 다수의 asset을 보유하거나 Dispose 짝을 실수 없이 보장하고 싶으면 AssetLeaseManager를 얹어 사용.
- *    - 오너가 파괴될 때 전체 일괄 회수가 필요하면 ReleaseOwner(ownerId) 는 provider에서만 호출 가능.
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: AssetProvider 초기 구현
+ * =========================================================
+ * 5 컴포넌트 (Cache / Store / Loader[] / Validator / LoadGate) 를 생성자 주입받아 조율만 하는
+ * Composite Root + Strategy 오케스트레이터. 각 컴포넌트는 인터페이스로 교체 가능 — Strategy.
+ * loader 는 List 한 개 (모든 loader) + List 한 개 (releasable 만) 두 컬렉션으로 분리하여
+ * release 연쇄 시 release 가능한 것들만 순회 (성능 + 의도 표현 동시 달성).
+ *
+ * 5 가지 fetch mode 분기는 _GetByFetchModeAsync switch 한 곳에 집중 — 정책 추가 시 enum +
+ * switch 한 줄 동시 갱신. cache → loader release 연쇄는 cache.OnAssetRemoved 이벤트 한 줄
+ * 구독으로 묶임 (Cache 와 Loader 의 결합도 0).
+ *
+ * 생성자에서 모든 컴포넌트 null 검사 + HLogger.Throw — fail-fast. 이후 동작은 모든 컴포넌트
+ * 가 살아있다는 정의상 보장. sealed 키워드로 상속 차단 (오케스트레이터 책임 침범 방지).
  * =========================================================
  */
 #endif
