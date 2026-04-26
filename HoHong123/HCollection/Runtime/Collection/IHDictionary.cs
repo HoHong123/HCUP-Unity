@@ -1,20 +1,19 @@
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * HDictionary<TKey, TValue> 계열 타입에 비제네릭 공통 API를 제공하는 인터페이스.
+ * HDictionary<TKey, TValue> 계열에 비제네릭 공통 API 를 제공하는 마커 인터페이스.
  *
  * 목적 ::
- * Editor 측 검증 로직(HDictionaryValidator)이 reflection으로 필드를 순회할 때
- * 타입 파라미터에 의존하지 않고 중복 Key 여부를 질의할 수 있도록 한다.
+ * Editor 검증 (HDictionaryValidator) 의 reflection 순회가 타입 파라미터에 의존하지 않도록
+ * 만든다. IsAssignableFrom 한 줄 검사로 모든 HDictionary<*, *> 를 잡아낸다.
  *
  * 사용 ::
- * IHDictionary dict = field.GetValue(target) as IHDictionary;
- * if (dict != null && dict.HasDuplicateKeys()) { ... }
+ *   IHDictionary dict = field.GetValue(target) as IHDictionary;
+ *   if (dict != null && dict.HasDuplicateKeys()) { ... }
  *
  * 주의 ::
- * 런타임 배포 빌드에서도 참조되는 인터페이스이므로 #if UNITY_EDITOR로 감싸지 않는다.
- * 구현체의 HasDuplicateKeys 본문은 entries 프록시 List가 남아 있는 에디터 맥락에서만
- * 의미 있는 결과를 반환한다.
+ * 빌드에서도 노출되는 인터페이스. 구현체의 HasDuplicateKeys 본문은 entries 가 살아있는
+ * 에디터 맥락에서만 의미 있는 결과를 반환하고, 빌드에서는 false / 0 을 반환한다.
  * =========================================================
  */
 #endif
@@ -25,3 +24,52 @@ namespace HCollection {
         int DuplicateKeyCount();
     }
 }
+
+#if UNITY_EDITOR
+/* =========================================================
+ * Dev Log
+ * =========================================================
+ *
+ * =========================================================
+ * 2026-04-26 (수정 2) :: 헤더 형틀 복원 + 헤더/Dev Log #if UNITY_EDITOR 가드 적용
+ * =========================================================
+ * 변경 ::
+ * 1. 헤더 주석을 "도입 한 줄 + 목적 / 사용 / 주의" 4 섹션 형틀로 복원. 각 섹션 내용은 압축.
+ * 2. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드로 감쌈 (이전 수정에서 제거했던 가드 복원).
+ *
+ * 이유 ::
+ * 직전 수정 (2026-04-26 수정 1) 이 헤더를 1~3 줄로 통째 압축해 형틀 (섹션 라벨) 자체를
+ * 손상시켰다. reader 가 "이 인터페이스가 어떤 축으로 설명되는가" 를 섹션 라벨만으로
+ * 한눈에 파악할 수 있도록 형틀을 보존하면서 각 섹션 내용만 압축하는 방향이 맞다.
+ * #if UNITY_EDITOR 가드는 IL 영향은 없지만 IDE (VS / Rider / VS Code) 가 회색조로 표시해
+ * "이 영역은 빌드에 안 들어간다" 를 reader 의 시야에 미리 인식시킨다.
+ *
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 주석 간략화 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 1. 헤더 주석을 1~3 줄로 압축. 기존 "목적 / 사용 / 주의" 섹션을 본 Dev Log 의
+ *    "2026-04-25 (최초 설계)" 엔트리로 이관.
+ * 2. 헤더 주석 자체를 감쌌던 #if UNITY_EDITOR 가드 제거.
+ *
+ * 결과 ::
+ * 헤더가 너무 짧아져 형틀 손상. 이후 "수정 2" 에서 형틀 복원 + #if 가드 복원으로 보정.
+ *
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: IHDictionary 초기 구현
+ * =========================================================
+ * 목적 ::
+ * Editor 측 검증 로직 (HDictionaryValidator) 이 reflection 으로 필드를 순회할 때
+ * 타입 파라미터에 의존하지 않고 중복 Key 여부를 질의할 수 있도록 한다.
+ *
+ * 사용 ::
+ *   IHDictionary dict = field.GetValue(target) as IHDictionary;
+ *   if (dict != null && dict.HasDuplicateKeys()) { ... }
+ *
+ * 주의 ::
+ * 1. 런타임 배포 빌드에서도 참조되는 인터페이스이므로 #if UNITY_EDITOR 로 감싸지 않는다.
+ * 2. 구현체의 HasDuplicateKeys 본문은 entries 프록시 List 가 남아있는 에디터 맥락에서만
+ *    의미 있는 결과를 반환한다. 빌드에서는 entries 가 null 이라 false / 0 을 반환한다.
+ * =========================================================
+ */
+#endif
