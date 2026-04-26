@@ -6,11 +6,19 @@ using HUtil.AssetHandler.Provider;
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * 선택적 lease 계층을 제공하는 매니저 스크립트입니다.
+ * 선택적 lease 계층을 제공하는 매니저. owner-aware provider 위에 얹는 IDisposable 표현 래퍼.
  *
- * 주의사항 ::
- * 1. 현재 구조의 필수 계층은 아니며 선택 기능입니다.
- * 2. Dispose를 호출하지 않으면 owner release 의도와 어긋날 수 있습니다.
+ * 주요 기능 ::
+ * AcquireAsync(IAssetOwner / AssetOwnerId, key, loadMode, fetchMode) — lease 발급.
+ * lease.Dispose () 시 provider.Release(key, ownerId) 자동 위임 (nested AssetLease 클래스).
+ *
+ * 사용법 ::
+ * 구독형 acquire/release 표현이 필요한 경우에만 사용. 기본 구조만 필요하면 provider 와
+ * ownerId 직접 사용. lease 구현은 nested 클래스로 감춰져 외부 노출 0.
+ *
+ * 주의 ::
+ * 현재 구조의 필수 계층 아님 — 선택 기능. Dispose 미호출 시 owner release 의도와 어긋남
+ * (using 블록 또는 명시 Dispose 권장).
  * =========================================================
  */
 #endif
@@ -96,22 +104,28 @@ namespace HUtil.AssetHandler.Subscription {
 
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
- * 주요 기능 ::
- * 1. AcquireAsync로 lease를 발급합니다.
- * 2. lease dispose 시 provider release를 연결합니다.
+ * Dev Log
+ * =========================================================
  *
- * 사용법 ::
- * 1. 구독형 acquire/release 표현이 필요한 경우에만 사용합니다.
- * 2. 기본 구조만 필요하면 provider와 ownerId만 사용해도 됩니다.
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 기존 헤더 (상단 도입+주의사항 + 하단 주요기능/사용법/이벤트/기타) 를 한 곳에 통합하여
+ * §11 형틀 통일. 하단 Dev Log 영역 추가. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
  *
- * 이벤트 ::
- * 1. 별도의 공개 이벤트는 없습니다.
- * 2. lease dispose 시 내부적으로 release 호출이 이어집니다.
+ * 이유 ::
+ * 글로벌 CLAUDE.md §11 룰 일괄 적용.
  *
- * 기타 ::
- * 1. lease 구현은 nested 클래스로 감춥니다.
- * 2. owner-aware provider 위에 얹는 보조 계층입니다.
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: AssetLeaseManager 초기 구현
+ * =========================================================
+ * IDisposable 패턴으로 acquire/release 짝맞춤을 컴파일러가 강제하게 만드는 표현 계층.
+ * nested AssetLease 클래스가 isDisposed 가드 + provider.Release(Key, OwnerId) 위임으로
+ * 단일 Dispose 책임만 수행. lease 자체는 자산을 복제 소유하지 않음 — 실제 reference
+ * counting 은 provider(cache) 한 곳. 두 AcquireAsync 오버로드 (IAssetOwner / ownerId 직접) 로
+ * 호출자 의도 표현 자유도 확보. asset 가 default(TAsset) 면 lease 발급 없이 null 반환 —
+ * acquire 실패 케이스를 명시적으로 표현.
  * =========================================================
  */
 #endif
