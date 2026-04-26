@@ -1,16 +1,23 @@
-using System;
-
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * asset 점유 주체를 식별하는 값 타입 스크립트입니다.
+ * asset 점유 주체를 식별하는 readonly struct (값 타입).
  *
- * 주의사항 ::
- * 1. 참조 객체 자체 대신 식별자 값으로 owner를 다룹니다.
- * 2. 0 이하는 유효한 ownerId로 취급하지 않습니다.
+ * 주요 기능 ::
+ * Value (int) + IsValid (Value > 0) + None (sentinel) + IEquatable / implicit int 변환.
+ *
+ * 사용법 ::
+ * AssetOwnerIdGenerator.NewId 로 발급. AssetRequest / cache / provider release 경로에 함께 전달.
+ * owner lifecycle 을 식별자로 분리해 owner 객체 자체를 참조하지 않아도 점유 추적 가능.
+ *
+ * 주의 ::
+ * readonly struct 라 heap 할당 0. reference equality 의존 금지 (IEquatable 사용).
+ * 0 이하는 invalid 로 취급 (None.Value == 0 이 sentinel).
  * =========================================================
  */
 #endif
+
+using System;
 
 namespace HUtil.AssetHandler.Subscription {
     public readonly struct AssetOwnerId : IEquatable<AssetOwnerId> {
@@ -45,22 +52,25 @@ namespace HUtil.AssetHandler.Subscription {
 
 #if UNITY_EDITOR
 /* =========================================================
- * @Jason - PKH
- * 주요 기능 ::
- * 1. owner 식별 값을 보관합니다.
- * 2. 유효성 판별과 equality 비교를 제공합니다.
+ * Dev Log
+ * =========================================================
  *
- * 사용법 ::
- * 1. AssetRequest와 cache, provider release 경로에 함께 전달합니다.
- * 2. owner lifecycle을 식별자로 분리할 때 사용합니다.
+ * =========================================================
+ * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
+ * =========================================================
+ * 변경 ::
+ * 기존 헤더 (도입 + 주의사항) 에 "주요 기능 / 사용법" 섹션 추가하여 §11 형틀 통일.
+ * 하단 Dev Log 영역 추가. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
  *
- * 이벤트 ::
- * 1. 직접 이벤트는 없습니다.
- * 2. 생성과 해제 통지는 generator가 담당합니다.
+ * 이유 ::
+ * 글로벌 CLAUDE.md §11 룰 일괄 적용.
  *
- * 기타 ::
- * 1. readonly struct입니다.
- * 2. reference equality에 의존하지 않기 위한 핵심 값 타입입니다.
+ * =========================================================
+ * 2026-04-25 (최초 설계) :: AssetOwnerId 초기 구현
+ * =========================================================
+ * owner 객체 자체 대신 식별자 값으로 점유 추적. readonly struct + IEquatable + int 변환으로
+ * heap 할당 0 + reference equality 회피. AssetOwnerIdGenerator 가 Interlocked.Increment 로
+ * thread-safe 발급. 0 이하는 invalid sentinel — None.Value == 0.
  * =========================================================
  */
 #endif
