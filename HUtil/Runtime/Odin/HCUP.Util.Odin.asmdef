@@ -1,0 +1,11 @@
+{
+  "name": "HCUP.Util.Odin",
+  "rootNamespace": "Util.Odin",
+  "autoReferenced": true,
+  "references": [
+    "HCUP.HUtil"
+  ],
+  "defineConstraints": [
+    "ODIN_INSPECTOR"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+    "name": "HCUP.HUtil.Editor",
+    "rootNamespace": "HUtil.Editor",
+    "references": [
+        "Unity.TextMeshPro",
+        "Unity.TextMeshPro.Editor",
+        "Unity.Addressables.Editor",
+        "HCUP.HUtil",
+        "HCUP.HDiagnosis"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

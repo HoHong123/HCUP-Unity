@@ -1,0 +1,7 @@
+{
+  "name": "HCUP.HInspector.Odin.Editor",
+  "rootNamespace": "HInspector.Odin.Editor",
+  "includePlatforms": ["Editor"],
+  "references": ["HCUP.HInspector"],
+  "defineConstraints": ["ODIN_INSPECTOR"]
+}

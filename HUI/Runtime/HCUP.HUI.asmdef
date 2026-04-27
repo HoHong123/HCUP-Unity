@@ -1,0 +1,22 @@
+{
+    "name": "HCUP.HUI",
+    "rootNamespace": "HUI",
+    "references": [
+        "UniTask",
+        "Unity.TextMeshPro",
+        "HCUP.HUtil",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HCore",
+        "DOTween.Modules"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

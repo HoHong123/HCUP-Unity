@@ -1,0 +1,11 @@
+{
+  "name": "HCUP.Util.Tween",
+  "rootNamespace": "Util.Tween",
+  "autoReferenced": true,
+  "references": [
+    "HCUP.HUtil"
+  ],
+  "defineConstraints": [
+    "USE_DOTWEEN"
+  ]
+}
