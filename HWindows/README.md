@@ -1,4 +1,4 @@
-# Hohong123 Windows
+# HCUP Windows
 
 Editor-only umbrella package for custom editor windows within the HCUP suite.
 
@@ -8,8 +8,8 @@ The package hosts multiple sub-modules, each with its own asmdef. Sub-modules do
 
 | Sub-module | asmdef | Purpose | Optional deps |
 |---|---|---|---|
-| `NodeWindow` | `Hohong123.HWindows.NodeWindow.Editor` | GraphView-based editor window base | — |
-| `FileBrowser` (planned) | `Hohong123.HWindows.FileBrowser.Editor` | Odin-powered asset browser | Sirenix.OdinInspector |
+| `NodeWindow` | `HCUP.HWindows.NodeWindow.Editor` | GraphView-based editor window base | — |
+| `FileBrowser` (planned) | `HCUP.HWindows.FileBrowser.Editor` | Odin-powered asset browser | Sirenix.OdinInspector |
 
 ## NodeWindow (L1)
 
@@ -21,8 +21,8 @@ L1 contains NO nodes, ports, edges, save/load, or ScriptableObject binding. It i
 
 ## Dependencies
 
-- `Hohong123.HUtil` / `Hohong123.HUtil.Editor`
-- `Hohong123.HDiagnosis` (HLogger)
+- `HCUP.HUtil` / `HCUP.HUtil.Editor`
+- `HCUP.HDiagnosis` (HLogger)
 
 ## Compatibility
 

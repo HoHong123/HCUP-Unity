@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Hohong123.HWindows.NodeWindow.Editor")]
+[assembly: InternalsVisibleTo("HCUP.HWindows.NodeWindow.Editor")]
 
 #if UNITY_EDITOR
 // =============================================================================
@@ -26,7 +26,7 @@ using System.Runtime.CompilerServices;
 //    + InternalsVisibleTo (현재 채택) → 정확히 지목된 어셈블리만 노출, 그 외 모든 차단 유지. 계약과 가시성 동시 만족.
 //
 //   [매칭 규칙] asmdef 이름 변경 시 이 파일도 같이 갱신해야 하는 동기화 포인트.
-//   + 문자열 "Hohong123.HWindows.NodeWindow.Editor" 는 Editor asmdef 의 "name" 필드와 정확히 일치해야 함.
+//   + 문자열 "HCUP.HWindows.NodeWindow.Editor" 는 Editor asmdef 의 "name" 필드와 정확히 일치해야 함.
 //   + 한 글자만 달라도 친구 어셈블리로 인식되지 않고 internal 접근이 컴파일 실패.
 //
 //   [위치 규칙]
@@ -36,6 +36,6 @@ using System.Runtime.CompilerServices;
 //
 //   [확장]
 //   + 향후 Unity Test Framework 도입 시 테스트 어셈블리도 internal API 를 직접 검증하도록 같은 문법으로 한 줄 추가 가능:
-//          [assembly: InternalsVisibleTo("Hohong123.HWindows.NodeWindow.Tests")]
+//          [assembly: InternalsVisibleTo("HCUP.HWindows.NodeWindow.Tests")]
 // =============================================================================
 #endif

@@ -1,9 +1,9 @@
 {
-    "name": "Hohong123.HWindows.NodeWindow",
+    "name": "HCUP.HWindows.NodeWindow",
     "rootNamespace": "HWindows.NodeWindow",
     "references": [
-        "Hohong123.HCollection",
-        "Hohong123.HInspector"
+        "HCUP.HCollection",
+        "HCUP.HInspector"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
