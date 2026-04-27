@@ -9,12 +9,12 @@
 #endif
 
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HUI.Entity;
+using HInspector;
 
 namespace HUI.ButtonUI {
     public class MoveOnPressButton : BaseOnPressButton {
-        [Title("Target")]
+        [HTitle("Target")]
         [SerializeField]
         MovingUiEntity[] targets;
 

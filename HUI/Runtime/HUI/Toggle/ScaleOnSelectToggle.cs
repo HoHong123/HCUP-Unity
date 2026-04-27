@@ -7,12 +7,12 @@
 
 using UnityEngine;
 using UnityEngine.EventSystems;
-using Sirenix.OdinInspector;
 using HUI.Entity;
+using HInspector;
 
 namespace HUI.ToggleUI {
     public class ScaleOnSelectToggle : BaseCustomToggle {
-        [Title("Targets")]
+        [HTitle("Targets")]
         [SerializeField]
         ScalingUiEntity[] targets;
 

@@ -1,21 +1,21 @@
 ﻿using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Entity {
     [Serializable]
     public class EnableUiEntity {
-        [Title("Target Object")]
+        [HTitle("Target Object")]
         [SerializeField]
         GameObject target;
 
-        [Title("Press Settings")]
+        [HTitle("Press Settings")]
         [SerializeField]
         public bool enableOnDown = true;
         [SerializeField]
         public bool enableOnUp = false;
 
-        [Title("Interaction Settings")]
+        [HTitle("Interaction Settings")]
         [SerializeField]
         public bool enableOnInteractive = true;
         [SerializeField]

@@ -2,17 +2,17 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Popup {
     public class TextPopup : BasePopupUi {
-        [Title("Texts")]
+        [HTitle("Texts")]
         [SerializeField]
         TMP_Text titleTxt;
         [SerializeField]
         TMP_Text bodyTxt;
 
-        [Title("UI")]
+        [HTitle("UI")]
         [SerializeField]
         Image titleBgImg;
         [SerializeField]

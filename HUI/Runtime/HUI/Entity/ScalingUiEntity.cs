@@ -1,31 +1,31 @@
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using DG.Tweening;
+using HInspector;
 
 namespace HUI.Entity {
     [Serializable]
     public class ScalingUiEntity {
-        [Title("Target")]
+        [HTitle("Target")]
         [SerializeField]
-        [OnValueChanged(nameof(_Init))]
+        [HOnValueChanged(nameof(_Init))]
         Transform target;
 
-        [Title("Option")]
+        [HTitle("Option")]
         [SerializeField]
         bool useAnimation = false;
-        [ShowIf(nameof(useAnimation)), SerializeField]
+        [HShowIf(nameof(useAnimation)), SerializeField]
         float animationDuration = 0.2f;
 
-        [Title("Scales")]
-        [InfoBox("MUST consider the pivot relation with parent.")]
+        [HTitle("Scales")]
+        [Tooltip("MUST consider the pivot relation with parent.")]
         public bool UseAbsoluteScale = false;
         [SerializeField]
         Vector2 originalScale;
-        [ShowIf("UseAbsoluteScale")]
+        [HShowIf("UseAbsoluteScale")]
         [SerializeField]
         Vector2 absoluteScale = Vector2.zero;
-        [HideIf("UseAbsoluteScale")]
+        [HHideIf("UseAbsoluteScale")]
         [SerializeField]
         float scaleFactor = 1f;
 

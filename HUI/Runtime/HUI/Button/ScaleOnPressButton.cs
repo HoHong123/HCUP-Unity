@@ -9,12 +9,12 @@
 #endif
 
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HUI.Entity;
+using HInspector;
 
 namespace HUI.ButtonUI {
     public class ScaleOnPressButton : BaseOnPressButton {
-        [Title("Targets")]
+        [HTitle("Targets")]
         [SerializeField]
         ScalingUiEntity[] targets;
 

@@ -20,7 +20,7 @@
 
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.ScrollView {
     [Serializable]
@@ -29,7 +29,7 @@ namespace HUI.ScrollView {
         where TCellData : class
         where TCellView : BaseRecycleCellView<TCellData> {
 
-        [Title("Grid Settings")]
+        [HTitle("Grid Settings")]
         [SerializeField]
         bool isHorizontal = true;
         [SerializeField]
@@ -37,13 +37,13 @@ namespace HUI.ScrollView {
         [SerializeField]
         Vector2 cellSize = new Vector2(100f, 100f);
 
-        [Title("Grid Line Control")]
+        [HTitle("Grid Line Control")]
         [SerializeField]
         bool useFixedCount = false;
-        [SerializeField, ShowIf("useFixedCount")]
+        [SerializeField, HShowIf("useFixedCount")]
         int fixedCount = 1;
 
-        [Title("Padding (Primary Axis)")]
+        [HTitle("Padding (Primary Axis)")]
         [SerializeField]
         float startPadding = 0f;
         [SerializeField]

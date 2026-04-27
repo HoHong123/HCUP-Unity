@@ -214,7 +214,13 @@ namespace HUI.DebugConsole {
 #if UNITY_EDITOR
             if (!data.TargetInstanceId.HasValue) return;
 
-            UnityEngine.Object targetObject = EditorUtility.EntityIdToObject(data.TargetInstanceId.Value);
+            UnityEngine.Object targetObject = null;
+#if UNITY_6000_3_OR_NEWER
+			targetObject = EditorUtility.EntityIdToObject(data.TargetInstanceId.Value);
+#else
+            // 2022 LTS ~ 6000.2: 기존 API
+            targetObject = EditorUtility.InstanceIDToObject(data.TargetInstanceId.Value);
+#endif
             if (targetObject == null) return;
 
             Selection.activeObject = targetObject;
