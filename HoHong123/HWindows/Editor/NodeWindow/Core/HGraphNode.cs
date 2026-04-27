@@ -8,26 +8,26 @@ using UnityEngine.UIElements;
 namespace HWindows.Editor.NodeWindow {
     public sealed class HGraphNode : Node {
         #region Const
-        private const string USS_ASSET_NAME = "HGraphNode";
+        const string USS_ASSET_NAME = "HGraphNode";
         #endregion
 
         #region Fields
-        private readonly BaseNode _dataNode;
-        private readonly bool _isRoot;
-        private VisualElement _headerBar;
-        private Label _titleLabel;
+        readonly BaseNode dataNode;
+        readonly bool isRoot;
+        VisualElement headerBar;
+        Label titleLabel;
         #endregion
 
         #region Properties
-        public BaseNode DataNode => _dataNode;
-        public NodeUID UID => _dataNode.UID;
-        public bool IsRoot => _isRoot;
+        public BaseNode DataNode => dataNode;
+        public NodeUID UID => dataNode.UID;
+        public bool IsRoot => isRoot;
         #endregion
 
         #region Constructor
         public HGraphNode(BaseNode dataNode, bool isRoot = false) {
-            _dataNode = dataNode;
-            _isRoot = isRoot;
+            this.dataNode = dataNode;
+            this.isRoot = isRoot;
 
             _LoadStyleSheet();
             AddToClassList("hgraph-node");
@@ -42,28 +42,28 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Private - UI Build
         private void _BuildHeader() {
-            _headerBar = new VisualElement();
-            _headerBar.AddToClassList("hgraph-node-header");
+            headerBar = new VisualElement();
+            headerBar.AddToClassList("hgraph-node-header");
 
             // 루트 노드는 도메인 커스터마이즈와 무관하게 항상 RootHeaderColor (사용자 규칙).
-            Color headerColor = _isRoot
+            Color headerColor = isRoot
                 ? HGraphNodeStyles.RootHeaderColor
-                : HGraphNodeStyles.GetHeaderColorFor(_dataNode.GetType());
-            _headerBar.style.backgroundColor = new StyleColor(headerColor);
+                : HGraphNodeStyles.GetHeaderColorFor(dataNode.GetType());
+            headerBar.style.backgroundColor = new StyleColor(headerColor);
 
-            string headerText = _isRoot
-                ? $"{_dataNode.GetType().Name}  [ROOT]"
-                : _dataNode.GetType().Name;
+            string headerText = isRoot
+                ? $"{dataNode.GetType().Name}  [ROOT]"
+                : dataNode.GetType().Name;
             Label headerLabel = new Label(headerText);
-            _headerBar.Add(headerLabel);
+            headerBar.Add(headerLabel);
 
-            mainContainer.Insert(0, _headerBar);
+            mainContainer.Insert(0, headerBar);
         }
 
         private void _BuildTitle() {
-            _titleLabel = new Label(_dataNode.Title);
-            _titleLabel.AddToClassList("hgraph-node-title");
-            mainContainer.Add(_titleLabel);
+            titleLabel = new Label(dataNode.Title);
+            titleLabel.AddToClassList("hgraph-node-title");
+            mainContainer.Add(titleLabel);
         }
 
         private void _LoadStyleSheet() {
@@ -109,12 +109,12 @@ namespace HWindows.Editor.NodeWindow {
 //   + 누락 시 GraphView 기본 외형 fallback (경고 로그 없음 - 노드마다 경고 스팸 방지).
 //
 //   [BaseNode 참조 저장]
-//   - _dataNode 필드로 저장, DataNode 프로퍼티로 외부 조회.
+//   - dataNode 필드로 저장, DataNode 프로퍼티로 외부 조회.
 //   + Phase 1-D 우클릭 메뉴에서 "이 GUI 가 어떤 data node 에 대응" 즉시 조회.
-//   + UID 는 _dataNode.UID 위임.
+//   + UID 는 dataNode.UID 위임.
 //
 //   [도메인 서브 확장]
-//   - 헤더 텍스트: _dataNode.GetType().Name (예: "SimpleNode", 미래 "DialogueNode").
+//   - 헤더 텍스트: dataNode.GetType().Name (예: "SimpleNode", 미래 "DialogueNode").
 //   - 헤더 색: HGraphNodeStyles.GetHeaderColorFor(type) - Phase 1-A 는 기본색, 확장은 stub.
 //
 //   [Phase 1-B 예고]
