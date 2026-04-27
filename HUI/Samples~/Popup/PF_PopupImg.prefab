@@ -176,7 +176,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -220,7 +220,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b4bc81dda4e9b946b8d82ef89614cf8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ColorOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ColorOnPressButton
   interactionMode: 1
   targets:
   - changeSprite: 0

@@ -206,7 +206,7 @@ MonoBehaviour:
     - Name: logHistory
       Entry: 7
       Data: 0|System.Collections.Generic.Queue`1[[HUI.Popup.PopupManager`1+LogQue[[HUI.Sample.Popup.DemoPopupManager,
-        Assembly-CSharp]], Hohong123.HUI]], mscorlib
+        Assembly-CSharp]], HCUP.HUI]], mscorlib
     - Name: 
       Entry: 12
       Data: 0
@@ -703,7 +703,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5b6ad4850644ee84c8f7429ac811081e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.Spinner.SpinnerManager
+  m_EditorClassIdentifier: HCUP.HUI::HUI.Spinner.SpinnerManager
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 

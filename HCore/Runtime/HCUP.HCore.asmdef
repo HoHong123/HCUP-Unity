@@ -1,14 +1,15 @@
 {
-    "name": "Hohong123.HGame",
-    "rootNamespace": "HGame",
+    "name": "HCUP.HCore",
+    "rootNamespace": "HCore",
     "references": [
+        "HCUP.HData",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HUtil",
         "UniTask",
-        "Hohong123.HUtil",
-        "Hohong123.HUI",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HInspector",
-        "Hohong123.HCollection",
-        "Hohong123.HCore"
+        "UniTask.Addressables",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

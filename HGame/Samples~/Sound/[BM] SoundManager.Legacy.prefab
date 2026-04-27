@@ -210,7 +210,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1cfb5bd5b90110c448999149f62b5b7b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.SoundManager
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Sound.SoundManager
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -239,7 +239,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 78cd40dcf70656d4784a4d56b8684eb2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.AddOn.SoundSpatialPool
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Sound.AddOn.SoundSpatialPool
   poolSize: 0
   poolParent: {fileID: 8794526215175127330}
   defaultLoop: 0
@@ -284,7 +284,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 50b4d24791acbec4f90043878a6a7e20, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.AddOn.SfxAgent
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Sound.AddOn.SfxAgent
   useNewManager: 0
   preloadUids:
   - catalogs:

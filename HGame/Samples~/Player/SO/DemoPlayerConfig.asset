@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2698d3cf61a164840bb811c7cd8301ee, type: 3}
   m_Name: DemoPlayerConfig
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Player.PlayerConfig
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Player.PlayerConfig
   uid: 0
   charName: Space Soldier
   icon: {fileID: 21300000, guid: a6a9d7bf53bfe444890302ce392e6c7c, type: 3}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dfbba9c8a0914b241bfea81d5d42758e, type: 3}
   m_Name: SampleSoundCatalogPolicy
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Sound.SoundCatalogPolicySO
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Sound.SoundCatalogPolicySO
   uidRanges:
   - Major: 0
     MinInclusive: 690000

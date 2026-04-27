@@ -17,7 +17,7 @@
  *   이 계약 전반을 이해하는 drawer 는 HDictionaryDrawer 뿐입니다.
  *
  * 컴파일 조건 ::
- * 어셈블리 Hohong123.HCollection.Odin.Editor 는 defineConstraints 로 ODIN_INSPECTOR 를 요구합니다.
+ * 어셈블리 HCUP.HCollection.Odin.Editor 는 defineConstraints 로 ODIN_INSPECTOR 를 요구합니다.
  * Odin 미설치 환경에서는 이 어셈블리 자체가 컴파일되지 않아 HCollection 본체에 영향이 없습니다.
  *
  * 중복 방지 ::

@@ -652,7 +652,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: acbef17ef39b0764d829efb8c6af3ae5, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Cam.CameraBoundry2D
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Cam.CameraBoundry2D
   cam: {fileID: 2083123641}
   smooth: 0.15
   target: {fileID: 1715258800}

@@ -1,13 +1,12 @@
 {
-    "name": "Hohong123.HGame.Editor",
-    "rootNamespace": "HGame.Editor",
+    "name": "HCUP.HUtil.Editor",
+    "rootNamespace": "HUtil.Editor",
     "references": [
-        "Hohong123.HUI",
-        "Hohong123.HUtil",
-        "Hohong123.HGame",
-        "Hohong123.HData",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HCore"
+        "Unity.TextMeshPro",
+        "Unity.TextMeshPro.Editor",
+        "Unity.Addressables.Editor",
+        "HCUP.HUtil",
+        "HCUP.HDiagnosis"
     ],
     "includePlatforms": [
         "Editor"

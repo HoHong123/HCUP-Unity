@@ -1,9 +1,9 @@
 {
-  "name": "Hohong123.Util.Tween",
+  "name": "HCUP.Util.Tween",
   "rootNamespace": "Util.Tween",
   "autoReferenced": true,
   "references": [
-    "Hohong123.HUtil"
+    "HCUP.HUtil"
   ],
   "defineConstraints": [
     "USE_DOTWEEN"

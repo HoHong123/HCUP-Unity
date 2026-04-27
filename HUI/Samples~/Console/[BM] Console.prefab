@@ -606,7 +606,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9401accf14f46af45b81d13e74dbfe31, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.DebugConsole.HLogConsole
+  m_EditorClassIdentifier: HCUP.HUI::HUI.DebugConsole.HLogConsole
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -830,7 +830,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cfc723d5ae8554e469de4cadf0ee50f3, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.DebugConsole.HLogRecycleView
+  m_EditorClassIdentifier: HCUP.HUI::HUI.DebugConsole.HLogRecycleView
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -842,7 +842,7 @@ MonoBehaviour:
     SerializationNodes:
     - Name: dataList
       Entry: 7
-      Data: 0|System.Collections.Generic.List`1[[HUI.DebugConsole.HLogCellData, Hohong123.HUI]],
+      Data: 0|System.Collections.Generic.List`1[[HUI.DebugConsole.HLogCellData, HCUP.HUI]],
         mscorlib
     - Name: 
       Entry: 12
@@ -1256,7 +1256,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -1300,7 +1300,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0bc9f657ae6ac9c49a804595b2752654, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.DebugConsole.HLogCellView
+  m_EditorClassIdentifier: HCUP.HUI::HUI.DebugConsole.HLogCellView
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -1465,7 +1465,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -2497,7 +2497,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -2968,7 +2968,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -4339,7 +4339,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0

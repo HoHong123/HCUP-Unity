@@ -1,14 +1,14 @@
 {
-    "name": "Hohong123.HUI",
-    "rootNamespace": "HUI",
+    "name": "HCUP.HGame",
+    "rootNamespace": "HGame",
     "references": [
         "UniTask",
-        "Unity.TextMeshPro",
-        "Hohong123.HUtil",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HInspector",
-        "Hohong123.HCore",
-        "DOTween.Modules"
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HCollection",
+        "HCUP.HCore"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
