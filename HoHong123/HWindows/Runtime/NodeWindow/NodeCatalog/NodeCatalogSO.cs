@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using HInspector;
 using HCollection;
 using HWindows.NodeWindow.Identity;
 
@@ -7,16 +8,22 @@ namespace HWindows.NodeWindow {
     [CreateAssetMenu(menuName = "HWindows/Node Catalog")]
     public class NodeCatalogSO : ScriptableObject, ISerializationCallbackReceiver {
         #region Fields
+        [HTitle("Description")]
         [SerializeField, TextArea]
         string editorDescription;
-        [SerializeField]
-        HDictionary<NodeUID, BaseNode> nodes = new();
-        [SerializeReference]
-        List<BaseNodeEdge> edges = new();
+        
+        [HTitle("Nodes")]
         [SerializeField]
         NodeUID rootUID = NodeUID.None;
+        [SerializeField]
+        HDictionary<NodeUID, BaseNode> nodes = new();
+
+        [HTitle("Edges")]
+        [SerializeReference]
+        List<BaseNodeEdge> edges = new();
 
 #if UNITY_EDITOR
+        [HTitle("Debug")]
         [SerializeField]
         HDictionary<NodeUID, Vector2> editorNodeLayouts = new();
 #endif

@@ -17,14 +17,14 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Fields
         [SerializeField]
-        private bool _selectionLocked;
+        bool selectionLocked;
 
-        private NodeCatalogSO _currentCatalog;
-        private HGraphCanvas _canvas;
-        private Button _lockButton;
-        private Label _catalogNameLabel;
-        private Label _viewportCenterLabel;
-        private int _activePickerControlId = -1;
+        NodeCatalogSO currentCatalog;
+        HGraphCanvas canvas;
+        Button lockButton;
+        Label catalogNameLabel;
+        Label viewportCenterLabel;
+        int activePickerControlId = -1;
         #endregion
 
         #region Unity Lifecycle
@@ -40,48 +40,48 @@ namespace HWindows.Editor.NodeWindow {
             toolbar.style.paddingRight = 4;
             toolbar.style.alignItems = Align.Center;
 
-            _lockButton = new Button(_ToggleLock) { text = "Lock" };
-            _lockButton.style.width = 56;
-            _lockButton.tooltip = "Lock selection-based Bind (click to toggle)";
-            toolbar.Add(_lockButton);
+            lockButton = new Button(_ToggleLock) { text = "Lock" };
+            lockButton.style.width = 56;
+            lockButton.tooltip = "Lock selection-based Bind (click to toggle)";
+            toolbar.Add(lockButton);
 
             Button openButton = new Button(_OpenCatalogPicker) { text = "Open Catalog..." };
             openButton.style.marginLeft = 4;
             toolbar.Add(openButton);
 
-            _catalogNameLabel = new Label();
-            _catalogNameLabel.style.marginLeft = 8;
-            _catalogNameLabel.style.flexGrow = 1;
-            _catalogNameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
-            _catalogNameLabel.style.color = new StyleColor(new Color(0.75f, 0.75f, 0.75f));
-            toolbar.Add(_catalogNameLabel);
+            catalogNameLabel = new Label();
+            catalogNameLabel.style.marginLeft = 8;
+            catalogNameLabel.style.flexGrow = 1;
+            catalogNameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+            catalogNameLabel.style.color = new StyleColor(new Color(0.75f, 0.75f, 0.75f));
+            toolbar.Add(catalogNameLabel);
 
-            _viewportCenterLabel = new Label("View: (0, 0)");
-            _viewportCenterLabel.style.marginRight = 8;
-            _viewportCenterLabel.style.unityTextAlign = TextAnchor.MiddleRight;
-            _viewportCenterLabel.style.color = new StyleColor(new Color(0.55f, 0.75f, 0.55f));
-            toolbar.Add(_viewportCenterLabel);
+            viewportCenterLabel = new Label("View: (0, 0)");
+            viewportCenterLabel.style.marginRight = 8;
+            viewportCenterLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+            viewportCenterLabel.style.color = new StyleColor(new Color(0.55f, 0.75f, 0.55f));
+            toolbar.Add(viewportCenterLabel);
 
             root.Add(toolbar);
 
-            _canvas = new HGraphCanvas();
-            _canvas.style.flexGrow = 1;
-            root.Add(_canvas);
+            canvas = new HGraphCanvas();
+            canvas.style.flexGrow = 1;
+            root.Add(canvas);
 
             // viewport 변경 시점에만 좌표 라벨 갱신 (매 프레임 폴링 회피).
-            _canvas.viewTransformChanged = _ => _UpdateViewportCenterLabel();
+            canvas.viewTransformChanged = _ => _UpdateViewportCenterLabel();
 
             _RegisterDragDropCallbacks();
 
-            // 직렬화된 _selectionLocked / _currentCatalog 복원 반영.
+            // 직렬화된 selectionLocked / currentCatalog 복원 반영.
             _ApplyLockVisualState();
-            _canvas.Bind(_currentCatalog);
+            canvas.Bind(currentCatalog);
             _UpdateCatalogNameLabel();
             _UpdateViewportCenterLabel();
         }
 
         private void OnSelectionChange() {
-            if (_selectionLocked) return;
+            if (selectionLocked) return;
 
             NodeCatalogSO catalog = Selection.activeObject as NodeCatalogSO;
             if (catalog == null) return;
@@ -91,7 +91,7 @@ namespace HWindows.Editor.NodeWindow {
 
         private void OnGUI() {
             if (Event.current.commandName == "ObjectSelectorUpdated"
-                && EditorGUIUtility.GetObjectPickerControlID() == _activePickerControlId) {
+                && EditorGUIUtility.GetObjectPickerControlID() == activePickerControlId) {
                 NodeCatalogSO picked = EditorGUIUtility.GetObjectPickerObject() as NodeCatalogSO;
                 if (picked != null) {
                     _BindCatalog(picked);
@@ -107,25 +107,25 @@ namespace HWindows.Editor.NodeWindow {
 
         private void _UpdateViewportCenterLabel() {
             // viewTransformChanged 콜백 + 초기 1회 호출. 매 프레임 폴링 없이 갱신.
-            if (_canvas == null || _viewportCenterLabel == null) return;
-            Vector2 center = _canvas.GetViewportCenterWorld();
-            _viewportCenterLabel.text = $"View: ({center.x:F0}, {center.y:F0})";
+            if (canvas == null || viewportCenterLabel == null) return;
+            Vector2 center = canvas.GetViewportCenterWorld();
+            viewportCenterLabel.text = $"View: ({center.x:F0}, {center.y:F0})";
         }
         #endregion
 
         #region Toolbar Actions
         private void _ToggleLock() {
-            _selectionLocked = !_selectionLocked;
+            selectionLocked = !selectionLocked;
             _ApplyLockVisualState();
         }
 
         private void _ApplyLockVisualState() {
-            if (_lockButton == null) return;
-            _lockButton.text = _selectionLocked ? "Locked" : "Lock";
-            _lockButton.style.backgroundColor = _selectionLocked
+            if (lockButton == null) return;
+            lockButton.text = selectionLocked ? "Locked" : "Lock";
+            lockButton.style.backgroundColor = selectionLocked
                 ? new StyleColor(new Color(0.55f, 0.35f, 0.35f))
                 : StyleKeyword.Null;
-            _lockButton.tooltip = _selectionLocked
+            lockButton.tooltip = selectionLocked
                 ? "All Bind paths are LOCKED. Click to unlock."
                 : "All Bind paths are UNLOCKED. Click to lock.";
         }
@@ -133,8 +133,8 @@ namespace HWindows.Editor.NodeWindow {
         private void _OpenCatalogPicker() {
             int controlId = GUIUtility.GetControlID(FocusType.Passive);
             EditorGUIUtility.ShowObjectPicker<NodeCatalogSO>(
-                _currentCatalog, false, string.Empty, controlId);
-            _activePickerControlId = controlId;
+                currentCatalog, false, string.Empty, controlId);
+            activePickerControlId = controlId;
         }
         #endregion
 
@@ -145,7 +145,7 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _OnDragUpdated(DragUpdatedEvent evt) {
-            if (_selectionLocked) {
+            if (selectionLocked) {
                 DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
                 evt.StopPropagation();
                 return;
@@ -175,21 +175,21 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Bind
         private void _BindCatalog(NodeCatalogSO catalog) {
-            if (_selectionLocked && catalog != _currentCatalog) {
+            if (selectionLocked && catalog != currentCatalog) {
                 HLogger.Warning("[HGraphWindow] Bind rejected - window is Locked. Unlock to change catalog.");
                 return;
             }
-            _currentCatalog = catalog;
-            _canvas.Bind(catalog);
+            currentCatalog = catalog;
+            canvas.Bind(catalog);
             _UpdateCatalogNameLabel();
         }
 
         private void _UpdateCatalogNameLabel() {
-            if (_currentCatalog == null) {
-                _catalogNameLabel.text = "(no catalog bound)";
+            if (currentCatalog == null) {
+                catalogNameLabel.text = "(no catalog bound)";
             }
             else {
-                _catalogNameLabel.text = $"Catalog: {_currentCatalog.name}";
+                catalogNameLabel.text = $"Catalog: {currentCatalog.name}";
             }
         }
         #endregion
@@ -204,7 +204,7 @@ namespace HWindows.Editor.NodeWindow {
 //
 //   [Phase 1-A 확장]
 //   - Toolbar: [Lock 아이콘] + [Open Catalog...] 두 버튼.
-//     - Lock 아이콘 토글로 _selectionLocked 제어. Unity Inspector padlock 관용.
+//     - Lock 아이콘 토글로 selectionLocked 제어. Unity Inspector padlock 관용.
 //     - Open Catalog 는 EditorGUIUtility.ShowObjectPicker 경유.
 //   - OnSelectionChange: Lock OFF 시 Selection 자동 Bind. 잘못된 타입 early return.
 //   - DragDrop: rootVisualElement 에 DragUpdated/DragPerform 콜백 등록.
@@ -222,11 +222,11 @@ namespace HWindows.Editor.NodeWindow {
 //     - ASCII 만 사용, 어떤 폰트 환경에서도 동작 보장.
 //
 //   [Catalog Name Label 추가 - 스모크 피드백 반영]
-//   - Toolbar 에 _catalogNameLabel 추가: "Catalog: {asset name}" 또는 "(no catalog bound)" 표시.
+//   - Toolbar 에 catalogNameLabel 추가: "Catalog: {asset name}" 또는 "(no catalog bound)" 표시.
 //   + Stage 2 검증 시 Bind 경로별 (Selection/Drag/Picker) 결과 확인 GUI 가 필요했음.
 //   + Phase 1-A 스펙 §4.1 minimal Toolbar 구성을 소급 확장. empty state 힌트와 대칭의 bound state 표시.
 //   - _BindCatalog(catalog) 헬퍼로 3곳 중복 (OnSelectionChange/OnGUI/DragPerform) 의 bind 로직 단일화.
-//     + _currentCatalog 업데이트 + _canvas.Bind + Label 갱신을 한 메서드로 집약 (DRY).
+//     + currentCatalog 업데이트 + canvas.Bind + Label 갱신을 한 메서드로 집약 (DRY).
 //
 //   [Lock 계약 변경 - Stage 3 피드백 반영 (2026-04-24)]
 //   - 초안 (스펙 §2.3 P1-b): "Lock ON 은 Selection 자동 동기화만 차단. 드래그드롭·Open 버튼은 명시 의도로 간주해 Lock 무관"
@@ -242,12 +242,12 @@ namespace HWindows.Editor.NodeWindow {
 //   - 배경: Stage 3 테스트에서 Lock 상태가 유실되는 현상 관찰.
 //     의심 원인: Unity EditorWindow 라이프사이클 (domain reload / 재생성) 중 일반 private 필드 초기화.
 //   - 선택:
-//     + _selectionLocked → [SerializeField] 적용. 세션 내 Lock 상태 안정성 확보.
-//     + _currentCatalog → [SerializeField] 미적용. Close/Reopen 시 참조 유실은 사용자 의도.
+//     + selectionLocked → [SerializeField] 적용. 세션 내 Lock 상태 안정성 확보.
+//     + currentCatalog → [SerializeField] 미적용. Close/Reopen 시 참조 유실은 사용자 의도.
 //       (브레인스토밍 이후 피드백: "창 재오픈 시 SO 참조 유실은 이슈가 아니다")
-//   - CreateGUI 는 _currentCatalog (null 또는 재생성 후 기본값) 을 canvas.Bind 로 그대로 전달.
+//   - CreateGUI 는 currentCatalog (null 또는 재생성 후 기본값) 을 canvas.Bind 로 그대로 전달.
 //     + null 이면 empty state 힌트 표시로 자연스럽게 흘러감.
 //   - _ApplyLockVisualState: _ToggleLock 과 CreateGUI 가 공유하는 UI 갱신 로직.
-//     + _lockButton 이 null 일 수 있는 시점 (serialization 복원 직후) 방어.
+//     + lockButton 이 null 일 수 있는 시점 (serialization 복원 직후) 방어.
 // =============================================================================
 #endif

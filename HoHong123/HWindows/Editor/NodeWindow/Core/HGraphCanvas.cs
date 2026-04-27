@@ -11,14 +11,14 @@ using UnityEngine.UIElements;
 namespace HWindows.Editor.NodeWindow {
     public sealed class HGraphCanvas : GraphView {
         #region Const
-        private const string USS_ASSET_NAME = "HGraphWindow";
+        const string USS_ASSET_NAME = "HGraphWindow";
         #endregion
 
         #region Fields
-        private NodeCatalogSO _currentCatalog;
-        private VisualElement _emptyStateHint;
-        private readonly Dictionary<NodeUID, HGraphNode> _nodeLookup = new();
-        private int _lastCatalogHash;
+        NodeCatalogSO currentCatalog;
+        VisualElement emptyStateHint;
+        readonly Dictionary<NodeUID, HGraphNode> nodeLookup = new();
+        int lastCatalogHash;
         #endregion
 
         #region Constructor + Lifecycle
@@ -52,20 +52,20 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _PollCatalogChanges() {
-            if (_currentCatalog == null) return;
+            if (currentCatalog == null) return;
             int currentHash = _CalculateCatalogHash();
-            if (currentHash != _lastCatalogHash) {
-                _lastCatalogHash = currentHash;
+            if (currentHash != lastCatalogHash) {
+                lastCatalogHash = currentHash;
                 _RepopulateNoViewportReset();
             }
         }
 
         private int _CalculateCatalogHash() {
-            if (_currentCatalog == null) return 0;
+            if (currentCatalog == null) return 0;
             int hash = 17;
-            hash = hash * 31 + _currentCatalog.NodeCount;
-            hash = hash * 31 + _currentCatalog.RootUID.Value;
-            foreach (KeyValuePair<NodeUID, BaseNode> pair in _currentCatalog.Nodes) {
+            hash = hash * 31 + currentCatalog.NodeCount;
+            hash = hash * 31 + currentCatalog.RootUID.Value;
+            foreach (KeyValuePair<NodeUID, BaseNode> pair in currentCatalog.Nodes) {
                 hash = hash * 31 + pair.Key.Value;
                 if (pair.Value != null) {
                     hash = hash * 31 + (pair.Value.Title ?? string.Empty).GetHashCode();
@@ -75,7 +75,7 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _OnCatalogMutated(NodeCatalogSO catalog) {
-            if (_currentCatalog == null || catalog != _currentCatalog) return;
+            if (currentCatalog == null || catalog != currentCatalog) return;
             // viewport 위치는 사용자가 조정해 둔 상태일 수 있으므로 _Populate 가
             // 강제 리셋하지 않도록 별도 경로. 현재 구현은 _Populate 가 viewport 리셋을 포함하므로
             // 빈번한 mutation 에서 깜빡일 가능성 있음. 필요 시 viewport 보존 분기 추가.
@@ -118,15 +118,15 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Empty State
         private void _BuildEmptyStateHint() {
-            _emptyStateHint = new VisualElement();
-            _emptyStateHint.style.position = Position.Absolute;
-            _emptyStateHint.style.left = 0;
-            _emptyStateHint.style.right = 0;
-            _emptyStateHint.style.top = 0;
-            _emptyStateHint.style.bottom = 0;
-            _emptyStateHint.style.alignItems = Align.Center;
-            _emptyStateHint.style.justifyContent = Justify.Center;
-            _emptyStateHint.pickingMode = PickingMode.Ignore;
+            emptyStateHint = new VisualElement();
+            emptyStateHint.style.position = Position.Absolute;
+            emptyStateHint.style.left = 0;
+            emptyStateHint.style.right = 0;
+            emptyStateHint.style.top = 0;
+            emptyStateHint.style.bottom = 0;
+            emptyStateHint.style.alignItems = Align.Center;
+            emptyStateHint.style.justifyContent = Justify.Center;
+            emptyStateHint.pickingMode = PickingMode.Ignore;
 
             Label hintLabel = new Label(
                 "No Node Catalog bound.\n\nDrop a Node Catalog here,\nor use the Open Catalog button.");
@@ -134,24 +134,24 @@ namespace HWindows.Editor.NodeWindow {
             hintLabel.style.fontSize = 14;
             hintLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
             hintLabel.style.whiteSpace = WhiteSpace.Normal;
-            _emptyStateHint.Add(hintLabel);
+            emptyStateHint.Add(hintLabel);
 
-            Add(_emptyStateHint);
+            Add(emptyStateHint);
         }
 
         private void _ShowEmptyStateHint() {
-            _emptyStateHint.style.display = DisplayStyle.Flex;
+            emptyStateHint.style.display = DisplayStyle.Flex;
         }
 
         private void _HideEmptyStateHint() {
-            _emptyStateHint.style.display = DisplayStyle.None;
+            emptyStateHint.style.display = DisplayStyle.None;
         }
         #endregion
 
         #region Bind
         public void Bind(NodeCatalogSO catalog) {
-            if (_currentCatalog == catalog) return;
-            _currentCatalog = catalog;
+            if (currentCatalog == catalog) return;
+            currentCatalog = catalog;
             _Populate();
         }
 
@@ -163,7 +163,7 @@ namespace HWindows.Editor.NodeWindow {
         #region Populate
         private void _Populate() {
             _PopulateInternal();
-            _lastCatalogHash = _CalculateCatalogHash();
+            lastCatalogHash = _CalculateCatalogHash();
             // 새 Bind 직후에만 viewport 를 원점으로 리셋. 자동 배치 노드 영역이 보이도록 보장.
             UpdateViewTransform(Vector3.zero, Vector3.one);
         }
@@ -171,20 +171,20 @@ namespace HWindows.Editor.NodeWindow {
         private void _RepopulateNoViewportReset() {
             // CatalogMutated 이벤트 또는 polling 후 호출. 사용자의 viewport 팬/줌 상태 보존.
             _PopulateInternal();
-            _lastCatalogHash = _CalculateCatalogHash();
+            lastCatalogHash = _CalculateCatalogHash();
         }
 
         private void _PopulateInternal() {
             _ClearAllNodes();
 
-            if (_currentCatalog == null) {
+            if (currentCatalog == null) {
                 _ShowEmptyStateHint();
                 return;
             }
 
             _HideEmptyStateHint();
 
-            foreach (KeyValuePair<NodeUID, BaseNode> pair in _currentCatalog.Nodes) {
+            foreach (KeyValuePair<NodeUID, BaseNode> pair in currentCatalog.Nodes) {
                 BaseNode data = pair.Value;
                 if (data == null) {
                     HLogger.Warning($"[HGraphCanvas] Null BaseNode at UID {pair.Key}, skipped.");
@@ -195,16 +195,16 @@ namespace HWindows.Editor.NodeWindow {
                 // 만약 데이터 호환 이슈로 layout 없으면 Vector2.zero fallback.
                 Vector2 pos = Vector2.zero;
 #if UNITY_EDITOR
-                if (_currentCatalog.EditorNodeLayouts.TryGetValue(pair.Key, out Vector2 saved)) {
+                if (currentCatalog.EditorNodeLayouts.TryGetValue(pair.Key, out Vector2 saved)) {
                     pos = saved;
                 }
 #endif
 
-                bool isRoot = pair.Key == _currentCatalog.RootUID;
+                bool isRoot = pair.Key == currentCatalog.RootUID;
                 HGraphNode view = new HGraphNode(data, isRoot);
                 view.SetPosition(new Rect(pos, Vector2.zero));
                 AddElement(view);
-                _nodeLookup[pair.Key] = view;
+                nodeLookup[pair.Key] = view;
             }
 
             // GraphView 가 자식 변경 후 자동 redraw 안 하는 케이스 방지.
@@ -214,22 +214,22 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _ClearAllNodes() {
-            foreach (HGraphNode node in _nodeLookup.Values) {
+            foreach (HGraphNode node in nodeLookup.Values) {
                 RemoveElement(node);
             }
-            _nodeLookup.Clear();
+            nodeLookup.Clear();
         }
         #endregion
 
         #region GraphView Change Hook
         private GraphViewChange _OnGraphViewChanged(GraphViewChange change) {
-            if (_currentCatalog == null) return change;
+            if (currentCatalog == null) return change;
 
             if (change.movedElements != null) {
                 foreach (GraphElement elem in change.movedElements) {
                     if (elem is HGraphNode node) {
                         Vector2 newPos = node.GetPosition().position;
-                        NodeCatalogAuthor.SetLayout(_currentCatalog, node.UID, newPos);
+                        NodeCatalogAuthor.SetLayout(currentCatalog, node.UID, newPos);
                     }
                 }
             }
@@ -293,6 +293,6 @@ namespace HWindows.Editor.NodeWindow {
 // - Phase 1-A 에서 HGraphWindow 에 Toolbar 가 추가되어 root 가 Column flex 레이아웃이 됨.
 // - StretchToParentSize() = position:absolute + left/right/top/bottom:0 → flex 레이아웃 무시, root 전체 덮음.
 // - 결과: Toolbar 가 Canvas 아래 숨어 보이지 않음.
-// - 해결: StretchToParentSize() 제거. HGraphWindow 가 _canvas.style.flexGrow = 1 로 영역 할당.
+// - 해결: StretchToParentSize() 제거. HGraphWindow 가 canvas.style.flexGrow = 1 로 영역 할당.
 // - 내부 GridBackground 의 StretchToParentSize() 는 canvas 내부를 채우는 용도로 유지.
 // =============================================================================
