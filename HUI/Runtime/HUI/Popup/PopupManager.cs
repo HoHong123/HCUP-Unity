@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 /* =========================================================
  * 이 스크립트는 모든 Popup 시스템의 공통 베이스 매니저입니다.
  * Text / Image / Video Popup을 관리하며 로그 메시지 큐 시스템을 제공합니다.
@@ -14,56 +14,60 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HCore;
 using HDiagnosis.Logger;
+using HInspector;
 
 namespace HUI.Popup {
     public abstract class PopupManager<T> : SingletonBehaviour<T> where T : PopupManager<T> {
         #region Class
         [Serializable]
         public class LogQue {
-            [ShowInInspector]
-            public int UID { get; private set; }
-            [ShowInInspector]
-            public PopLevel Level { get; private set; }
-            
-            [ShowInInspector]
-            public string Title { get; private set; }
-            [ShowInInspector]
-            public string Message { get; private set; }
+            int uid = 0;
+            PopLevel level;
+
+            string title;
+            string message;
+
+            string okText;
+            string cancelText;
+
+
+            public int UID => uid;
+            public PopLevel Level => level;
+
+            public string Title => title;
+            public string Message => message;
+
+            public string OkText => okText;
+            public string CancelText => cancelText;
 
             public Action OnClickOk { get; private set; }
             public Action OnClickCancel { get; private set; }
-
-            [ShowInInspector]
-            public string OkText { get; private set; } = null;
-            [ShowInInspector]
-            public string CancelText { get; private set; } = null;
 
             public LogQue(
                 int uid, PopLevel level,
                 string title, string message,
                 Action onClickOk, Action onClickCancel,
                 string okTxt, string cancelTxt) {
-                UID = uid;
-                Level = level;
-                Title = title;
-                Message = message;
+                this.uid = uid;
+                this.level = level;
+                this.title = title;
+                this.message = message;
+                this.okText = okTxt;
+                this.cancelText = cancelTxt;
                 OnClickOk = onClickOk;
                 OnClickCancel = onClickCancel;
-                OkText = okTxt;
-                CancelText = cancelTxt;
             }
         }
         #endregion
 
         #region Member
-        [Title("UI")]
+        [HTitle("UI")]
         [SerializeField]
         protected GameObject background;
 
-        [Title("Prefab")]
+        [HTitle("Prefab")]
         [SerializeField]
         protected TextPopup textPrefab;
         [SerializeField]
@@ -71,7 +75,7 @@ namespace HUI.Popup {
         [SerializeField]
         protected VideoPopup videoPrefab;
 
-        [Title("Parents")]
+        [HTitle("Parents")]
         [SerializeField]
         protected Transform poolParent;
         [SerializeField]
@@ -79,7 +83,7 @@ namespace HUI.Popup {
         [SerializeField]
         protected Transform gameParent;
 
-        [Title("Logs")]
+        [HTitle("Logs")]
         [SerializeField]
         protected Queue<LogQue> logHistory = new();
 
@@ -186,9 +190,7 @@ namespace HUI.Popup {
         protected bool _IsPlaying => Application.isPlaying;
         int _testId = 0;
 
-        [TitleGroup("Test (Play in run-time)")]
-        [BoxGroup("Test (Play in run-time)/Text")]
-        [Button("Test Text Popup"), EnableIf(nameof(_IsPlaying))]
+        [HButton("Test Text Popup")]
         private void _Test() {
             int id = _testId++;
             ShowLog(PopLevel.Log, "Test", $"Testing event {id}",

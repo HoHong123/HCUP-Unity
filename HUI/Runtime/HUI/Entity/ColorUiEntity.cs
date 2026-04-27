@@ -17,7 +17,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Entity {
     [Serializable]
@@ -25,42 +25,42 @@ namespace HUI.Entity {
         #region Options
         /// Option to change the color change target to a color or sprite.
         #region Change Sprite Option
-        [Title("Option")]
+        [HTitle("Option")]
         [SerializeField]
         bool changeSprite = false;
         #endregion
 
         /// Additional coloring animation options using the Dotween package.
         #region Use Animation Option
-        [HideIf(nameof(changeSprite))]
+        [HHideIf(nameof(changeSprite))]
         [SerializeField]
         bool useAnimation = false;
-        [ShowIf("@!this.changeSprite && this.useAnimation")]
+        [HShowIf("@!this.changeSprite && this.useAnimation")]
         [SerializeField]
         float animationDuration = 0.2f;
         #endregion
 
         // Feature option to add a tint effect of a given color rather than a fixed color.
         #region Tint Option
-        [Title("Dynamic Press Tint")]
+        [HTitle("Dynamic Press Tint")]
         [SerializeField]
 #if UNITY_EDITOR
-        [OnValueChanged(nameof(_RefreshTargetColorInEditor))]
+        [HOnValueChanged(nameof(_RefreshTargetColorInEditor))]
 #endif
         bool useDynamicPressTint = false;
 
-        [ShowIf(nameof(useDynamicPressTint))]
+        [HShowIf(nameof(useDynamicPressTint))]
         [SerializeField]
 #if UNITY_EDITOR
-        [OnValueChanged(nameof(_RefreshTargetColorInEditor))]
+        [HOnValueChanged(nameof(_RefreshTargetColorInEditor))]
 #endif
         ColorTintMode pressTintMode = ColorTintMode.Darker;
 
-        [ShowIf(nameof(useDynamicPressTint))]
+        [HShowIf(nameof(useDynamicPressTint))]
         [SerializeField]
         [Range(0f, 0.5f)]
 #if UNITY_EDITOR
-        [OnValueChanged(nameof(_RefreshTargetColorInEditor))]
+        [HOnValueChanged(nameof(_RefreshTargetColorInEditor))]
 #endif
         float pressValueDelta = 0.12f;
         #endregion
@@ -68,27 +68,27 @@ namespace HUI.Entity {
 
         #region Entities
         #region Color Entity
-        [Title("Color")]
-        [OnValueChanged(nameof(_Init))]
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [HTitle("Color")]
+        [HOnValueChanged(nameof(_Init))]
+        [HHideIf(nameof(changeSprite)), SerializeField]
         MaskableGraphic graphic;
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [HHideIf(nameof(changeSprite)), SerializeField]
 #if UNITY_EDITOR
-        [OnValueChanged(nameof(_RefreshTargetColorInEditor))]
+        [HOnValueChanged(nameof(_RefreshTargetColorInEditor))]
 #endif
         Color originColor;
-        [HideIf(nameof(changeSprite)), SerializeField]
+        [HHideIf(nameof(changeSprite)), SerializeField]
         Color targetColor;
         #endregion
 
         #region Sprite Entity
-        [Title("Sprite")]
-        [OnValueChanged(nameof(_Init))]
-        [ShowIf(nameof(changeSprite)), SerializeField]
+        [HTitle("Sprite")]
+        [HOnValueChanged(nameof(_Init))]
+        [HShowIf(nameof(changeSprite)), SerializeField]
         Image image;
-        [ShowIf(nameof(changeSprite)), SerializeField]
+        [HShowIf(nameof(changeSprite)), SerializeField]
         Sprite originSprite;
-        [ShowIf(nameof(changeSprite)), SerializeField]
+        [HShowIf(nameof(changeSprite)), SerializeField]
         Sprite targetSprite;
         #endregion
         #endregion
@@ -158,12 +158,13 @@ namespace HUI.Entity {
         }
 
         private void _Dye(Color color, bool immediate = false) {
+#if DOTWEEN_PRO
             if (_CanAnimate() && !immediate) {
                 graphic.DOKill();
                 graphic.DOColor(color, animationDuration);
                 return;
             }
-
+#endif
             graphic.color = color;
         }
 

@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Dropdown {
     [RequireComponent(typeof(Toggle))]
@@ -26,22 +26,22 @@ namespace HUI.Dropdown {
     public abstract class BaseDropDown<TData, TUnit> : MonoBehaviour, IBasicPanel
         where TData : IDropData, new()
         where TUnit : MonoBehaviour, IDropUnit {
-        [Title("Data")]
+        [HTitle("Data")]
         [SerializeField]
         protected List<TData> datas = new();
 
-        [Title("Setting")]
-        [SerializeField, OnValueChanged("SetTablePivot")]
+        [HTitle("Setting")]
+        [SerializeField, HOnValueChanged("SetTablePivot")]
         [Tooltip("Preset position setting. (Not mandatory)")]
         protected DirectionType direction = DirectionType.Down;
 
-        [Title("Dropdown")]
+        [HTitle("Dropdown")]
         [SerializeField]
         protected Toggle dropTg;
         [SerializeField]
         protected RectTransform rect;
 
-        [Title("Table")]
+        [HTitle("Table")]
         [SerializeField]
         protected ToggleGroup tableTgg;
         [SerializeField]
@@ -53,7 +53,7 @@ namespace HUI.Dropdown {
         [SerializeField]
         protected Vector2 tableOffset;
 
-        [Title("Unit")]
+        [HTitle("Unit")]
         [SerializeField]
         protected GameObject unitPrefab;
         [SerializeField]

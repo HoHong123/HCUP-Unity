@@ -9,8 +9,8 @@
 #endif
 
 using UnityEngine;
-using Sirenix.OdinInspector;
 using HUI.Entity;
+using HInspector;
 
 namespace HUI.ButtonUI {
     /// <summary>
@@ -19,17 +19,19 @@ namespace HUI.ButtonUI {
     [RequireComponent(typeof(DelegateButton))]
     public class EnableOnPressButton : BaseOnPressButton {
         #region Fields
-        [Title("Mode")]
+        [HTitle("Mode")]
         [SerializeField]
         ButtonEventMode interactionMode = ButtonEventMode.UsePress;
 
-        [Title("Targets")]
-        [SerializeField][ListDrawerSettings]
+        [HTitle("Targets")]
+        [HListDrawer]
+        [SerializeField]
         EnableUiEntity[] targets;
 
-        [Title("Interaction Targets")]
-        [ShowIf("@interactionMode == ButtonEventMode.UseInteraction")]
-        [SerializeField][ListDrawerSettings]
+        [HTitle("Interaction Targets")]
+        [HShowIf("@interactionMode == ButtonEventMode.UseInteraction")]
+        [HListDrawer]
+        [SerializeField]
         EnableUiEntity[] interactionTargets;
         #endregion
 

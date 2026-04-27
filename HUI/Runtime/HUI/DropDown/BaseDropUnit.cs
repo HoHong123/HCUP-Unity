@@ -16,12 +16,12 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Dropdown {
     [Serializable]
     public class BaseDropUnit : MonoBehaviour, IDropUnit {
-        [Title("Information")]
+        [HTitle("Information")]
         [SerializeField]
         protected int uid = -1;
         [SerializeField]

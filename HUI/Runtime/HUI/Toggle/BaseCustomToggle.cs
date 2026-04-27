@@ -19,13 +19,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.ToggleUI {
     [RequireComponent(typeof(Toggle))]
     public abstract class BaseCustomToggle : MonoBehaviour, IDelegateToggle, IPointerDownHandler, IPointerUpHandler {
         #region Fields
-        [Title("Event Timing")]
+        [HTitle("Event Timing")]
         [SerializeField]
         protected bool activateOnSelect = true;
         [SerializeField]
@@ -33,7 +33,7 @@ namespace HUI.ToggleUI {
         [SerializeField]
         protected bool activateOnPointerUp = false;
 
-        [Title("References")]
+        [HTitle("References")]
         [SerializeField]
         Toggle toggle;
 

@@ -7,12 +7,12 @@
 
 using UnityEngine;
 using UnityEngine.EventSystems;
-using Sirenix.OdinInspector;
 using HUI.Entity;
+using HInspector;
 
 namespace HUI.ToggleUI {
     public class ColorOnSelectToggle : BaseCustomToggle {
-        [Title("Targets")]
+        [HTitle("Targets")]
         [SerializeField]
         ColorUiEntity[] targets;
 
