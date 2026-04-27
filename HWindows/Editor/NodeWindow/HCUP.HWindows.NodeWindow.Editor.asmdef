@@ -1,12 +1,12 @@
 {
-    "name": "Hohong123.HWindows.NodeWindow.Editor",
+    "name": "HCUP.HWindows.NodeWindow.Editor",
     "rootNamespace": "HWindows.Editor.NodeWindow",
     "references": [
-        "Hohong123.HWindows.NodeWindow",
-        "Hohong123.HUtil",
-        "Hohong123.HUtil.Editor",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HCollection"
+        "HCUP.HWindows.NodeWindow",
+        "HCUP.HUtil",
+        "HCUP.HUtil.Editor",
+        "HCUP.HDiagnosis",
+        "HCUP.HCollection"
     ],
     "includePlatforms": [
         "Editor"
