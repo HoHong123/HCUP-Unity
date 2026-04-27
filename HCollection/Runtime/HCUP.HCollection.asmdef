@@ -1,15 +1,8 @@
 {
-    "name": "Hohong123.HCore",
-    "rootNamespace": "HCore",
+    "name": "HCUP.HCollection",
+    "rootNamespace": "HCollection",
     "references": [
-        "Hohong123.HData",
-        "Hohong123.HDiagnosis",
-        "Hohong123.HInspector",
-        "Hohong123.HUtil",
-        "UniTask",
-        "UniTask.Addressables",
-        "Unity.Addressables",
-        "Unity.ResourceManager"
+        "HCUP.HDiagnosis"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

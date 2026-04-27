@@ -1,6 +1,6 @@
 {
-    "name": "Hohong123.HInspector",
-    "rootNamespace": "HInspector",
+    "name": "HCUP.HData",
+    "rootNamespace": "HData",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

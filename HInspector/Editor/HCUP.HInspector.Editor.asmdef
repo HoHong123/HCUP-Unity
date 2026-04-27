@@ -1,12 +1,8 @@
 {
-    "name": "Hohong123.HUtil.Editor",
-    "rootNamespace": "HUtil.Editor",
+    "name": "HCUP.HInspector.Editor",
+    "rootNamespace": "HInspector.Editor",
     "references": [
-        "Unity.TextMeshPro",
-        "Unity.TextMeshPro.Editor",
-        "Unity.Addressables.Editor",
-        "Hohong123.HUtil",
-        "Hohong123.HDiagnosis"
+        "HCUP.HInspector"
     ],
     "includePlatforms": [
         "Editor"

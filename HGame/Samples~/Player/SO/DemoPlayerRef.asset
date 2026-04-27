@@ -11,4 +11,4 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 91b73468421a3a54fbf02793c1f287e7, type: 3}
   m_Name: DemoPlayerRef
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Player.PlayerRefSO
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Player.PlayerRefSO

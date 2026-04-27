@@ -162,7 +162,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b0b72f36bcb7ff448f7152e4c61aa8d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUtil::HUtil.Scene.BaseSceneManager
+  m_EditorClassIdentifier: HCUP.HUtil::HUtil.Scene.BaseSceneManager
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 

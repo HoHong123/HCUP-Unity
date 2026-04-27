@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b834d7deeb9420439c7705216f62704, type: 3}
   m_Name: TestScenes
-  m_EditorClassIdentifier: Hohong123.HUtil::HUtil.Scene.SceneCatalog
+  m_EditorClassIdentifier: HCUP.HUtil::HUtil.Scene.SceneCatalog
   entries:
   - Key: 0
     Scene:

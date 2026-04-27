@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0fabcbdafd7bc4840892ce5fcb9bb523, type: 3}
   m_Name: 00_DemoSkillCatalog
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Skill.SkillCatalogSO
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Skill.SkillCatalogSO
   skills:
   - {fileID: 11400000, guid: 3e60ec3c01ff61946b52c86d176a34e8, type: 2}
   - {fileID: 11400000, guid: 787c6f9f9bcb54d44af29017c802e802, type: 2}

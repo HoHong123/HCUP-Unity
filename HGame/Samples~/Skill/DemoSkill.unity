@@ -1314,7 +1314,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 61ee234e54f82074787f195d1395c545, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HGame::HGame.Skill.SkillStats
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Skill.SkillStats
   attackMul: 1
   attackSpeedMul: 1
   ultCooldownMul: 1

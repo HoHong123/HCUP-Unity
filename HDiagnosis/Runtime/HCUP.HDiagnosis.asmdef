@@ -1,6 +1,6 @@
 {
-    "name": "Hohong123.HData",
-    "rootNamespace": "HData",
+    "name": "HCUP.HDiagnosis",
+    "rootNamespace": "HDiagnosis",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

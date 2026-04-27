@@ -1,8 +1,8 @@
 {
-    "name": "Hohong123.HCollection.Editor",
+    "name": "HCUP.HCollection.Editor",
     "rootNamespace": "HCollection.Editor",
     "references": [
-        "Hohong123.HCollection"
+        "HCUP.HCollection"
     ],
     "includePlatforms": [
         "Editor"

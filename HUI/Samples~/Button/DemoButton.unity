@@ -860,7 +860,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b4bc81dda4e9b946b8d82ef89614cf8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ColorOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ColorOnPressButton
   interactionMode: 1
   targets:
   - changeSprite: 0
@@ -887,7 +887,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -1009,7 +1009,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8649360599aa4184c8683d50beb3f519, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ScaleOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ScaleOnPressButton
   targets:
   - target: {fileID: 255101532}
     useAnimation: 1
@@ -1029,7 +1029,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -2378,7 +2378,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b4bc81dda4e9b946b8d82ef89614cf8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ColorOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ColorOnPressButton
   interactionMode: 1
   targets:
   - changeSprite: 1
@@ -2405,7 +2405,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -2885,7 +2885,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b4bc81dda4e9b946b8d82ef89614cf8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ColorOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ColorOnPressButton
   interactionMode: 2
   targets: []
   interactionTargets:
@@ -2912,7 +2912,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -3586,7 +3586,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b4bc81dda4e9b946b8d82ef89614cf8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ColorOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ColorOnPressButton
   interactionMode: 1
   targets:
   - changeSprite: 0
@@ -3625,7 +3625,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -3959,7 +3959,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 021581babef5eff4bbba9ffef132a25c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.EnableOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.EnableOnPressButton
   interactionMode: 1
   targets:
   - target: {fileID: 1228125749}
@@ -3979,7 +3979,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -4629,7 +4629,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 862905107}
-        m_TargetAssemblyTypeName: HUI.ButtonUI.DelegateButton, Hohong123.HUI
+        m_TargetAssemblyTypeName: HUI.ButtonUI.DelegateButton, HCUP.HUI
         m_MethodName: set_Interaction
         m_Mode: 0
         m_Arguments:
@@ -5706,7 +5706,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f1e709c8de0adbd4cb8dabe346cfd1d5, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.MoveOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.MoveOnPressButton
   targets:
   - target: {fileID: 1975846376}
     useAnimation: 1
@@ -5733,7 +5733,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -5902,7 +5902,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8649360599aa4184c8683d50beb3f519, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.ScaleOnPressButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.ScaleOnPressButton
   targets:
   - target: {fileID: 2070879123}
     useAnimation: 0
@@ -5922,7 +5922,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 252d1f5ce821a9f4887baee8a0a617e0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Hohong123.HUI::HUI.ButtonUI.DelegateButton
+  m_EditorClassIdentifier: HCUP.HUI::HUI.ButtonUI.DelegateButton
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0

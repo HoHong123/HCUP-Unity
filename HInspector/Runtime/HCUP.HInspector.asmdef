@@ -1,6 +1,6 @@
 {
-    "name": "Hohong123.HDiagnosis",
-    "rootNamespace": "HDiagnosis",
+    "name": "HCUP.HInspector",
+    "rootNamespace": "HInspector",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

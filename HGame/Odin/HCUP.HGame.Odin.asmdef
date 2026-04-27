@@ -1,0 +1,10 @@
+{
+  "name": "HCUP.HGame.Odin",
+  "references": [
+    "HCUP.HGame",
+    "HCUP.HUtil"
+  ],
+  "defineConstraints": [
+     "ODIN_INSPECTOR"
+  ]
+}

@@ -1,14 +1,16 @@
 {
-    "name": "Hohong123.HUI.Editor",
-    "rootNamespace": "HUI.Editor",
+    "name": "HCUP.HUI",
+    "rootNamespace": "HUI",
     "references": [
-        "Hohong123.HUtil",
-        "Hohong123.HUI",
-        "Hohong123.HCore"
+        "UniTask",
+        "Unity.TextMeshPro",
+        "HCUP.HUtil",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HCore",
+        "DOTween.Modules"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

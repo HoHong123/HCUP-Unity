@@ -10,7 +10,7 @@
  * 추가하여 Odin 렌더러가 자연스럽게 그리도록 합니다.
  *
  * 컴파일 조건 ::
- * 어셈블리 Hohong123.HInspector.Odin.Editor는 defineConstraints로 ODIN_INSPECTOR를 요구합니다.
+ * 어셈블리 HCUP.HInspector.Odin.Editor는 defineConstraints로 ODIN_INSPECTOR를 요구합니다.
  * Odin 미설치 환경에서는 이 어셈블리 자체가 컴파일되지 않아 본체 HInspector에 영향이 없습니다.
  *
  * 중복 방지 ::

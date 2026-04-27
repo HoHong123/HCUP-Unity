@@ -1,9 +1,9 @@
 {
-  "name": "Hohong123.Util.Odin",
+  "name": "HCUP.Util.Odin",
   "rootNamespace": "Util.Odin",
   "autoReferenced": true,
   "references": [
-    "Hohong123.HUtil"
+    "HCUP.HUtil"
   ],
   "defineConstraints": [
     "ODIN_INSPECTOR"

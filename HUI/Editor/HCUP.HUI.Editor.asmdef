@@ -1,10 +1,14 @@
 {
-    "name": "Hohong123.HCollection",
-    "rootNamespace": "HCollection",
+    "name": "HCUP.HUI.Editor",
+    "rootNamespace": "HUI.Editor",
     "references": [
-        "Hohong123.HDiagnosis"
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HCore"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

@@ -1,8 +1,13 @@
 {
-    "name": "Hohong123.HInspector.Editor",
-    "rootNamespace": "HInspector.Editor",
+    "name": "HCUP.HGame.Editor",
+    "rootNamespace": "HGame.Editor",
     "references": [
-        "Hohong123.HInspector"
+        "HCUP.HUI",
+        "HCUP.HUtil",
+        "HCUP.HGame",
+        "HCUP.HData",
+        "HCUP.HDiagnosis",
+        "HCUP.HCore"
     ],
     "includePlatforms": [
         "Editor"
