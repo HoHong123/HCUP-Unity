@@ -1,0 +1,20 @@
+{
+    "name": "HCUP.HUI.Editor",
+    "rootNamespace": "HUI.Editor",
+    "references": [
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HCore"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,22 @@
+{
+    "name": "HCUP.HUtil",
+    "rootNamespace": "HUtil",
+    "references": [
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Addressables",
+        "HCUP.HData",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

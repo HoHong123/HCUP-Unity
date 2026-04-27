@@ -1,0 +1,7 @@
+{
+  "name": "HCUP.HCollection.Odin.Editor",
+  "rootNamespace": "HCollection.Odin.Editor",
+  "includePlatforms": ["Editor"],
+  "references": ["HCUP.HCollection"],
+  "defineConstraints": ["ODIN_INSPECTOR"]
+}

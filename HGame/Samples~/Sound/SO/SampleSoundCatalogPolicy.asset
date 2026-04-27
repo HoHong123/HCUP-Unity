@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfbba9c8a0914b241bfea81d5d42758e, type: 3}
+  m_Name: SampleSoundCatalogPolicy
+  m_EditorClassIdentifier: HCUP.HGame::HGame.Sound.SoundCatalogPolicySO
+  uidRanges:
+  - Major: 0
+    MinInclusive: 690000
+    MaxExclusive: 699999
+  - Major: 1
+    MinInclusive: 610000
+    MaxExclusive: 659999
+  - Major: 2
+    MinInclusive: 600000
+    MaxExclusive: 609999
+  - Major: 3
+    MinInclusive: 660000
+    MaxExclusive: 689999
+  folderMidMappings:
+  - Major: 0
+    FolderName: CommonBgmClips
+  - Major: 1
+    FolderName: CharacterSfxClips
+  - Major: 1
+    FolderName: CommonSfxClips
+  - Major: 1
+    FolderName: EffectSfxClips
+  - Major: 1
+    FolderName: MonsterSfxClips
+  - Major: 2
+    FolderName: CommonUiClips
+  - Major: 2
+    FolderName: LobbyUiClips
+  - Major: 3
+    FolderName: CharacterVoiceClips
+  - Major: 3
+    FolderName: MonsterVoiceClips

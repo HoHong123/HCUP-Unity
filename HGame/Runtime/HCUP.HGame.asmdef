@@ -1,0 +1,22 @@
+{
+    "name": "HCUP.HGame",
+    "rootNamespace": "HGame",
+    "references": [
+        "UniTask",
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HCollection",
+        "HCUP.HCore"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,16 @@
+{
+    "name": "HCUP.HCollection",
+    "rootNamespace": "HCollection",
+    "references": [
+        "HCUP.HDiagnosis"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

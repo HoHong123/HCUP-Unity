@@ -1,0 +1,23 @@
+{
+    "name": "HCUP.HCore",
+    "rootNamespace": "HCore",
+    "references": [
+        "HCUP.HData",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HUtil",
+        "UniTask",
+        "UniTask.Addressables",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
