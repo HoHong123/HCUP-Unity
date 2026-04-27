@@ -43,6 +43,51 @@ git push origin hutil/v0.2.0 hgame/v0.2.0 hui/v0.2.0
 ```
 
 6) GitHub Release 작성
+Release 포멧 예제
+```
+# HUtil 1.0.0 릴리즈 노트
+
+----
+
+패키지 링크 : https://github.com/HoHong123/HCUP-Unity.git?path=/HoHong123/HUtil#hutil/1.0.0
+
+## 개요
+공용 기반 유틸리티 패키지입니다.
+컬렉션, 데이터, 수학, 로거, 폰트, 웹, 씬 전환, 풀링, Tween 보조 기능을 포함합니다.
+Unity 2021.3+ 환경을 대상으로 하며 외부 의존성으로 UniTask, DoTween, Odin Inspector, TextMeshPro를 사용합니다.
+
+## 1.0.0에서 변경된 점
+
+----
+
+- HUtil 패키지 버전을 1.0.0으로 정식 정렬했습니다.
+- 커스텀 인스펙터 IMGUI 속성 시스템을 포함합니다.
+- Inspector, Pooling, Scene, Web, Data, Logger 등 공용 기반 모듈을 패키지 기준으로 정리했습니다.
+- 문서 및 패키지 메타데이터를 최신 릴리즈 기준으로 갱신했습니다.
+
+## 폴더 맵 (Runtime)
+
+----
+
+- Collection(3): 순환 리스트 등 보조 자료구조
+- Core(2), Data(1), Debug(1), Font(1), Logger(1), Mathx(1): 공통 유틸리티 모듈
+- Pooling(9): 객체/컴포넌트 풀링 시스템
+- Primitives(2), Scene(1), Web(3): 수학 보조, 씬 전환, 웹 요청 유틸
+- Inspector(13): 커스텀 인스펙터 IMGUI 속성 시스템
+- Tween: DoTween 연동 보조
+
+## 주의사항
+
+----
+
+- HUtil은 단독 사용이 가능한 기반 패키지입니다.
+- Inspector 기능은 현재 IMGUI 기반입니다.
+- Editor 전용 코드와 Runtime 코드는 실제 프로젝트에서 분리해서 사용하는 것이 좋습니다.
+
+Full Changelog:
+```
+
+
 - 각 태그에 대해 **별도 릴리즈 노트**를 올립니다.
 - UPM 의존성 URL 예시(README나 배포 페이지에 활용):
   - HUtil: `https://github.com/HoHong123/Custom-Unity-Utility-Package.git?path=/Packages/com.hohong123.hutil#v0.2.0`
