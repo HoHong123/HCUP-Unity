@@ -16,7 +16,7 @@ using HGame.Sound.Core;
 #endif
 
 namespace HGame.Audio.Catalog {
-    public sealed partial class SoundCatalogRegistry {
+    public sealed partial class AudioCatalogRegistry {
         #region Nested Types
         sealed class EntrySlot {
             public SoundCatalogSO.Entry Entry { get; private set; }

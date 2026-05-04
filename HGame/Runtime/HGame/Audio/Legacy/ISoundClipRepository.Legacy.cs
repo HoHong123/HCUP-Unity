@@ -16,7 +16,7 @@ using HUtil.AssetHandler.Subscription;
 #endif
 
 namespace HGame.Audio.Repository {
-    public partial interface ISoundClipRepository {
+    public partial interface IAudioClipRepository {
         bool TryGet(int legacyId, out AudioClip clip);
 
         UniTask<AudioClip> GetOrLoadAsync(
