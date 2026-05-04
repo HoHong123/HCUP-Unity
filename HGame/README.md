@@ -4,46 +4,42 @@
 
 `HGame`은 게임 로직 계층을 담당하는 패키지입니다.
 
-공용 유틸리티 위에 바로 게임 진행 흐름, 사운드 관리, 플레이어/스킬/월드 관련 기능을 얹는 구조로 되어 있습니다. 이 저장소에서는 `GameModule`과 `Audio/Sound Management System`을 함께 확인하기 위한 핵심 패키지입니다.
+공용 유틸리티 위에 바로 게임 진행 흐름, 플레이어/스킬/월드 관련 기능을 얹는 구조로 되어 있습니다. 이 저장소에서는 `GameModule` 을 중심으로 게임 실행 흐름을 확인하기 위한 핵심 패키지입니다. 오디오 도메인은 별도 패키지 `HCUP.HAudio` 로 분리되었습니다.
 
-## 1.0.0에서 변경된 점
+## 1.0.3 에서 변경된 점
 
-- 사운드 시스템을 사실상 새 축으로 확장했습니다.
-- SoundManager, AudioClipProvider, SoundCatalogSO, SoundCatalogRegistry, Repository 계층을 추가했습니다.
-- 레거시 사운드 API와 신규 카탈로그 구조를 함께 유지해 전환 여지를 남겼습니다.
-- 사운드 카탈로그 생성/편집/디버깅용 에디터 윈도우를 추가했습니다.
+- 오디오 도메인 (Audio/Sound) 을 `HCUP.HAudio` 패키지로 분리했습니다. 자세한 내용은 `HAudio/CHANGELOG.md` 를 참고하십시오.
+- audio 분리에 따라 dead 가 된 `Editor/`, `Odin/` asmdef 폴더를 삭제했습니다.
+
+## 1.0.0 에서 변경된 점
+
 - 2D 맵 경계, 미니맵, 카메라 바운더리, 월드 이벤트 포인트 구조를 보강했습니다.
 - GameModule, Player, Skill 도메인 구조를 보강하고 샘플 연동을 확장했습니다.
-- Player, Skill, Sound, World2D, GameModule 샘플 씬과 에셋을 대폭 추가했습니다.
+- Player, Skill, World2D, GameModule 샘플 씬과 에셋을 대폭 추가했습니다.
 
 ## 디렉토리 구성
 
 ### `Runtime`
-- 게임 실행 흐름과 직접 연결되는 로직이 들어 있습니다.
-- `GameModule`, `Sound`, `Player`, `Skill`, `Camera`, `World`, `2D` 영역으로 나뉩니다.
 
-### `Editor`
-- 사운드 카탈로그 편집과 미리보기 같은 에디터 보조 기능이 들어 있습니다.
+- 게임 실행 흐름과 직접 연결되는 로직이 들어 있습니다.
+- `GameModule`, `Player`, `Skill`, `Camera`, `World`, `2D`, `Character` 영역으로 나뉩니다.
 
 ### `Samples~`
-- `GameModule`, `Skill`, `Sound`, `Player`, `World2D` 샘플이 포함되어 있습니다.
+
+- `GameModule`, `Skill`, `Player`, `World2D` 샘플이 포함되어 있습니다.
 - 기능별 사용 예제를 확인할 수 있습니다.
 
 ## 중점적으로 봐야 할 부분
 
-- `GameManager`와 `BaseGameModule` 기반 단계 전환 구조
+- `GameManager` 와 `BaseGameModule` 기반 단계 전환 구조
 - 기능별 모듈 분리를 통한 흐름 제어
-- `SoundManager` 중심의 사운드 로딩, 재생, 볼륨 제어 구조
 - 샘플을 통한 실제 패키지 사용 방식
 
 ## 추천 확인 순서
 
 1. `Runtime/HGame/GameModule/GameManager.cs`
 2. `Runtime/HGame/GameModule/BaseGameModule.cs`
-3. `Runtime/HGame/Sound/SoundManager.cs`
-4. `Editor/Sound/SoundCatalogEditorWindow.cs`
-5. `Samples~/GameModule`
-6. `Samples~/Sound`
+3. `Samples~/GameModule`
 
 ## 기술 전제
 

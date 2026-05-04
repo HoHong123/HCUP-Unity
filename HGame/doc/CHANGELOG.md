@@ -1,5 +1,17 @@
 # HGame Changelog
 
+## [1.0.3] - 2026-05-05
+
+### 주요 변경
+
+- 오디오 도메인 (Audio/Sound) 을 `HCUP.HAudio` 패키지로 분리했습니다. namespace 는 `HGame.Audio.*` / `HGame.Sound.*` 에서 `HAudio.*` 로 평탄화되었습니다.
+- audio 분리 후 dead 가 된 `Editor/HCUP.HGame.Editor.asmdef` 와 `Odin/HCUP.HGame.Odin.asmdef` 를 삭제했습니다.
+
+### 마이그레이션 / 주의
+
+- 오디오 caller 측 using 을 `using HAudio.*` 계열로 교체하십시오 (`HAudio`, `HAudio.Catalog`, `HAudio.Repository`, `HAudio.Core`, `HAudio.AddOn`, `HAudio.Load`, `HAudio.Enum`, `HAudio.Editor`).
+- 자세한 분리 변경 내역은 `HAudio/doc/CHANGELOG.md` 의 1.0.0 항목을 참고하십시오.
+
 ## [1.0.0] - 2026-03-31
 
 ### 주요 변경
