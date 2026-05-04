@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * 씬 전환에 사용되는 열거형 스크립트입니다.
@@ -15,7 +15,6 @@ namespace HCore.Scene {
         Game,
 
         Loading,
-
 
         Etc1 = 4000,
         Etc2,
