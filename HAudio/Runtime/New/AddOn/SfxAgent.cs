@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * SFX 재생과 preload 호출의 게이트 클래스입니다.
@@ -59,23 +59,23 @@ namespace HAudio.AddOn {
 
         #region Public - Token API
         public void Play(string token) {
-            if (!useNewManager || !Audio.AudioManager.HasInstance) return;
-            Audio.AudioManager.Instance.Play(token);
+            if (!useNewManager || !AudioManager.HasInstance) return;
+            AudioManager.Instance.Play(token);
         }
 
         public void PlayUI(string token) {
-            if (!useNewManager || !Audio.AudioManager.HasInstance) return;
-            Audio.AudioManager.Instance.PlayUI(token);
+            if (!useNewManager || !AudioManager.HasInstance) return;
+            AudioManager.Instance.PlayUI(token);
         }
 
         public void Play3D(string token, Transform parent) {
-            if (!useNewManager || !Audio.AudioManager.HasInstance) return;
-            Audio.AudioManager.Instance.Play3D(token, parent);
+            if (!useNewManager || !AudioManager.HasInstance) return;
+            AudioManager.Instance.Play3D(token, parent);
         }
 
         public void Play3D(string token, Vector3 worldPos) {
-            if (!useNewManager || !Audio.AudioManager.HasInstance) return;
-            Audio.AudioManager.Instance.Play3D(token, worldPos);
+            if (!useNewManager || !AudioManager.HasInstance) return;
+            AudioManager.Instance.Play3D(token, worldPos);
         }
         #endregion
 
@@ -87,8 +87,8 @@ namespace HAudio.AddOn {
 
         public void Play(int uid) {
             if (useNewManager) {
-                if (!Audio.AudioManager.HasInstance) return;
-                Audio.AudioManager.Instance.Play(uid);
+                if (!AudioManager.HasInstance) return;
+                AudioManager.Instance.Play(uid);
                 return;
             }
 
@@ -98,8 +98,8 @@ namespace HAudio.AddOn {
 
         public void PlayUI(int uid) {
             if (useNewManager) {
-                if (!Audio.AudioManager.HasInstance) return;
-                Audio.AudioManager.Instance.PlayUI(uid);
+                if (!AudioManager.HasInstance) return;
+                AudioManager.Instance.PlayUI(uid);
                 return;
             }
 
@@ -109,8 +109,8 @@ namespace HAudio.AddOn {
 
         public void Play3D(int uid, Transform parent) {
             if (useNewManager) {
-                if (!Audio.AudioManager.HasInstance) return;
-                Audio.AudioManager.Instance.Play3D(uid, parent);
+                if (!AudioManager.HasInstance) return;
+                AudioManager.Instance.Play3D(uid, parent);
                 return;
             }
 
@@ -120,8 +120,8 @@ namespace HAudio.AddOn {
 
         public void Play3D(int uid, Vector3 worldPos) {
             if (useNewManager) {
-                if (!Audio.AudioManager.HasInstance) return;
-                Audio.AudioManager.Instance.Play3D(uid, worldPos);
+                if (!AudioManager.HasInstance) return;
+                AudioManager.Instance.Play3D(uid, worldPos);
                 return;
             }
 
@@ -132,7 +132,7 @@ namespace HAudio.AddOn {
 
         #region Private - Manager
         private bool _HasTargetManager() {
-            if (useNewManager) return Audio.AudioManager.HasInstance;
+            if (useNewManager) return AudioManager.HasInstance;
             return SoundManager.HasInstance;
         }
         #endregion
@@ -144,7 +144,7 @@ namespace HAudio.AddOn {
                     foreach (var view in preloadUids) {
                         if (view == null)
                             continue;
-                        await Audio.AudioManager.Instance.PrewarmSfxView(view);
+                        await AudioManager.Instance.PrewarmSfxView(view);
                     }
                     return;
                 }
@@ -168,7 +168,7 @@ namespace HAudio.AddOn {
             if (useNewManager) {
                 foreach (var view in preloadUids) {
                     if (view == null) continue;
-                    Audio.AudioManager.Instance.ReleaseSfxView(view);
+                    AudioManager.Instance.ReleaseSfxView(view);
                 }
                 return;
             }
