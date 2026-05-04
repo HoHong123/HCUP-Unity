@@ -20,7 +20,7 @@
 이 문서가 다루는 범위는 다음과 같다.
 
 - 현재 `HUtil.Data` 공용 로딩 구조
-- 현재 `HGame.Sound`의 실제 사용 흐름
+- 현재 `HAudio` (구 `HGame.Sound`)의 실제 사용 흐름
 - 업데이트된 `AddressableLoadSequence<TData>`의 현재 역할
 - 목표 Repository 중심 로딩 구조
 - 리팩토링 진입 전 마이그레이션 순서
