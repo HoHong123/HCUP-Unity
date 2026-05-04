@@ -17,7 +17,7 @@ using HUtil.AssetHandler.Subscription;
 #endif
 
 namespace HGame.Audio.Repository {
-    public partial interface ISoundClipRepository {
+    public partial interface IAudioClipRepository {
         AssetLoadMode LoadMode { get; }
 
         bool TryGet(string token, out AudioClip clip);

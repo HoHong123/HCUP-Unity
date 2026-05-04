@@ -15,7 +15,7 @@ using HGame.Sound;
 #endif
 
 namespace HGame.Audio {
-    public sealed partial class SoundManager {
+    public sealed partial class AudioManager {
         #region Legacy Support
         public void Play(AudioClips clip) => Play((int)clip);
         public void PlayUI(AudioClips clip) => PlayUI((int)clip);

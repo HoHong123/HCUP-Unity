@@ -21,9 +21,9 @@ using HUtil.AssetHandler.Subscription;
 #endif
 
 namespace HGame.Audio.Repository {
-    public sealed partial class SoundClipRepository : ISoundClipRepository {
+    public sealed partial class AudioClipRepository : IAudioClipRepository {
         #region Fields
-        readonly SoundCatalogRegistry catalogRegistry;
+        readonly AudioCatalogRegistry catalogRegistry;
         readonly IAssetProvider<string, AudioClip> assetProvider;
         #endregion
 
@@ -32,9 +32,9 @@ namespace HGame.Audio.Repository {
         #endregion
 
         #region Public - Constructors
-        public SoundClipRepository(
+        public AudioClipRepository(
             AssetLoadMode loadMode,
-            SoundCatalogRegistry catalogRegistry,
+            AudioCatalogRegistry catalogRegistry,
             IAssetProvider<string, AudioClip> assetProvider = null) {
 
             Assert.IsNotNull(catalogRegistry, "[SoundClipRepository] catalogRegistry is null.");

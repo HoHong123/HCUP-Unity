@@ -15,7 +15,7 @@ using HGame.Sound.Core;
  */
 
 namespace HGame.Audio {
-    public sealed partial class SoundManager {
+    public sealed partial class AudioManager {
         readonly Dictionary<SoundCatalogSO, int> previewCatalogRefs = new Dictionary<SoundCatalogSO, int>();
         readonly HashSet<string> previewTokens = new HashSet<string>(StringComparer.Ordinal);
 

@@ -30,7 +30,7 @@ using Sirenix.OdinInspector;
 #endif
 
 namespace HGame.Audio {
-    public sealed partial class SoundManager : SingletonBehaviour<SoundManager> {
+    public sealed partial class AudioManager : SingletonBehaviour<AudioManager> {
         #region Const
         const string DEFAULT_CLICK_KEY = "Audio.DefaultClickToken";
 
@@ -68,8 +68,8 @@ namespace HGame.Audio {
         [SerializeField]
         string initialDefaultClickToken = string.Empty;
 
-        SoundCatalogRegistry catalogRegistry;
-        ISoundClipRepository clipRepository;
+        AudioCatalogRegistry catalogRegistry;
+        IAudioClipRepository clipRepository;
         AssetOwnerId ownerId;
 
         [HTitle("Audio Mixer")]
@@ -143,8 +143,8 @@ namespace HGame.Audio {
             Assert.IsNotNull(uiAudio, "[Audio.SoundManager] uiAudio is null.");
             Assert.IsNotNull(spatialPool, "[Audio.SoundManager] spatialPool is null.");
 #endif
-            catalogRegistry = new SoundCatalogRegistry();
-            clipRepository = new SoundClipRepository(loadMode, catalogRegistry);
+            catalogRegistry = new AudioCatalogRegistry();
+            clipRepository = new AudioClipRepository(loadMode, catalogRegistry);
         }
         #endregion
 

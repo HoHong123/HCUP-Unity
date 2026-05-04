@@ -15,7 +15,7 @@ using HGame.Sound.Core;
 #endif
 
 namespace HGame.Audio.Catalog {
-    public sealed partial class SoundCatalogRegistry {
+    public sealed partial class AudioCatalogRegistry {
         #region Fields
         readonly Dictionary<int, EntrySlot> legacyIdEntryTable = new();
         #endregion

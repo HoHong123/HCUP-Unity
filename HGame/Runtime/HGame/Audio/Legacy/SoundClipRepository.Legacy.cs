@@ -16,7 +16,7 @@ using HUtil.AssetHandler.Subscription;
 #endif
 
 namespace HGame.Audio.Repository {
-    public sealed partial class SoundClipRepository {
+    public sealed partial class AudioClipRepository {
         #region Public - Legacy Get
         public bool TryGet(int legacyId, out AudioClip clip) {
             clip = null;
