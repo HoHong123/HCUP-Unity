@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -7,9 +7,9 @@ using HDiagnosis.Logger;
 using HDiagnosis.HDebug;
 using HUtil.Data.Load;
 using HUtil.Data.Provider;
-using HGame.Sound.Core;
+using HAudio.Core;
 
-namespace HGame.Sound.Load {
+namespace HAudio.Load {
     public sealed partial class AudioClipProvider : IAudioClipProvider {
         #region Fields
         readonly DataEndpoint<int, AudioClip> endpoint;

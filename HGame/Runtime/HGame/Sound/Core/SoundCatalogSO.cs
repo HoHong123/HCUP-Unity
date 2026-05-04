@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -8,7 +8,7 @@ using HInspector;
 using UnityEditor;
 #endif
 
-namespace HGame.Sound.Core {
+namespace HAudio.Core {
     [CreateAssetMenu(
         fileName = "SoundCatalog",
         menuName = "HCUP/Sound/Sound Catalog")]

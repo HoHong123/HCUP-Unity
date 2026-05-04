@@ -1,11 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Assertions;
-using HGame.Sound.AddOn;
-using HGame.Sound.Core;
-using HGame.Sound.Load;
+using HAudio.AddOn;
+using HAudio.Core;
+using HAudio.Load;
 using HCore;
 using HUtil.Data.Load;
 using HInspector;
@@ -14,7 +14,7 @@ using HDiagnosis.HDebug;
 using Sirenix.OdinInspector;
 #endif
 
-namespace HGame.Sound {
+namespace HAudio {
     public sealed class SoundManager : SingletonBehaviour<SoundManager> {
         #region Const
         const string DEFAULT_CLICK_KEY = "DEFAULT_CLICK_SOUND";

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * SFX 재생과 preload 호출의 게이트 클래스입니다.
@@ -27,7 +27,7 @@ using HInspector;
 using HDiagnosis.Logger;
 using HDiagnosis.HDebug;
 
-namespace HGame.Sound.AddOn {
+namespace HAudio.AddOn {
     public class SfxAgent : MonoBehaviour, IDataSubscriber {
         #region Fields
         [HTitle("Settings")]

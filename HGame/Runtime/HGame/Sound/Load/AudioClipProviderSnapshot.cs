@@ -1,9 +1,9 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace HGame.Sound.Load {
+namespace HAudio.Load {
     [Serializable]
     public sealed class AudioClipProviderSnapshot {
         [Serializable]

@@ -1,9 +1,9 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using Cysharp.Threading.Tasks;
 using HUtil.Data.Load;
 using HUtil.Data.Sequence;
 
-namespace HGame.Sound.Load {
+namespace HAudio.Load {
     public sealed class AudioClipAddressableLoadSequence :
         BaseLoadSequence<AudioClip>,
         IDataLoad<string, AudioClip> {
@@ -11,7 +11,7 @@ namespace HGame.Sound.Load {
 
 
         protected override UniTask<AudioClip> _LoadByKeyAsync(string key) {
-            // TODO: Addressables µµÀÔ ½Ã
+            // TODO: Addressables ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
             return UniTask.FromResult<AudioClip>(null);
         }
 

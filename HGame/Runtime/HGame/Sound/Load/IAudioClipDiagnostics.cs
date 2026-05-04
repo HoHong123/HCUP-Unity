@@ -1,5 +1,5 @@
-#if UNITY_EDITOR
-namespace HGame.Sound.Load {
+﻿#if UNITY_EDITOR
+namespace HAudio.Load {
     public interface IAudioClipDiagnostics {
         AudioClipProviderSnapshot CreateSnapshot();
         int PruneUnusedTokens();

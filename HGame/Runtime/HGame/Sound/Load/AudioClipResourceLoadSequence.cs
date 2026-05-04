@@ -1,10 +1,10 @@
-using Cysharp.Threading.Tasks;
+﻿using Cysharp.Threading.Tasks;
 using HUtil.Data.Load;
 using HUtil.Data.Sequence;
 using System;
 using UnityEngine;
 
-namespace HGame.Sound.Load {
+namespace HAudio.Load {
     public sealed class AudioClipResourceLoadSequence :
         ResourcesLoadSequence<AudioClip>, 
         IDataLoad<string, AudioClip> {

@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using HUI.ButtonUI;
 
-namespace HGame.Sound.AddOn {
+namespace HAudio.AddOn {
     [RequireComponent(typeof(DelegateButton))]
     public sealed class ButtonSfxAddon : BaseSfxAddon {
         #region Field

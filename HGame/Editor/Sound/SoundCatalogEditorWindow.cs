@@ -6,9 +6,9 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Assertions;
 using HDiagnosis.Logger;
-using HGame.Sound.Core;
+using HAudio.Core;
 
-namespace HGame.Editor.Sound {
+namespace HAudio.Editor {
     public sealed class SoundCatalogEditorWindow : EditorWindow {
         #region Nested Class
         public sealed class Row {

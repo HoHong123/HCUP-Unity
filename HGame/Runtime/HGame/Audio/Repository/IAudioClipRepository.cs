@@ -1,6 +1,6 @@
-using Cysharp.Threading.Tasks;
+﻿using Cysharp.Threading.Tasks;
 using UnityEngine;
-using HGame.Sound.Core;
+using HAudio.Core;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Subscription;
 
@@ -16,7 +16,7 @@ using HUtil.AssetHandler.Subscription;
  */
 #endif
 
-namespace HGame.Audio.Repository {
+namespace HAudio.Repository {
     public partial interface IAudioClipRepository {
         AssetLoadMode LoadMode { get; }
 

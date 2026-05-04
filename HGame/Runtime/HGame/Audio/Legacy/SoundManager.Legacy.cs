@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using HDiagnosis.HDebug;
-using HGame.Sound;
+using HAudio;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -14,7 +14,7 @@ using HGame.Sound;
  */
 #endif
 
-namespace HGame.Audio {
+namespace HAudio {
     public sealed partial class AudioManager {
         #region Legacy Support
         public void Play(AudioClips clip) => Play((int)clip);

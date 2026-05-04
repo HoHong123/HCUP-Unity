@@ -1,11 +1,11 @@
-using System.Threading;
+﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
 using HUtil.Pooling;
 using HInspector;
 
-namespace HGame.Sound.AddOn {
+namespace HAudio.AddOn {
     public class SoundSpatialPool : MonoBehaviour {
         [HTitle("Pool Setup")]
         [SerializeField]

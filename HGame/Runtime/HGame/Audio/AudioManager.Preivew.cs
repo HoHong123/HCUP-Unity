@@ -1,8 +1,8 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using HGame.Sound.Core;
+using HAudio.Core;
 
 /* =========================================================
  * @Jason - PKH
@@ -14,7 +14,7 @@ using HGame.Sound.Core;
  * =========================================================
  */
 
-namespace HGame.Audio {
+namespace HAudio {
     public sealed partial class AudioManager {
         readonly Dictionary<SoundCatalogSO, int> previewCatalogRefs = new Dictionary<SoundCatalogSO, int>();
         readonly HashSet<string> previewTokens = new HashSet<string>(StringComparer.Ordinal);

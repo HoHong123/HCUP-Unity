@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
-using HGame.Audio.Catalog;
-using HGame.Sound.Core;
+using HAudio.Catalog;
+using HAudio.Core;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Provider;
 using HUtil.AssetHandler.Subscription;
@@ -20,7 +20,7 @@ using HUtil.AssetHandler.Subscription;
  */
 #endif
 
-namespace HGame.Audio.Repository {
+namespace HAudio.Repository {
     public sealed partial class AudioClipRepository : IAudioClipRepository {
         #region Fields
         readonly AudioCatalogRegistry catalogRegistry;

@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine.Assertions;
-using HGame.Sound.Core;
+using HAudio.Core;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -15,7 +15,7 @@ using HGame.Sound.Core;
  */
 #endif
 
-namespace HGame.Audio.Catalog {
+namespace HAudio.Catalog {
     public sealed partial class AudioCatalogRegistry {
         #region Nested Types
         sealed class EntrySlot {

@@ -1,4 +1,4 @@
-using Cysharp.Threading.Tasks;
+﻿using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Subscription;
@@ -15,7 +15,7 @@ using HUtil.AssetHandler.Subscription;
  */
 #endif
 
-namespace HGame.Audio.Repository {
+namespace HAudio.Repository {
     public sealed partial class AudioClipRepository {
         #region Public - Legacy Get
         public bool TryGet(int legacyId, out AudioClip clip) {

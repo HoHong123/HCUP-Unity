@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace HGame.Sound.AddOn {
+namespace HAudio.AddOn {
     [RequireComponent(typeof(Toggle))]
     public class ToggleSfxAddon : BaseSfxAddon {
         #region Field

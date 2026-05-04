@@ -1,10 +1,10 @@
-using HGame.Sound.Core;
+using HAudio.Core;
 using HInspector;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace HGame.Sample.Sound {
+namespace HAudio.Sample.Sound {
     public class SoundSampleManager : MonoBehaviour {
         [System.Serializable]
         private struct SoundEntry {
