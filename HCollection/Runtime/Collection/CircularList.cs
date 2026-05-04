@@ -183,28 +183,16 @@ namespace HCollection {
  * 1. IEnumerable을 구현하여 foreach 사용이 가능합니다.
  * 2. Dispose 호출 시 내부 리스트를 Clear 합니다.
  * ==================================
- * @Jason - PKH 16. May. 2025.
- * 1. Create class.
+ * @Jason - PKH 29. May. 2025 [LOG-20250529-1]
+ * - Implement 'IEnumerable'.
  * ==================================
- * @Jason - PKH 29. May. 2025
- * 1. Implement 'IEnumerable'.
- * 2. Edit 'ToString' format.
- * 3. Add pivot position boolean properties.
- * 4. Add constructors.
+ * @Jason - PKH 24. Jun. 2025 [LOG-20250624-1]
+ * - Add extra constructors.
  * ==================================
- * @Jason - PKH 24. Jun. 2025
- * 1. Add extra constructors.
+ * @Jason - PKH 05. Sep. 2025 [LOG-20250905-1]
+ * - Add regions in script.
  * ==================================
- * @Jason - PKH 05. Sep. 2025
- * 1. Add regions in script.
- * 2. Add 'MoveBy' feature.
- * 3. Add 'MovePrev' feature.
- * 4. Fixing 'MoveTo' exception condition.
- * 5. Add 'PeekTo' feature.
- * 6. Set readonly on 'list' variable.
- * *** MAJOR CHANGE *****
- * 7. Remove generic target from 'T = class' to 'None'
- * + Now 'CircularList' can be used on any objects.
+ * > 이전 엔트리는 docs/history/HCollection/Runtime/Collection/CircularList.md 참조 (총 4 엔트리)
  * =========================================================
  */
 #endif
