@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -14,10 +14,6 @@ namespace HUI.Popup {
 
         [HTitle("UI")]
         [SerializeField]
-        Image titleBgImg;
-        [SerializeField]
-        Image bodyBgImg;
-        [SerializeField]
         Button okBtn;
         [SerializeField]
         TMP_Text okTxt;
@@ -28,9 +24,7 @@ namespace HUI.Popup {
 
         public event Action OnClickOk;
 
-        public Color TitleColor { set => titleBgImg.color = value; }
         public Color TitleTextColor { set => titleTxt.color = value; }
-        public Color BodyColor { set => bodyBgImg.color = value; }
         public Color BodyTextColor { set => bodyTxt.color = value; }
 
 

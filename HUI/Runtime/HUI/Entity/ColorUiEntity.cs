@@ -165,6 +165,7 @@ namespace HUI.Entity {
                 return;
             }
 #endif
+
             graphic.color = color;
         }
 
