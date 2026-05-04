@@ -1,0 +1,10 @@
+{
+  "name": "HCUP.HAudio.Odin",
+  "references": [
+    "HCUP.HAudio",
+    "HCUP.HUtil"
+  ],
+  "defineConstraints": [
+     "ODIN_INSPECTOR"
+  ]
+}

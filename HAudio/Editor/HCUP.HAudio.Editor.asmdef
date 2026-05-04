@@ -1,0 +1,23 @@
+{
+    "name": "HCUP.HAudio.Editor",
+    "rootNamespace": "HAudio.Editor",
+    "references": [
+        "HCUP.HAudio",
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HData",
+        "HCUP.HDiagnosis",
+        "HCUP.HCore"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
