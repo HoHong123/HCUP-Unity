@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.IO;
 using System.Linq;
@@ -7,10 +7,10 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using HData.Formattable;
-using HGame.Sound;
-using HGame.Sound.Core;
+using HAudio;
+using HAudio.Core;
 
-namespace HGame.Editor.Sound {
+namespace HAudio.Editor {
     public sealed class SoundCatalogGeneratorWindow : EditorWindow {
         #region ===== Types =====
         struct DiscoveredClip {

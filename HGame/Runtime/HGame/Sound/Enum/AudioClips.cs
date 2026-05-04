@@ -1,4 +1,4 @@
-﻿namespace HGame.Sound {
+﻿namespace HAudio {
     // This enum is for editor.
     public enum AudioClips : int {
         #region BGM 690000

@@ -1,7 +1,7 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System.Collections.Generic;
 
-namespace HGame.Sound.Load {
+namespace HAudio.Load {
     public sealed partial class AudioClipProvider : IAudioClipDiagnostics {
         public AudioClipProviderSnapshot CreateSnapshot() {
             var snapshot = new AudioClipProviderSnapshot {

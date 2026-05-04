@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using HInspector;
 
-namespace HGame.Sound.AddOn {
+namespace HAudio.AddOn {
     public class BaseSfxAddon : MonoBehaviour {
         #region Field
         [HTitle("Sound Policy")]

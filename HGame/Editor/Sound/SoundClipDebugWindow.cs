@@ -4,9 +4,9 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using HGame.Sound.Load;
+using HAudio.Load;
 
-namespace HGame.Sound.Editor {
+namespace HAudio.Editor {
     public sealed class SoundClipDiagnosticsWindow : EditorWindow {
         Vector2 scroll;
 

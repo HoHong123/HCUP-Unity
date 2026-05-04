@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace HGame.Sound.Core {
+namespace HAudio.Core {
     [CreateAssetMenu(
         menuName = "HCUP/Audio/Sound Catalog Policy",
         fileName = "SoundCatalogPolicy")]

@@ -4,7 +4,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace HGame.Editor.Sound {
+namespace HAudio.Editor {
     internal static class EditorAudioPreview {
         static Type audioUtilType;
         static MethodInfo playPreviewClip;

@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using HUtil.Data.Cache;
 
-namespace HGame.Sound.Load {
+namespace HAudio.Load {
     public sealed class AudioClipCache : BaseDataCache<int, AudioClip> {
     }
 }

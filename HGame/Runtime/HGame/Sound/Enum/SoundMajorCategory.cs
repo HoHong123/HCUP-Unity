@@ -1,4 +1,4 @@
-namespace HGame.Sound {
+﻿namespace HAudio {
     public enum SoundMajorCategory {
         BGM = 0,
         SFX = 1,

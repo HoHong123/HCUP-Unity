@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Sirenix.OdinInspector;
-using HGame.Sound.Core;
+using HAudio.Core;
 using HInspector;
 
-namespace HGame.Sound.AddOn {
+namespace HAudio.AddOn {
     [Serializable]
     public sealed class SfxView {
         #region Fields

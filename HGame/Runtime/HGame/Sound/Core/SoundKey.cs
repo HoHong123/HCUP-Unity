@@ -1,4 +1,4 @@
-namespace HGame.Sound.Core {
+﻿namespace HAudio.Core {
     [System.Serializable]
     public struct SoundKey : System.IEquatable<SoundKey> {
         [UnityEngine.SerializeField]

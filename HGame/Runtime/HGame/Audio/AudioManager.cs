@@ -1,12 +1,12 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Assertions;
-using HGame.Audio.Catalog;
-using HGame.Audio.Repository;
-using HGame.Sound.AddOn;
-using HGame.Sound.Core;
+using HAudio.Catalog;
+using HAudio.Repository;
+using HAudio.AddOn;
+using HAudio.Core;
 using HUtil.AssetHandler.Data;
 using HUtil.AssetHandler.Subscription;
 using HCore;
@@ -29,7 +29,7 @@ using Sirenix.OdinInspector;
  */
 #endif
 
-namespace HGame.Audio {
+namespace HAudio {
     public sealed partial class AudioManager : SingletonBehaviour<AudioManager> {
         #region Const
         const string DEFAULT_CLICK_KEY = "Audio.DefaultClickToken";
