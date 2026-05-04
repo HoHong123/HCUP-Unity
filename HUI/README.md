@@ -6,6 +6,13 @@
 
 공용 유틸리티 위에 버튼, 토글, 드롭다운, 팝업, 패널, 재활용 스크롤뷰, 디버그 콘솔 같은 UI 구성요소를 얹는 구조로 되어 있습니다. 이 저장소에서는 범용 UI 컴포넌트와 샘플 프리팹/씬을 함께 확인하기 위한 핵심 패키지입니다.
 
+## 필수 요소
+
+- HCUP는 기본적으로 'DOTWEEN PRO'를 사용.
+- Edit > Project Settings > Player > Other Settings > Scripting Define Symbols에 DOTWEEN_PRO 추가.
+    - 기존 'DOTWEEN'이 있다면 'DOTWEEN_PRO'로 수정
+- 'DOTWEEN' 무료버젼을 사용한다면 위 과정은 불필요합니다.
+
 ## 1.0.0에서 변경된 점
 
 - 버튼, 토글, 드롭다운, 팝업, 패널, 스크롤뷰 계층을 전반적으로 확장했습니다.
