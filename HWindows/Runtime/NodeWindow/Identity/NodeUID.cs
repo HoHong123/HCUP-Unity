@@ -1,14 +1,12 @@
 using System;
 using UnityEngine;
+using HInspector;
 
 namespace HWindows.NodeWindow.Identity {
     [Serializable]
     public struct NodeUID : IEquatable<NodeUID> {
         #region Fields
-        // readonly 키워드 제거: Unity serializer 가 readonly struct 내부 readonly field 를
-        // deserialize 시 reflection 으로 쓰지 못해 value=0 으로 복원되는 문제 회피.
-        // 불변성은 public 프로퍼티 get-only + 외부 mutation 경로 부재로 보장.
-        [SerializeField]
+        [SerializeField, HReadOnly]
         int value;
         #endregion
 
