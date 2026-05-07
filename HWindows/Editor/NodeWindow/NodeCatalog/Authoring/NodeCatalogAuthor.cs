@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using HWindows.Editor.NodeWindow;
 using HWindows.Editor.NodeWindow.Identity;
 using HWindows.NodeWindow;
 using HWindows.NodeWindow.Identity;
@@ -70,6 +72,48 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             return node;
         }
 
+        public static T DuplicateNode<T>(NodeCatalogSO catalog, NodeUID sourceUID) where T : BaseNode {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in DuplicateNode");
+                return null;
+            }
+            if (!catalog.Nodes.TryGetValue(sourceUID, out BaseNode source)) {
+                HLogger.Warning($"[NodeCatalogAuthor] DuplicateNode rejected: source UID {sourceUID} not in catalog");
+                return null;
+            }
+            T sourceTyped = source as T;
+            if (sourceTyped == null) {
+                HLogger.Warning($"[NodeCatalogAuthor] DuplicateNode rejected: source type mismatch (expected {typeof(T).Name}, got {source.GetType().Name})");
+                return null;
+            }
+
+            NodeUID newUID = NodeUIDRegistry.instance.Issue();
+            string baseTitle = $"Node_{newUID.Value}";
+
+            // ScriptableObject.Instantiate (P1D-c) — Unity 가 SerializedObject 복사 자동 처리.
+            T duplicate = UnityEngine.Object.Instantiate(sourceTyped);
+            duplicate.name = baseTitle;
+            // 원본 UID/Title 이 복사된 상태 → ResetIdentity 후 AssignIdentity 새 UID 강제.
+            duplicate.ResetIdentity();
+            duplicate.AssignIdentity(newUID, baseTitle);
+
+            AssetDatabase.AddObjectToAsset(duplicate, catalog);
+            catalog.InternalAddNode(duplicate);
+
+#if UNITY_EDITOR
+            // 위치 offset (40, 40) — 원본과 겹침 회피. milestone §1-2-3 stride 220 의 일부.
+            Vector2 sourcePos = Vector2.zero;
+            if (catalog.EditorNodeLayouts.TryGetValue(sourceUID, out Vector2 sp)) sourcePos = sp;
+            Vector2 newPos = sourcePos + new Vector2(40f, 40f);
+            catalog.InternalSetLayout(newUID, newPos);
+#endif
+
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return duplicate;
+        }
+
         public static bool RemoveNode(NodeCatalogSO catalog, NodeUID uid) {
             if (catalog == null || !catalog.Nodes.TryGetValue(uid, out BaseNode node)) return false;
 
@@ -90,7 +134,7 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
             catalog.InternalRemoveNode(uid);
             AssetDatabase.RemoveObjectFromAsset(node);
-            Object.DestroyImmediate(node, allowDestroyingAssets: true);
+            UnityEngine.Object.DestroyImmediate(node, allowDestroyingAssets: true);
 
 #if UNITY_EDITOR
             catalog.InternalRemoveLayout(uid);
@@ -163,6 +207,112 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             catalog.InternalSetLayout(uid, pos);
             EditorUtility.SetDirty(catalog);
 #endif
+        }
+        #endregion
+
+        #region Public - Cut / Paste (Phase 1-D 확장)
+        // 선택 노드(들)를 JSON 직렬 + catalog 에서 제거. JSON 반환 — caller (HGraphNode 등) 가
+        // GUIUtility.systemCopyBuffer 에 저장 책임. mixed 도메인 selection 은 Serialize 가 거부.
+        public static string CutNodes(NodeCatalogSO catalog, IReadOnlyList<NodeUID> uids) {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in CutNodes");
+                return null;
+            }
+            if (uids == null || uids.Count == 0) {
+                HLogger.Warning("[NodeCatalogAuthor] CutNodes rejected: empty uids");
+                return null;
+            }
+
+            // 직렬화 — 노드 제거 전 데이터 수집.
+            List<BaseNode> nodes = new List<BaseNode>(uids.Count);
+            for (int k = 0; k < uids.Count; k++) {
+                if (catalog.Nodes.TryGetValue(uids[k], out BaseNode node)) nodes.Add(node);
+            }
+            if (nodes.Count == 0) {
+                HLogger.Warning("[NodeCatalogAuthor] CutNodes rejected: no valid nodes for given uids");
+                return null;
+            }
+
+            string json = HGraphClipboard.Serialize(catalog, nodes);
+            if (string.IsNullOrEmpty(json)) {
+                HLogger.Warning("[NodeCatalogAuthor] CutNodes rejected: serialization failed (mixed domain types?)");
+                return null;
+            }
+
+            // 노드 제거 — RemoveNode cascade (엣지 자동 + layout/foldout/openSize 자동 정리).
+            int removed = 0;
+            for (int k = 0; k < uids.Count; k++) {
+                if (RemoveNode(catalog, uids[k])) removed++;
+            }
+
+            HLogger.Log($"[NodeCatalogAuthor] CutNodes: serialized {nodes.Count}, removed {removed}");
+            return json;
+        }
+
+        // JSON 파싱 + 검증 → 같은 UID 로 노드 복원. UID 충돌 / 타입 미스매치 entry 는 skip + Warning.
+        // 반환: 복원된 노드 수.
+        public static int PasteNodes(NodeCatalogSO catalog, string clipboardJson) {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in PasteNodes");
+                return 0;
+            }
+            if (!HGraphClipboard.TryParse(clipboardJson, out HGraphClipboard.Payload payload)) {
+                HLogger.Warning("[NodeCatalogAuthor] PasteNodes rejected: invalid clipboard format");
+                return 0;
+            }
+
+            int restored = 0;
+            for (int k = 0; k < payload.entries.Length; k++) {
+                BaseNode r = _RestoreFromEntry(catalog, payload.entries[k]);
+                if (r != null) restored++;
+            }
+
+            if (restored > 0) {
+                EditorUtility.SetDirty(catalog);
+                AssetDatabase.SaveAssets();
+                _NotifyMutated(catalog);
+            }
+            return restored;
+        }
+
+        static BaseNode _RestoreFromEntry(NodeCatalogSO catalog, HGraphClipboard.Entry entry) {
+            Type type = Type.GetType(entry.typeName);
+            if (type == null) {
+                HLogger.Warning($"[NodeCatalogAuthor] PasteNodes skipped: type '{entry.typeName}' not found");
+                return null;
+            }
+            if (!typeof(BaseNode).IsAssignableFrom(type)) {
+                HLogger.Warning($"[NodeCatalogAuthor] PasteNodes skipped: type '{entry.typeName}' not BaseNode");
+                return null;
+            }
+
+            BaseNode node = ScriptableObject.CreateInstance(type) as BaseNode;
+            if (node == null) {
+                HLogger.Warning($"[NodeCatalogAuthor] PasteNodes skipped: CreateInstance failed for '{entry.typeName}'");
+                return null;
+            }
+            JsonUtility.FromJsonOverwrite(entry.nodeJson, node);
+
+            // 사용자 결정 (2026-05-08) — Paste 는 항상 새 UID 발급.
+            // 두 catalog 가 같은 UID 노드를 보유 가능한 환경 → UID 충돌 회피 + 데이터 무결성 우선.
+            // 원본 title 은 보존 (사용자가 의도적으로 변경한 title 존중). 빈 문자열이면 Node_{newUID} fallback.
+            NodeUID newUID = NodeUIDRegistry.instance.Issue();
+            string preservedTitle = node.Title;
+            if (string.IsNullOrEmpty(preservedTitle)) preservedTitle = $"Node_{newUID.Value}";
+            node.ResetIdentity();
+            node.AssignIdentity(newUID, preservedTitle);
+
+            node.name = preservedTitle;
+            AssetDatabase.AddObjectToAsset(node, catalog);
+            catalog.InternalAddNode(node);
+
+#if UNITY_EDITOR
+            catalog.InternalSetLayout(newUID, entry.layout);
+            if (entry.foldoutOpen) catalog.InternalSetFoldoutOpen(newUID, true);
+            if (entry.openSize.x > 0f && entry.openSize.y > 0f) catalog.InternalSetOpenSize(newUID, entry.openSize);
+#endif
+
+            return node;
         }
         #endregion
 
@@ -313,6 +463,33 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 //   + Phase 0 기존 5개 메서드 (Create/Remove/Connect/Disconnect/SetRoot) 는 "저빈도 구조 변경" 으로
 //     SaveAssets 즉시 호출. SetLayout 은 다른 분류로 공존.
 //   + Undo 통합은 Phase 1-F 로 이월 - Author 는 "원시 mutation" 역할만 유지.
+//
+//   [Phase 1-D 확장 - 2026-05-07]
+//   - DuplicateNode<T> 신설 (P1D-c):
+//   + ScriptableObject.Instantiate (Object.Instantiate) 로 도메인 데이터 자동 복사.
+//   + ResetIdentity + AssignIdentity 새 UID 부여로 identity 만 갱신, 도메인 보존.
+//   + 위치 = 원본 + (40, 40) 자동 layout. 엣지 연결은 복제 X (사용자가 새로 연결).
+//   + Phase 0 의 5 mutation 패턴 정합 (SetDirty + SaveAssets + _NotifyMutated 트리오).
+//   + 잘못된 source UID / 타입 미스매치는 진입 단계에서 Warning + null 반환.
+//
+//   [Phase 1-D Cut/Paste 확장 - 2026-05-08]
+//   - CutNodes(catalog, uids) → string JSON:
+//   + HGraphClipboard.Serialize 로 직렬 (도메인 magic 일관성 검사 포함, mixed 거부).
+//   + 직렬 성공 후 RemoveNode cascade 로 노드 + 엣지 + 보조 맵 일괄 제거.
+//   + JSON 반환 — caller (HGraphNode 등) 가 GUIUtility.systemCopyBuffer 에 저장 책임.
+//   - PasteNodes(catalog, clipboardJson) → int restoredCount:
+//   + HGraphClipboard.TryParse 로 magic prefix/suffix + version + entries 검증.
+//   + entry 별 _RestoreFromEntry — Type.GetType + ScriptableObject.CreateInstance + JsonUtility.FromJsonOverwrite.
+//   + 도메인 호환 검증: typeof(BaseNode).IsAssignableFrom(type) — 잘못된 타입 entry skip.
+//   + 복원된 entry > 0 일 때만 SetDirty + SaveAssets + _NotifyMutated (배치 처리).
+//   + Phase 1-A 인접 보조 맵 (layout / foldoutOpen / openSize) 도 entry 의 값으로 함께 복원.
+//   - UID 처리 정책 (사용자 결정 2026-05-08, 이전 결정 폐기):
+//   + 이전: "UID 보존 — 충돌 시 거부" (Q3-A) → 두 catalog 가 같은 UID 노드 보유 가능한 환경에서
+//     Paste 거부 발생, 사용자 의도 (catalog 간 데이터 이전) 달성 못함.
+//   + 변경: "항상 새 UID 발급" — NodeUIDRegistry.instance.Issue() 호출 후 ResetIdentity + AssignIdentity.
+//     UID 충돌 회피 + 데이터 무결성 우선. Cut 의 "이동" 의미는 데이터 복사로 재정의.
+//   + title 은 entry 의 원본 보존 (사용자 의도 존중). 빈 문자열 fallback = Node_{newUID}.
+//   + Cut 으로 사라진 원본 UID 는 NodeUIDRegistry 단조 증가 룰로 영원히 unique 한 객체 식별자 유지.
 //
 //   [Phase 1-B 확장 - 2026-05-07]
 //   - SetFoldoutOpen / SetOpenSize 신설. SetLayout 과 같은 "고빈도 상태 업데이트" 분류.
