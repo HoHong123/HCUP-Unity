@@ -92,6 +92,45 @@ namespace HWindows.Editor.NodeWindow {
         }
         #endregion
 
+        #region Navigation (Phase 1-C)
+        // 지정 graph 좌표를 viewport 중앙으로 pan 이동. zoom (viewTransform.scale) 은 보존.
+        // GetViewportCenterWorld 의 역수 : graphPos = (screenPos - position) / scale 을
+        // position = screenPos - graphPos * scale 로 풀어 새 pan 계산.
+        public void CenterViewportOn(Vector2 worldPos) {
+            Rect rect = contentRect;
+            Vector2 screenCenter = new Vector2(rect.width / 2f, rect.height / 2f);
+            float scale = viewTransform.scale.x;
+            if (scale == 0f) scale = 1f;
+            Vector3 newPos = new Vector3(
+                screenCenter.x - worldPos.x * scale,
+                screenCenter.y - worldPos.y * scale,
+                0f);
+            UpdateViewTransform(newPos, viewTransform.scale);
+        }
+
+        // 현재 catalog 의 RootUID layout 으로 viewport 이동. 루트 미보유 시 false.
+        public bool GoToRoot() {
+            if (currentCatalog == null || !currentCatalog.HasRoot) return false;
+            NodeUID root = currentCatalog.RootUID;
+            Vector2 pos = Vector2.zero;
+#if UNITY_EDITOR
+            if (currentCatalog.EditorNodeLayouts.TryGetValue(root, out Vector2 saved)) pos = saved;
+#endif
+            CenterViewportOn(pos);
+            return true;
+        }
+
+        // selection 에서 HGraphNode 만 추려 반환. Window 측이 ISelectable (Experimental
+        // .GraphView 타입) 을 직접 다루지 않도록 어댑터 경계 (P1-3) 를 보존하는 헬퍼.
+        public IReadOnlyList<HGraphNode> GetSelectedNodes() {
+            List<HGraphNode> result = new();
+            foreach (ISelectable s in selection) {
+                if (s is HGraphNode n) result.Add(n);
+            }
+            return result;
+        }
+        #endregion
+
         #region USS
         private void _LoadStyleSheet() {
             string[] guids = AssetDatabase.FindAssets($"t:StyleSheet {USS_ASSET_NAME}");
@@ -191,18 +230,34 @@ namespace HWindows.Editor.NodeWindow {
                     continue;
                 }
 
-                // catalog 가 항상 layout 을 보유하도록 Author.CreateNode 가 보장.
-                // 만약 데이터 호환 이슈로 layout 없으면 Vector2.zero fallback.
+                // Phase 1-A : layout (위치). Author.CreateNode 가 자동 layout 부여.
+                // Phase 1-B : foldout state + open size (P1B-b/c). 두 맵 모두 미보유 시 default fallback.
                 Vector2 pos = Vector2.zero;
+                bool isExpanded = false;
+                Vector2 openSize = Vector2.zero;
 #if UNITY_EDITOR
-                if (currentCatalog.EditorNodeLayouts.TryGetValue(pair.Key, out Vector2 saved)) {
-                    pos = saved;
+                if (currentCatalog.EditorNodeLayouts.TryGetValue(pair.Key, out Vector2 savedPos)) {
+                    pos = savedPos;
+                }
+                if (currentCatalog.EditorNodeFoldoutOpen.TryGetValue(pair.Key, out bool savedOpen)) {
+                    isExpanded = savedOpen;
+                }
+                if (currentCatalog.EditorNodeOpenSizes.TryGetValue(pair.Key, out Vector2 savedSize)) {
+                    openSize = savedSize;
                 }
 #endif
 
                 bool isRoot = pair.Key == currentCatalog.RootUID;
                 HGraphNode view = new HGraphNode(data, isRoot);
                 view.SetPosition(new Rect(pos, Vector2.zero));
+                view.ApplyEditorState(isExpanded, openSize);
+
+                // 이벤트 구독으로 catalog 갱신 진입점 통합 (Phase 1-A 의 graphViewChanged 와 같은 책임 분리).
+                // closure 캡처용 로컬 변수 - foreach 변수 직접 캡처는 일부 C# 버전에서 stale 가능.
+                NodeUID uid = pair.Key;
+                view.FoldoutChanged += isOpen => NodeCatalogAuthor.SetFoldoutOpen(currentCatalog, uid, isOpen);
+                view.OpenSizeChanged += size => NodeCatalogAuthor.SetOpenSize(currentCatalog, uid, size);
+
                 AddElement(view);
                 nodeLookup[pair.Key] = view;
             }
@@ -295,4 +350,40 @@ namespace HWindows.Editor.NodeWindow {
 // - 결과: Toolbar 가 Canvas 아래 숨어 보이지 않음.
 // - 해결: StretchToParentSize() 제거. HGraphWindow 가 canvas.style.flexGrow = 1 로 영역 할당.
 // - 내부 GridBackground 의 StretchToParentSize() 는 canvas 내부를 채우는 용도로 유지.
+// =============================================================================
+
+// =============================================================================
+// Dev Log - Phase 1-B 확장 (2026-05-07)
+// =============================================================================
+// - _PopulateInternal: 노드 생성 시 catalog 의 두 보조 맵 적용 (P1B-b, c).
+//   + EditorNodeFoldoutOpen 에서 isExpanded 읽어 ApplyEditorState 호출.
+//   + EditorNodeOpenSizes 에서 openSize 읽어 ApplyEditorState 호출.
+//   + 두 맵 미보유 시 (false, Vector2.zero) fallback. CreateNode 자동 초기화 미적용 정책과 정합.
+// - HGraphNode 의 두 이벤트 구독:
+//   + FoldoutChanged → Author.SetFoldoutOpen(catalog, uid, open) 호출.
+//   + OpenSizeChanged → Author.SetOpenSize(catalog, uid, size) 호출.
+//   + Phase 1-A 의 graphViewChanged 가 layout 갱신을 단일 진입점으로 흡수한 것과 같은 분리.
+//     Foldout/OpenSize 갱신도 이벤트 구독을 단일 진입점으로 통합.
+//   + closure 캡처 안전성을 위해 foreach 안에서 NodeUID uid = pair.Key 로컬 변수 명시.
+// - hash polling 영향:
+//   + Author.SetFoldoutOpen / SetOpenSize 는 _NotifyMutated 호출 없음 (P1B-i 고빈도 분류).
+//   + Foldout 토글은 본인 노드만 갱신하므로 hash polling 진입 불필요.
+//   + Inspector 에서 editorNodeFoldoutOpen 직접 수정은 ObjectChangeWatcher 가 처리.
+// =============================================================================
+
+// =============================================================================
+// Dev Log - Phase 1-C 확장 (2026-05-07)
+// =============================================================================
+// - CenterViewportOn(worldPos) : 지정 graph 좌표를 viewport 중앙으로 pan 이동.
+//   + GetViewportCenterWorld 의 역수 (position = screenCenter - graphPos * scale).
+//   + viewTransform.scale 보존 — 줌 상태 유지하며 pan 만 갱신해 사용자 컨텍스트 깨지 않음.
+// - GoToRoot() : currentCatalog.RootUID 의 EditorNodeLayouts 위치로 CenterViewportOn 호출.
+//   + 루트 미보유 시 false — 호출자(HGraphWindow) 가 Warning 으로 사용자 피드백.
+//   + layout 미보유 fallback (0,0) — Author.CreateNode 가 자동 layout 부여하므로
+//     실 발생 케이스는 데이터 호환성 이슈 한정.
+//   + Phase 5 메뉴바 이관 시 본 메서드 시그니처 그대로, 호출 진입점만 메뉴로 교체.
+// - GetSelectedNodes() : selection 에서 HGraphNode 만 추려 IReadOnlyList 반환.
+//   + 목적 = 어댑터 경계 (P1-3) 보존. Window 가 ISelectable (Experimental.GraphView 타입)
+//     을 직접 다루지 않도록 한 겹의 헬퍼로 캡슐화.
+//   + Phase 1-D 우클릭 메뉴, Phase 1-E 다중 선택 일괄 처리에서도 같은 헬퍼 재사용 예정.
 // =============================================================================
