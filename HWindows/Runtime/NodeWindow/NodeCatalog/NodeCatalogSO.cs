@@ -26,6 +26,10 @@ namespace HWindows.NodeWindow {
         [HTitle("Debug")]
         [SerializeField]
         HDictionary<NodeUID, Vector2> editorNodeLayouts = new();
+        [SerializeField]
+        HDictionary<NodeUID, bool> editorNodeFoldoutOpen = new();
+        [SerializeField]
+        HDictionary<NodeUID, Vector2> editorNodeOpenSizes = new();
 #endif
 
         [System.NonSerialized]
@@ -48,6 +52,8 @@ namespace HWindows.NodeWindow {
         public bool HasRoot => rootUID.IsValid;
 #if UNITY_EDITOR
         public IReadOnlyDictionary<NodeUID, Vector2> EditorNodeLayouts => editorNodeLayouts;
+        public IReadOnlyDictionary<NodeUID, bool> EditorNodeFoldoutOpen => editorNodeFoldoutOpen;
+        public IReadOnlyDictionary<NodeUID, Vector2> EditorNodeOpenSizes => editorNodeOpenSizes;
 #endif
         #endregion
 
@@ -128,6 +134,22 @@ namespace HWindows.NodeWindow {
         internal void InternalRemoveLayout(NodeUID uid) {
             editorNodeLayouts.Remove(uid);
         }
+
+        internal void InternalSetFoldoutOpen(NodeUID uid, bool open) {
+            editorNodeFoldoutOpen[uid] = open;
+        }
+
+        internal void InternalRemoveFoldoutOpen(NodeUID uid) {
+            editorNodeFoldoutOpen.Remove(uid);
+        }
+
+        internal void InternalSetOpenSize(NodeUID uid, Vector2 size) {
+            editorNodeOpenSizes[uid] = size;
+        }
+
+        internal void InternalRemoveOpenSize(NodeUID uid) {
+            editorNodeOpenSizes.Remove(uid);
+        }
 #endif
         #endregion
 
@@ -186,5 +208,17 @@ namespace HWindows.NodeWindow {
 //   + Runtime 빌드 바이너리에 침투 X. Phase 0 "Runtime SO = 순수 데이터" 계약 유지.
 //   - InternalSetLayout / InternalRemoveLayout: Author 전용 mutation 진입점 (Editor-only).
 //   - EditorNodeLayouts 프로퍼티: read-only 외부 조회용 (HGraphCanvas Populate 가 소비).
+//
+//   [Phase 1-B 확장 - 2026-05-07]
+//   - editorNodeFoldoutOpen: HDictionary<NodeUID, bool> 추가 (#if UNITY_EDITOR 가드, P1B-b)
+//   + 노드별 Foldout 열림/닫힘 상태 영속. Vector4 통합 회피하고 별도 맵 채택해 의미 영역 분리.
+//   - editorNodeOpenSizes: HDictionary<NodeUID, Vector2> 추가 (#if UNITY_EDITOR 가드, P1B-c)
+//   + 노드별 Open 상태 크기 영속. 닫힘 크기는 USS 고정값이라 본 맵에 안 들어감.
+//   - Internal 4 메서드 추가: SetFoldoutOpen / RemoveFoldoutOpen / SetOpenSize / RemoveOpenSize.
+//   + Author 전용 mutation 진입점 (Editor-only). InternalSetLayout 패턴 동일.
+//   - EditorNodeFoldoutOpen / EditorNodeOpenSizes 프로퍼티: read-only 외부 조회용
+//     (HGraphCanvas Populate / HGraphNode 가 소비).
+//   - catalog 가 "노드 + 엣지 + 루트 + 레이아웃 + Foldout 상태 + Open 크기" 6 영역의
+//     단일 소유자로 확장. 추가 Editor-only 영역 모두 #if UNITY_EDITOR 가드라 P1-d 계약 유지.
 // =============================================================================
 #endif
