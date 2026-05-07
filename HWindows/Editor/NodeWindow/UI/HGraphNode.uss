@@ -34,3 +34,43 @@
     color: rgb(232, 232, 232);
     -unity-text-align: middle-center;
 }
+
+/* Phase 1-B - Body / Toggle / Resize / Highlight */
+
+.hgraph-node-toggle-arrow {
+    width: 14px;
+    height: 14px;
+    margin-left: 2px;
+    margin-right: 4px;
+    color: rgb(220, 220, 220);
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.hgraph-node-body {
+    background-color: #2A2A2A;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
+    min-height: 40px;
+}
+
+.hgraph-node-resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    cursor: resize-up-left;
+}
+
+.hgraph-node--selected {
+    border-color: #6FA5C5;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-right-width: 2px;
+}
