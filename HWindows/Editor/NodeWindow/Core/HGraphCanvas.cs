@@ -45,6 +45,10 @@ namespace HWindows.Editor.NodeWindow {
             // 매 frame hash 비교 후 변경 시에만 Repopulate. 계산 비용 미미 (노드 N=100 ≈ 3μs).
             EditorApplication.update += _PollCatalogChanges;
 
+            // Phase 1-D Cut/Paste 단축키 (사용자 결정 2026-05-08).
+            // Ctrl+C / Ctrl+X / Ctrl+V (Mac 은 Cmd) — actionKey 가 platform 추상화.
+            RegisterCallback<KeyDownEvent>(_OnKeyDown);
+
             RegisterCallback<DetachFromPanelEvent>(_ => {
                 NodeCatalogAuthor.CatalogMutated -= _OnCatalogMutated;
                 EditorApplication.update -= _PollCatalogChanges;
@@ -89,6 +93,145 @@ namespace HWindows.Editor.NodeWindow {
             Rect rect = contentRect;
             Vector2 screenCenter = new Vector2(rect.width / 2f, rect.height / 2f);
             return (screenCenter - new Vector2(vt.x, vt.y)) / scale;
+        }
+        #endregion
+
+        #region Public - Context Menu (Phase 1-D)
+        // GraphView 기본 selection 메뉴 (Cut/Copy/Paste/Duplicate/Delete) 자동 추가 차단.
+        // ContextualMenu 는 leaf (HGraphNode) → parent (HGraphCanvas) 양쪽 BuildContextualMenu
+        // 모두 호출되어 evt.menu 에 누적되므로, GraphElement.capabilities 차단만으로는 부족.
+        // base 호출 생략으로 GraphView 측 자동 추가 차단.
+        // 빈 캔버스 우클릭 시 Paste 메뉴 (Phase 1-D Cut/Paste 확장) — 노드 위 우클릭은 HGraphNode 가 처리.
+        public override void BuildContextualMenu(ContextualMenuPopulateEvent evt) {
+            if (currentCatalog == null) return;
+
+            // 노드 위 우클릭 시 HGraphNode.BuildContextualMenu 가 Paste 추가 — 중복 회피.
+            VisualElement target = evt.target as VisualElement;
+            while (target != null && target != this) {
+                if (target is HGraphNode) return;
+                target = target.parent;
+            }
+
+            // 빈 캔버스 우클릭 — Paste 만 (다른 GraphView 자동 항목은 base 미호출로 차단 유지).
+            DropdownMenuAction.Status pasteStatus = HGraphClipboard.IsValid(GUIUtility.systemCopyBuffer)
+                ? DropdownMenuAction.Status.Normal
+                : DropdownMenuAction.Status.Disabled;
+            evt.menu.AppendAction("붙여넣기 (Paste)",
+                action => _OnContextPaste(),
+                pasteStatus);
+        }
+
+        private void _OnContextPaste() {
+            PasteFromClipboard();
+        }
+        #endregion
+
+        #region Clipboard Actions (Phase 1-D 단축키 + 메뉴 helper)
+        // 단축키와 우클릭 메뉴 핸들러가 공유하는 진입점. catalog null 검사 + 직렬 + 클립보드 입출력.
+
+        // 노드 리스트 → JSON 직렬 → systemCopyBuffer (원본 유지). mixed 도메인 시 false.
+        internal bool CopyNodes(IReadOnlyList<HGraphNode> nodes) {
+            if (currentCatalog == null) return false;
+            if (nodes == null || nodes.Count == 0) return false;
+
+            List<BaseNode> dataNodes = new List<BaseNode>(nodes.Count);
+            for (int k = 0; k < nodes.Count; k++) dataNodes.Add(nodes[k].DataNode);
+            string json = HGraphClipboard.Serialize(currentCatalog, dataNodes);
+            if (string.IsNullOrEmpty(json)) {
+                HLogger.Warning("[HGraphCanvas] Copy failed (mixed domain types in selection?)");
+                return false;
+            }
+            GUIUtility.systemCopyBuffer = json;
+            HLogger.Log($"[HGraphCanvas] Copied {nodes.Count} node(s) JSON ({json.Length} chars)");
+            return true;
+        }
+
+        // 노드 리스트 → JSON 직렬 + catalog 제거 → systemCopyBuffer. Author.CutNodes 가 mixed 거부.
+        internal bool CutNodes(IReadOnlyList<HGraphNode> nodes) {
+            if (currentCatalog == null) return false;
+            if (nodes == null || nodes.Count == 0) return false;
+
+            List<NodeUID> uids = new List<NodeUID>(nodes.Count);
+            for (int k = 0; k < nodes.Count; k++) uids.Add(nodes[k].UID);
+            string json = NodeCatalogAuthor.CutNodes(currentCatalog, uids);
+            if (string.IsNullOrEmpty(json)) return false;
+            GUIUtility.systemCopyBuffer = json;
+            HLogger.Log($"[HGraphCanvas] Cut {uids.Count} node(s) to clipboard");
+            return true;
+        }
+
+        // systemCopyBuffer → JSON 파싱 → catalog 에 복원 (새 UID 발급).
+        internal int PasteFromClipboard() {
+            if (currentCatalog == null) return 0;
+            int count = NodeCatalogAuthor.PasteNodes(currentCatalog, GUIUtility.systemCopyBuffer);
+            if (count == 0) HLogger.Warning("[HGraphCanvas] Paste: 0 nodes restored");
+            else HLogger.Log($"[HGraphCanvas] Pasted {count} node(s)");
+            return count;
+        }
+
+        // 노드 리스트 → 각각 Author.DuplicateNode (새 UID + 위치 offset). 반환: 복제 성공 개수.
+        internal int DuplicateNodes(IReadOnlyList<HGraphNode> nodes) {
+            if (currentCatalog == null) return 0;
+            if (nodes == null || nodes.Count == 0) return 0;
+
+            int duplicated = 0;
+            for (int k = 0; k < nodes.Count; k++) {
+                if (NodeCatalogAuthor.DuplicateNode<BaseNode>(currentCatalog, nodes[k].UID) != null) duplicated++;
+            }
+            if (duplicated == 0) HLogger.Warning("[HGraphCanvas] Duplicate: 0 nodes duplicated");
+            else HLogger.Log($"[HGraphCanvas] Duplicated {duplicated} node(s)");
+            return duplicated;
+        }
+
+        // 노드 리스트 → 각각 Author.RemoveNode (cascade 자동). 반환: 삭제 성공 개수.
+        internal int DeleteNodes(IReadOnlyList<HGraphNode> nodes) {
+            if (currentCatalog == null) return 0;
+            if (nodes == null || nodes.Count == 0) return 0;
+
+            int deleted = 0;
+            for (int k = 0; k < nodes.Count; k++) {
+                if (NodeCatalogAuthor.RemoveNode(currentCatalog, nodes[k].UID)) deleted++;
+            }
+            if (deleted == 0) HLogger.Warning("[HGraphCanvas] Delete: 0 nodes deleted");
+            else HLogger.Log($"[HGraphCanvas] Deleted {deleted} node(s)");
+            return deleted;
+        }
+        #endregion
+
+        #region Keyboard Shortcuts (Phase 1-D)
+        // Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D (Win/Linux) + Cmd 변형 (Mac) + Delete 단독.
+        // actionKey = platform 추상화 (Mac Cmd, 그 외 Ctrl). capabilities 차단과 별개 path.
+        // Delete 는 modifier 없는 단독 키 — actionKey 분기 외부 처리.
+        private void _OnKeyDown(KeyDownEvent evt) {
+            if (currentCatalog == null) return;
+
+            if (evt.actionKey) {
+                switch (evt.keyCode) {
+                    case KeyCode.C:
+                        CopyNodes(GetSelectedNodes());
+                        evt.StopPropagation();
+                        return;
+                    case KeyCode.X:
+                        CutNodes(GetSelectedNodes());
+                        evt.StopPropagation();
+                        return;
+                    case KeyCode.V:
+                        PasteFromClipboard();
+                        evt.StopPropagation();
+                        return;
+                    case KeyCode.D:
+                        DuplicateNodes(GetSelectedNodes());
+                        evt.StopPropagation();
+                        return;
+                }
+                return;
+            }
+
+            // modifier 없는 단독 키.
+            if (evt.keyCode == KeyCode.Delete) {
+                DeleteNodes(GetSelectedNodes());
+                evt.StopPropagation();
+            }
         }
         #endregion
 
@@ -249,6 +392,7 @@ namespace HWindows.Editor.NodeWindow {
 
                 bool isRoot = pair.Key == currentCatalog.RootUID;
                 HGraphNode view = new HGraphNode(data, isRoot);
+                view.Catalog = currentCatalog;
                 view.SetPosition(new Rect(pos, Vector2.zero));
                 view.ApplyEditorState(isExpanded, openSize);
 
@@ -350,6 +494,35 @@ namespace HWindows.Editor.NodeWindow {
 // - 결과: Toolbar 가 Canvas 아래 숨어 보이지 않음.
 // - 해결: StretchToParentSize() 제거. HGraphWindow 가 canvas.style.flexGrow = 1 로 영역 할당.
 // - 내부 GridBackground 의 StretchToParentSize() 는 canvas 내부를 채우는 용도로 유지.
+// =============================================================================
+
+// =============================================================================
+// Dev Log - Phase 1-D 추가 (2026-05-07/08)
+// =============================================================================
+// - BuildContextualMenu override (base 호출 생략):
+//   + GraphView 기본 selection 메뉴 (Cut/Copy/Paste/Duplicate/Delete) 자동 추가 차단.
+//   + HGraphNode.capabilities 차단 (Copiable | Deletable) 만으로는 GraphView 측 메뉴가 살아남음.
+//     UI Toolkit 의 ContextualMenu propagation 이 leaf + parent 양쪽 BuildContextualMenu 호출.
+//   + 두 layer 양쪽 차단 필요 — leaf (HGraphNode capabilities) + parent (본 override) 모두.
+//   + Phase 1-D Stage 2 검증 도중 사용자 보고 ("Duplicate 중복 유지") 로 발견된 함정.
+//
+// - Paste 메뉴 추가 (Phase 1-D Cut/Paste 확장 - 2026-05-08):
+//   + 빈 캔버스 우클릭 시 Paste 만 표시. 다른 GraphView 자동 항목은 base 미호출로 차단 유지.
+//   + 노드 위 우클릭 시는 HGraphNode 가 Paste 추가 — evt.target 의 ancestor chain 검사로 중복 회피.
+//   + Paste 활성/비활성 = HGraphClipboard.IsValid(systemCopyBuffer) — 우리 형식 magic 검사.
+//
+// - Clipboard Actions helper + 키보드 단축키 (Phase 1-D 단축키 - 사용자 결정 2026-05-08):
+//   + Copy/Cut/Paste/Duplicate/Delete 5 helper (CopyNodes / CutNodes / PasteFromClipboard /
+//     DuplicateNodes / DeleteNodes) internal — 단축키 + HGraphNode 우클릭 메뉴가 공유 진입점.
+//   + DRY — 메뉴 핸들러 (HGraphNode._OnContext*) 모두 본 helper 호출로 단순화.
+//   + KeyDownEvent 핸들러 (_OnKeyDown) — actionKey + (C/X/V/D) + 단독 Delete 키.
+//   + actionKey = platform 추상화 — Mac Cmd / 그 외 Ctrl 자동 매핑.
+//   + capabilities 차단 (Copiable | Deletable) 과 별개 event path — 우리 핸들러는 capabilities 무관 동작.
+//   + Paste 단축키는 selection 무관, Copy/Cut/Duplicate/Delete 단축키는 selection 기반 (0 이면 무반응).
+//   + Delete 는 modifier 없는 단독 키 — actionKey 분기 외부에서 처리.
+//   + macOS 의 main "delete" 키는 KeyCode.Backspace (Forward Delete = KeyCode.Delete) — 사용자
+//     spec 그대로 Delete 만 처리. Backspace 추가 의향 시 한 줄 추가로 대응 가능.
+//   + KeyDownEvent 의 element callback 은 panel detach 시 자동 정리 — 명시 unregister 불필요.
 // =============================================================================
 
 // =============================================================================
