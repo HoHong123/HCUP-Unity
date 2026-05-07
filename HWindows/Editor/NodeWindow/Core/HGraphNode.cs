@@ -1,4 +1,8 @@
 using System;
+using System.Linq;
+using System.Collections.Generic;
+using HDiagnosis.Logger;
+using HWindows.Editor.NodeWindow.Authoring;
 using HWindows.NodeWindow;
 using HWindows.NodeWindow.Identity;
 using UnityEditor;
@@ -52,6 +56,13 @@ namespace HWindows.Editor.NodeWindow {
             this.isRoot = isRoot;
             this.openSize = Vector2.zero;
 
+            // GraphView 기본 메뉴의 Cut/Copy/Duplicate/Delete 자동 추가 차단 (P1D-a 정공).
+            // capabilities 비트 플래그 꺼서 base.BuildContextualMenu 가 해당 항목을 생략하게 만듦.
+            // Copiable 한 플래그가 Cut + Copy + Duplicate 세 항목 통제, Deletable 이 Delete 통제.
+            // 트레이드오프: 키보드 Delete 키 / Ctrl+D / Ctrl+C 단축키도 차단됨.
+            // → Phase 1-E (Undo + 키보드 단축키) 에서 우리 핸들러로 정식 라우팅 예정.
+            capabilities &= ~(Capabilities.Copiable | Capabilities.Deletable);
+
             _LoadStyleSheet();
             AddToClassList("hgraph-node");
 
@@ -95,6 +106,104 @@ namespace HWindows.Editor.NodeWindow {
         public override void OnUnselected() {
             base.OnUnselected();
             RemoveFromClassList("hgraph-node--selected");
+        }
+        #endregion
+
+        #region Internal - Catalog Reference (Phase 1-D)
+        // HGraphCanvas Populate 시점에 currentCatalog 주입. BuildContextualMenu 의 핸들러가 catalog 조회용.
+        internal NodeCatalogSO Catalog { get; set; }
+        #endregion
+
+        #region Public - Context Menu (Phase 1-D)
+        // GraphView ContextualMenuManipulator 자동 호출 (P1D-a). 메뉴 6 항목 + 구분선 + destructive 마지막.
+        // 다중 선택 시 selection 일괄 처리 (Cut/Copy/Duplicate/Delete), 루트 재설정은 단일만 의미.
+        public override void BuildContextualMenu(ContextualMenuPopulateEvent evt) {
+            base.BuildContextualMenu(evt);
+
+            NodeCatalogSO catalog = Catalog;
+            if (catalog == null) return;
+
+            List<HGraphNode> targets = _GetEffectiveTargets();
+            bool isMulti = targets.Count > 1;
+
+            evt.menu.AppendAction("복사 (Copy)",
+                action => _OnContextCopy(catalog, targets),
+                DropdownMenuAction.Status.Normal);
+
+            evt.menu.AppendAction("잘라내기 (Cut)",
+                action => _OnContextCut(catalog, targets),
+                DropdownMenuAction.Status.Normal);
+
+            // Paste 는 클립보드에 우리 형식 JSON 이 있을 때만 활성 (Q9).
+            DropdownMenuAction.Status pasteStatus = HGraphClipboard.IsValid(GUIUtility.systemCopyBuffer)
+                ? DropdownMenuAction.Status.Normal
+                : DropdownMenuAction.Status.Disabled;
+            evt.menu.AppendAction("붙여넣기 (Paste)",
+                action => _OnContextPaste(catalog),
+                pasteStatus);
+
+            evt.menu.AppendAction("복제 (Duplicate)",
+                action => _OnContextDuplicate(catalog, targets),
+                DropdownMenuAction.Status.Normal);
+
+            // 다중 선택 또는 이미 root 인 노드면 "루트 재설정" 비활성 (P1D-b + Q7).
+            DropdownMenuAction.Status setRootStatus = (isMulti || UID == catalog.RootUID)
+                ? DropdownMenuAction.Status.Disabled
+                : DropdownMenuAction.Status.Normal;
+            evt.menu.AppendAction("루트 노드 재설정 (Set as Root)",
+                action => _OnContextSetAsRoot(catalog),
+                setRootStatus);
+
+            evt.menu.AppendSeparator();
+
+            evt.menu.AppendAction("삭제 (Delete)",
+                action => _OnContextDelete(catalog, targets),
+                DropdownMenuAction.Status.Normal);
+        }
+
+        // 우클릭한 노드 + 현재 selection 으로 작업 대상 결정.
+        // selection 이 본 노드 포함하면 selection 일괄, 미포함이면 본 노드 1 개만.
+        // GraphView 가 우클릭 시 selection 변경 X 라 우클릭한 노드가 selection 미포함 케이스 가능.
+        private List<HGraphNode> _GetEffectiveTargets() {
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            IReadOnlyList<HGraphNode> selected = canvas?.GetSelectedNodes();
+            if (selected != null && selected.Count > 0 && selected.Contains(this)) {
+                return new List<HGraphNode>(selected);
+            }
+            return new List<HGraphNode> { this };
+        }
+        #endregion
+
+        #region Private - Context Menu Handlers (Phase 1-D)
+        // Copy / Cut / Paste 는 HGraphCanvas 의 helper 로 위임 — 단축키와 같은 진입점 공유 (DRY).
+        private void _OnContextCopy(NodeCatalogSO catalog, List<HGraphNode> targets) {
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            canvas?.CopyNodes(targets);
+        }
+
+        private void _OnContextCut(NodeCatalogSO catalog, List<HGraphNode> targets) {
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            canvas?.CutNodes(targets);
+        }
+
+        private void _OnContextPaste(NodeCatalogSO catalog) {
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            canvas?.PasteFromClipboard();
+        }
+
+        private void _OnContextDuplicate(NodeCatalogSO catalog, List<HGraphNode> targets) {
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            canvas?.DuplicateNodes(targets);
+        }
+
+        private void _OnContextSetAsRoot(NodeCatalogSO catalog) {
+            bool ok = NodeCatalogAuthor.SetRoot(catalog, UID);
+            if (!ok) HLogger.Warning($"[HGraphNode] SetRoot failed for UID {UID.Value}");
+        }
+
+        private void _OnContextDelete(NodeCatalogSO catalog, List<HGraphNode> targets) {
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            canvas?.DeleteNodes(targets);
         }
         #endregion
 
@@ -340,6 +449,39 @@ namespace HWindows.Editor.NodeWindow {
 //   - NotifyResizeFinished (internal):
 //   + Task F 의 Resize Manipulator 가 MouseUp 시점에 호출. openSize 갱신 + OpenSizeChanged 발화.
 //   + Task D 시점에 시그니처 미리 노출해 Task F 가 한 줄 호출만 추가하면 동작.
+//
+//   [Phase 1-D 추가 - 2026-05-07]
+//   - Catalog internal property — HGraphCanvas Populate 시점에 currentCatalog 주입.
+//   + BuildContextualMenu 의 핸들러가 catalog 인자 조회 (HGraphClipboard.Serialize 호출용 — 2026-05-08 갱신).
+//   + Phase 1-A 의 책임 분리 정합 — HGraphNode 는 자기 상태만, Author 호출은 핸들러에서.
+//   - BuildContextualMenu override (P1D-a):
+//   + GraphView ContextualMenuManipulator 자동 호출. ESC/외부 클릭 자동 닫힘.
+//   + 메뉴 4 항목 (복사 / 복제 / 루트 재설정 / 삭제) + destructive 마지막 + 구분선.
+//   + 이미 root 인 노드의 "루트 재설정" 은 DropdownMenuAction.Status.Disabled (P1D-b).
+//   - capabilities 플래그 차단 (Copiable | Deletable):
+//   + GraphView 기본 메뉴 Cut/Copy/Duplicate/Delete 자동 추가 막음. 우리 커스텀 항목과 중복 회피.
+//   + Copiable 하나가 Cut + Copy + Duplicate 셋 통제 (Cut = Copy + Delete 합성, Duplicate = 내부 paste).
+//   + 키보드 단축키 (Delete 키 / Ctrl+D / Ctrl+C) 도 같이 차단 — Phase 1-E 단축키 도입 시 라우팅.
+//
+//   [Phase 1-D Cut/Paste 확장 - 2026-05-08]
+//   - 메뉴 6 항목으로 확장 (잘라내기 + 붙여넣기 추가): 복사 / 잘라내기 / 붙여넣기 / 복제 / 루트 재설정 / 삭제.
+//   - Copy 의미 변경 — Phase 1-D 본 라운드의 ToString 텍스트 → JSON 직렬 (사용자 결정).
+//   + Cut 과 같은 HGraphClipboard.Serialize 호출. 차이는 "원본 유지 vs 제거" 한 가지뿐.
+//   + Paste 가 Copy/Cut 둘 다 처리 — 다른 catalog 로 데이터 이전 호환 보장.
+//   - Cut/Paste 핸들러:
+//   + Copy / Cut / Paste 모두 HGraphCanvas 의 helper (CopyNodes/CutNodes/PasteFromClipboard) 위임.
+//   + 같은 helper 가 키보드 단축키 (Ctrl+C/X/V) 진입점도 공유 — DRY.
+//   + Paste 메뉴 활성/비활성 = HGraphClipboard.IsValid(systemCopyBuffer) — magic 패턴 검사.
+//   - 다중 선택 처리 (Q7): _GetEffectiveTargets 헬퍼.
+//   + selection 이 본 노드 포함하면 selection 일괄, 미포함이면 본 노드 1 개만.
+//   + Cut/Copy/Duplicate/Delete 다중 일괄, 루트 재설정은 단일만 (다중 시 Disabled).
+//   + GraphView 우클릭 시 selection 변경 X — 우클릭 노드가 selection 미포함 가능, fallback 처리.
+//   - Mixed 도메인 selection (Cut/Copy 시) → HGraphClipboard.Serialize 가 거부 → 핸들러 Warning.
+//   - 4 핸들러 모두 NodeCatalogAuthor 호출 + 실패 시 HLogger.Warning:
+//   + 복사 (시점 시 ToString 텍스트, 2026-05-08 갱신으로 HGraphClipboard.Serialize JSON 으로 통합 — 아래 Cut/Paste 엔트리 참조).
+//   + 복제: NodeCatalogAuthor.DuplicateNode<BaseNode> (도메인 데이터 + 새 UID + 위치 offset).
+//   + 루트 재설정: NodeCatalogAuthor.SetRoot — 1-C 의 임시 [Set as Root] 정식 이양.
+//   + 삭제: NodeCatalogAuthor.RemoveNode — cascade 자동 (3 보조 맵 + 엣지 모두 정리).
 //
 //   [Phase 1-B-3 Task G 추가 - 2026-05-07]
 //   - OnSelected / OnUnselected override (P1B-j, k):
