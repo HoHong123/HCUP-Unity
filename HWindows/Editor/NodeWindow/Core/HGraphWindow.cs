@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using HDiagnosis.Logger;
+using HWindows.Editor.NodeWindow.Authoring;
 using HWindows.NodeWindow;
 using UnityEditor;
 using UnityEngine;
@@ -48,6 +50,16 @@ namespace HWindows.Editor.NodeWindow {
             Button openButton = new Button(_OpenCatalogPicker) { text = "Open Catalog..." };
             openButton.style.marginLeft = 4;
             toolbar.Add(openButton);
+
+            Button goToRootButton = new Button(_GoToRoot) { text = "Go To Root" };
+            goToRootButton.style.marginLeft = 4;
+            goToRootButton.tooltip = "Center viewport on the catalog's root node";
+            toolbar.Add(goToRootButton);
+
+            Button setAsRootButton = new Button(_SetSelectedAsRoot) { text = "Set as Root" };
+            setAsRootButton.style.marginLeft = 4;
+            setAsRootButton.tooltip = "Promote the single selected node to catalog root";
+            toolbar.Add(setAsRootButton);
 
             catalogNameLabel = new Label();
             catalogNameLabel.style.marginLeft = 8;
@@ -135,6 +147,49 @@ namespace HWindows.Editor.NodeWindow {
             EditorGUIUtility.ShowObjectPicker<NodeCatalogSO>(
                 currentCatalog, false, string.Empty, controlId);
             activePickerControlId = controlId;
+        }
+
+        private void _GoToRoot() {
+            if (canvas == null) return;
+            if (currentCatalog == null) {
+                HLogger.Warning("[HGraphWindow] Go To Root rejected: no catalog bound.");
+                return;
+            }
+            if (!canvas.GoToRoot()) {
+                HLogger.Warning("[HGraphWindow] Go To Root: catalog has no root node.");
+            }
+        }
+
+        private void _SetSelectedAsRoot() {
+            if (currentCatalog == null) {
+                HLogger.Warning("[HGraphWindow] Set as Root rejected: no catalog bound.");
+                return;
+            }
+            if (selectionLocked) {
+                HLogger.Warning("[HGraphWindow] Set as Root rejected: window is Locked.");
+                return;
+            }
+            if (canvas == null) return;
+
+            IReadOnlyList<HGraphNode> selected = canvas.GetSelectedNodes();
+            if (selected.Count == 0) {
+                HLogger.Warning("[HGraphWindow] Set as Root rejected: no node selected.");
+                return;
+            }
+            if (selected.Count > 1) {
+                HLogger.Warning(
+                    $"[HGraphWindow] Set as Root rejected: multiple nodes selected ({selected.Count}). Select exactly one.");
+                return;
+            }
+
+            HGraphNode target = selected[0];
+            if (target.UID == currentCatalog.RootUID) {
+                HLogger.Warning($"[HGraphWindow] '{target.DataNode.Title}' is already root.");
+                return;
+            }
+
+            bool ok = NodeCatalogAuthor.SetRoot(currentCatalog, target.UID);
+            if (!ok) HLogger.Warning($"[HGraphWindow] SetRoot failed for UID={target.UID.Value}.");
         }
         #endregion
 
@@ -249,5 +304,17 @@ namespace HWindows.Editor.NodeWindow {
 //     + null 이면 empty state 힌트 표시로 자연스럽게 흘러감.
 //   - _ApplyLockVisualState: _ToggleLock 과 CreateGUI 가 공유하는 UI 갱신 로직.
 //     + lockButton 이 null 일 수 있는 시점 (serialization 복원 직후) 방어.
+//
+//   [Phase 1-C 확장 - 2026-05-07]
+//   - Toolbar 에 [Go To Root] [Set as Root] 두 버튼 추가.
+//     순서 = [Lock] [Open Catalog] [Go To Root] [Set as Root] [catalog name] [viewport center].
+//     Bind 제어 → Root 제어 → 상태 표시 묶음으로 의미 단위 그룹.
+//   - _GoToRoot : 데이터 변경 없는 navigation 이라 Lock 무관. 루트/카탈로그 미보유 시 Warning.
+//   - _SetSelectedAsRoot : 데이터 변경(SetRoot) 이라 Lock 시 거부.
+//     선택 0/2+ 도 Warning + 거부 (uniquely-selected one 강제). 이미 root 인 경우도 거부.
+//     selection 추출은 canvas.GetSelectedNodes() 헬퍼 경유 — Window 가 ISelectable 직접
+//     접근 X (P1-3 어댑터 경계 보존).
+//   - "Set as Root" 는 임시 진입점. Phase 1-D 우클릭 메뉴 "루트 노드 재설정" 도입 시 제거 예정.
+//     NodeCatalogSmokeTest 임시 MenuItem 과 같은 분류.
 // =============================================================================
 #endif
