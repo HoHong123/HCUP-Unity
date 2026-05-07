@@ -94,6 +94,8 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
 #if UNITY_EDITOR
             catalog.InternalRemoveLayout(uid);
+            catalog.InternalRemoveFoldoutOpen(uid);
+            catalog.InternalRemoveOpenSize(uid);
 #endif
 
             EditorUtility.SetDirty(catalog);
@@ -159,6 +161,48 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
 #if UNITY_EDITOR
             catalog.InternalSetLayout(uid, pos);
+            EditorUtility.SetDirty(catalog);
+#endif
+        }
+        #endregion
+
+        #region Public - Foldout / OpenSize (Phase 1-B)
+        /// <summary>
+        /// 노드 Foldout 열림/닫힘 상태를 catalog 의 editorNodeFoldoutOpen 에 반영.
+        /// "고빈도 상태 업데이트" 분류 - SetDirty 만 (SaveAssets 생략, P1B-i / P1-g 정합).
+        /// </summary>
+        public static void SetFoldoutOpen(NodeCatalogSO catalog, NodeUID uid, bool open) {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in SetFoldoutOpen");
+                return;
+            }
+            if (!catalog.Nodes.ContainsKey(uid)) {
+                HLogger.Warning($"[NodeCatalogAuthor] SetFoldoutOpen rejected: node {uid} not in catalog");
+                return;
+            }
+
+#if UNITY_EDITOR
+            catalog.InternalSetFoldoutOpen(uid, open);
+            EditorUtility.SetDirty(catalog);
+#endif
+        }
+
+        /// <summary>
+        /// 노드 Open 크기를 catalog 의 editorNodeOpenSizes 에 반영.
+        /// Resize Manipulator 의 MouseUp 시점에서만 호출 (드래그 중 매 프레임 호출 X, P1B-i).
+        /// </summary>
+        public static void SetOpenSize(NodeCatalogSO catalog, NodeUID uid, Vector2 size) {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in SetOpenSize");
+                return;
+            }
+            if (!catalog.Nodes.ContainsKey(uid)) {
+                HLogger.Warning($"[NodeCatalogAuthor] SetOpenSize rejected: node {uid} not in catalog");
+                return;
+            }
+
+#if UNITY_EDITOR
+            catalog.InternalSetOpenSize(uid, size);
             EditorUtility.SetDirty(catalog);
 #endif
         }
@@ -269,5 +313,15 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 //   + Phase 0 기존 5개 메서드 (Create/Remove/Connect/Disconnect/SetRoot) 는 "저빈도 구조 변경" 으로
 //     SaveAssets 즉시 호출. SetLayout 은 다른 분류로 공존.
 //   + Undo 통합은 Phase 1-F 로 이월 - Author 는 "원시 mutation" 역할만 유지.
+//
+//   [Phase 1-B 확장 - 2026-05-07]
+//   - SetFoldoutOpen / SetOpenSize 신설. SetLayout 과 같은 "고빈도 상태 업데이트" 분류.
+//   + 둘 다 SetDirty 만 호출, SaveAssets 미호출 (P1B-i / P1-g 정합).
+//   + null catalog → Error, 존재하지 않는 노드 UID → Warning. 무효 입력은 진입 단계에서 거부.
+//   - RemoveNode cascade: InternalRemoveFoldoutOpen + InternalRemoveOpenSize 두 줄 추가 (P1B-6).
+//   + 노드 삭제 시 layout / foldout / openSize 3개 보조 맵에서 자동 제거. orphan 방지.
+//   + "별도 맵 패턴" 의 cascade 비용 - 보조 맵이 추가될 때마다 한 줄씩 가산. 의미 영역 분리의 가시 비용.
+//   - CreateNode 자동 초기화 미적용 (spec §4) - read-side TryGetValue fallback 으로 충분.
+//     자동 초기화는 직렬화 부피만 늘림 (HDictionary entries 증가).
 // =============================================================================
 #endif
