@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using HDiagnosis.Logger;
-using HWindows.Editor.NodeWindow.Authoring;
 using HWindows.NodeWindow;
 using UnityEditor;
 using UnityEngine;
@@ -55,11 +53,6 @@ namespace HWindows.Editor.NodeWindow {
             goToRootButton.style.marginLeft = 4;
             goToRootButton.tooltip = "Center viewport on the catalog's root node";
             toolbar.Add(goToRootButton);
-
-            Button setAsRootButton = new Button(_SetSelectedAsRoot) { text = "Set as Root" };
-            setAsRootButton.style.marginLeft = 4;
-            setAsRootButton.tooltip = "Promote the single selected node to catalog root";
-            toolbar.Add(setAsRootButton);
 
             catalogNameLabel = new Label();
             catalogNameLabel.style.marginLeft = 8;
@@ -158,38 +151,6 @@ namespace HWindows.Editor.NodeWindow {
             if (!canvas.GoToRoot()) {
                 HLogger.Warning("[HGraphWindow] Go To Root: catalog has no root node.");
             }
-        }
-
-        private void _SetSelectedAsRoot() {
-            if (currentCatalog == null) {
-                HLogger.Warning("[HGraphWindow] Set as Root rejected: no catalog bound.");
-                return;
-            }
-            if (selectionLocked) {
-                HLogger.Warning("[HGraphWindow] Set as Root rejected: window is Locked.");
-                return;
-            }
-            if (canvas == null) return;
-
-            IReadOnlyList<HGraphNode> selected = canvas.GetSelectedNodes();
-            if (selected.Count == 0) {
-                HLogger.Warning("[HGraphWindow] Set as Root rejected: no node selected.");
-                return;
-            }
-            if (selected.Count > 1) {
-                HLogger.Warning(
-                    $"[HGraphWindow] Set as Root rejected: multiple nodes selected ({selected.Count}). Select exactly one.");
-                return;
-            }
-
-            HGraphNode target = selected[0];
-            if (target.UID == currentCatalog.RootUID) {
-                HLogger.Warning($"[HGraphWindow] '{target.DataNode.Title}' is already root.");
-                return;
-            }
-
-            bool ok = NodeCatalogAuthor.SetRoot(currentCatalog, target.UID);
-            if (!ok) HLogger.Warning($"[HGraphWindow] SetRoot failed for UID={target.UID.Value}.");
         }
         #endregion
 
@@ -316,5 +277,12 @@ namespace HWindows.Editor.NodeWindow {
 //     접근 X (P1-3 어댑터 경계 보존).
 //   - "Set as Root" 는 임시 진입점. Phase 1-D 우클릭 메뉴 "루트 노드 재설정" 도입 시 제거 예정.
 //     NodeCatalogSmokeTest 임시 MenuItem 과 같은 분류.
+//
+//   [Phase 1-D 정식 이양 후 제거 - 2026-05-08]
+//   - Toolbar [Set as Root] 버튼 + _SetSelectedAsRoot 메서드 + 관련 using 2종 제거 (P1D-f).
+//   + 정식 위치 = HGraphNode 우클릭 메뉴 "루트 노드 재설정 (Set as Root)" + 단축키는 미적용.
+//   + Toolbar 6 → 5 요소 (Go To Root 는 Phase 5 메뉴바 이관 예정 시점까지 유지).
+//   + using System.Collections.Generic / HWindows.Editor.NodeWindow.Authoring 모두 제거 (다른 코드 미사용).
+//   + 같은 라운드에 NodeCatalogSmokeTest.cs 임시 MenuItem 도 제거 (Scratch.Editor asmdef 자체는 유지).
 // =============================================================================
 #endif
