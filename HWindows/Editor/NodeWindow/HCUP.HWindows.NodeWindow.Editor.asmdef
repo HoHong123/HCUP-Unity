@@ -3,6 +3,7 @@
     "rootNamespace": "HWindows.Editor.NodeWindow",
     "references": [
         "HCUP.HWindows.NodeWindow",
+        "HCUP.HInspector.Editor",
         "HCUP.HUtil",
         "HCUP.HUtil.Editor",
         "HCUP.HDiagnosis",
