@@ -1,12 +1,13 @@
-using HWindows.NodeWindow.Identity;
 using UnityEditor;
 using UnityEngine;
+using HWindows.NodeWindow.Identity;
 
 namespace HWindows.Editor.NodeWindow.Identity {
     [FilePath("ProjectSettings/NodeUIDRegistry.asset", FilePathAttribute.Location.ProjectFolder)]
     public sealed class NodeUIDRegistry : ScriptableSingleton<NodeUIDRegistry> {
         #region Fields
-        [SerializeField] int nextValue = 1;
+        [SerializeField]
+        int nextValue = 1;
         #endregion
 
         #region Public - Issue
