@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using HDiagnosis.Logger;
 using HWindows.Editor.NodeWindow.Authoring;
+using HWindows.Editor.NodeWindow.Settings;
 using HWindows.NodeWindow;
 using HWindows.NodeWindow.Identity;
 using UnityEditor;
@@ -106,6 +107,33 @@ namespace HWindows.Editor.NodeWindow {
         public override void OnUnselected() {
             base.OnUnselected();
             RemoveFromClassList("hgraph-node--selected");
+        }
+        #endregion
+
+        #region Public - GraphView Override (Phase 1-E 실시간 스냅)
+        // SelectionDragger 가 매 frame 호출하는 위치 갱신 진입점.
+        // NodeSnapSettings 의 Mode + Event.current.shift 분기로 quantize 적용 (좌상단 기준, milestone §1-2-3).
+        public override void SetPosition(Rect newPos) {
+            Rect quantized = _ApplySnap(newPos);
+            base.SetPosition(quantized);
+        }
+        #endregion
+
+        #region Private - Snap (Phase 1-E)
+        Rect _ApplySnap(Rect r) {
+            NodeSnapSettings s = NodeSnapSettings.instance;
+            bool shouldSnap = s.Mode == SnapMode.Always
+                           || (s.Mode == SnapMode.OnShiftHold
+                               && Event.current != null
+                               && Event.current.shift);
+            if (!shouldSnap) return r;
+            int u = s.GridUnit;
+            if (u <= 0) return r;  // P1E-4 DivByZero 가드
+            return new Rect(
+                Mathf.Round(r.x / u) * u,
+                Mathf.Round(r.y / u) * u,
+                r.width,
+                r.height);
         }
         #endregion
 
@@ -516,5 +544,16 @@ namespace HWindows.Editor.NodeWindow {
 //     + 드래그 중 매 프레임 호출 X. SetDirty 폭주 회피.
 //     + 노드 인스턴스가 사라져도 (RemoveElement) 람다 자기 캡처 currentCatalog 가 stale 될 수 있으나,
 //       capture 가 풀린 시점이라 호출 경로 자체가 발생 안 함.
+// =============================================================================
+//
+// [Phase 1-E SetPosition override + _ApplySnap - 2026-05-08]
+// - SetPosition override (P1E-α/β/γ + Q5 A + Q6 A):
+//   + SelectionDragger 매 frame 호출 → quantize 삽입. 클립보드/키보드/프로그래매틱 이동 등
+//     모든 위치 변경 경로가 단일 override 통과.
+//   + NodeSnapSettings.Mode + Event.current.shift 분기 — Off/OnShiftHold/Always.
+//   + Mathf.Round 좌상단 기준 (milestone §1-2-3).
+//   + GridUnit <= 0 시 quantize skip (P1E-4 DivByZero 가드).
+//   + 다중 선택 그룹 일괄 스냅 미적용 — 각 노드 개별 quantize (Q8 A). 노드 간 상대 위치가
+//     매 frame 미세 변화 가능 — Phase 1-E Round 2 anchor 노드 기준 delta 적용으로 진화 여지.
 // =============================================================================
 #endif
