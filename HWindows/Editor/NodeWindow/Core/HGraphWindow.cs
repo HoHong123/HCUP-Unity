@@ -1,6 +1,9 @@
 using HDiagnosis.Logger;
+using HWindows.Editor.NodeWindow.Authoring;
+using HWindows.Editor.NodeWindow.Settings;
 using HWindows.NodeWindow;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -21,6 +24,7 @@ namespace HWindows.Editor.NodeWindow {
 
         NodeCatalogSO currentCatalog;
         HGraphCanvas canvas;
+        IMGUIContainer settingsPanel;  // Phase 1-E P1E-η: 280px Settings 사이드패널
         Button lockButton;
         Label catalogNameLabel;
         Label viewportCenterLabel;
@@ -67,11 +71,36 @@ namespace HWindows.Editor.NodeWindow {
             viewportCenterLabel.style.color = new StyleColor(new Color(0.55f, 0.75f, 0.55f));
             toolbar.Add(viewportCenterLabel);
 
+            // Phase 1-E P1E-ζ: Toolbar 우측 끝 [Settings] 토글 (marginLeft Auto = 우측 정렬).
+            ToolbarToggle settingsToggle = new ToolbarToggle { text = "Settings" };
+            settingsToggle.style.marginLeft = StyleKeyword.Auto;
+            settingsToggle.RegisterValueChangedCallback(evt => {
+                settingsPanel.style.display = evt.newValue
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
+            });
+            toolbar.Add(settingsToggle);
+
             root.Add(toolbar);
 
             canvas = new HGraphCanvas();
             canvas.style.flexGrow = 1;
-            root.Add(canvas);
+
+            // Phase 1-E P1E-η: 280px 고정 너비 IMGUI 사이드패널.
+            // NodeWindowSettingsProvider.DrawSettingsGUI 를 IMGUIContainer 가 렌더 — DRY (P1E-7).
+            settingsPanel = new IMGUIContainer(_OnSettingsPanelGUI);
+            settingsPanel.style.display = DisplayStyle.None;
+            settingsPanel.style.width = 280;
+            settingsPanel.style.flexShrink = 0;
+            settingsPanel.style.borderLeftWidth = 1;
+            settingsPanel.style.borderLeftColor = new StyleColor(new Color(0.15f, 0.15f, 0.15f));
+
+            VisualElement contentRow = new VisualElement();
+            contentRow.style.flexDirection = FlexDirection.Row;
+            contentRow.style.flexGrow = 1;
+            contentRow.Add(canvas);
+            contentRow.Add(settingsPanel);
+            root.Add(contentRow);
 
             // viewport 변경 시점에만 좌표 라벨 갱신 (매 프레임 폴링 회피).
             canvas.viewTransformChanged = _ => _UpdateViewportCenterLabel();
@@ -83,6 +112,15 @@ namespace HWindows.Editor.NodeWindow {
             canvas.Bind(currentCatalog);
             _UpdateCatalogNameLabel();
             _UpdateViewportCenterLabel();
+
+            // HGraphCanvas 가 MarkDirtyRepaint() 후 paint 패스가 실행되려면
+            // EditorWindow.Repaint() 가 필요 — canvas 단독으로는 paint pass 를 유발 못함.
+            NodeCatalogAuthor.CatalogMutated += _OnCatalogMutated;
+        }
+
+        private void _OnCatalogMutated(NodeCatalogSO mutated) {
+            if (currentCatalog == null || mutated != currentCatalog) return;
+            Repaint();
         }
 
         private void OnSelectionChange() {
@@ -105,9 +143,7 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void OnDisable() {
-            // L1: no cleanup needed for canvas-only window.
-            // Phase 1-A: DragDrop 콜백은 rootVisualElement 수명과 묶여 자동 해제.
-            // 추후 Phase 1+ 에서 이벤트 구독이 추가되면 여기서 unhook.
+            NodeCatalogAuthor.CatalogMutated -= _OnCatalogMutated;
         }
 
         private void _UpdateViewportCenterLabel() {
@@ -151,6 +187,14 @@ namespace HWindows.Editor.NodeWindow {
             if (!canvas.GoToRoot()) {
                 HLogger.Warning("[HGraphWindow] Go To Root: catalog has no root node.");
             }
+        }
+        #endregion
+
+        #region Settings Panel (Phase 1-E P1E-η + P1E-7)
+        // IMGUIContainer 의 onGUIHandler — NodeWindowSettingsProvider.DrawSettingsGUI 위임 호출.
+        // SettingsProvider.guiHandler 와 같은 코드 공유 (DRY 단일 진입점, P1E-7).
+        private void _OnSettingsPanelGUI() {
+            NodeWindowSettingsProvider.DrawSettingsGUI(string.Empty);
         }
         #endregion
 
@@ -277,6 +321,24 @@ namespace HWindows.Editor.NodeWindow {
 //     접근 X (P1-3 어댑터 경계 보존).
 //   - "Set as Root" 는 임시 진입점. Phase 1-D 우클릭 메뉴 "루트 노드 재설정" 도입 시 제거 예정.
 //     NodeCatalogSmokeTest 임시 MenuItem 과 같은 분류.
+//
+//   [Phase 1-E 버그픽스 - canvas mutation 후 실시간 갱신 - 2026-05-09]
+//   - 증상: Cut/Paste/Duplicate/Delete/Create 후 HGraphCanvas 데이터는 갱신되나 화면은 미갱신.
+//     유저 인터랙션(클릭 등)이 있어야만 시각 반영.
+//   - 원인: HGraphCanvas._OnCatalogMutated → _RepopulateNoViewportReset() → MarkDirtyRepaint() 로
+//     페인트 예약은 됐으나, EditorWindow 가 paint pass 를 실행하지 않음.
+//     MarkDirtyRepaint() 는 "다음 pass 에 그려라" 예약일 뿐, pass 자체를 유발하지 않음.
+//   - 픽스: HGraphWindow 에서 CatalogMutated 구독 + Repaint() 호출.
+//     구독 순서 — canvas 구독(constructor)이 먼저, window 구독(CreateGUI 말미)이 후 →
+//     MarkDirtyRepaint() 실행 후 Repaint() 실행 보장.
+//     OnDisable() 에서 unsubscribe (domain reload / 창 닫기 양쪽 대응).
+//
+//   [Phase 1-E Toolbar [Settings] 사이드패널 - 2026-05-08]
+//   - Toolbar 우측 끝 ToolbarToggle [Settings] (marginLeft Auto = 우측 정렬, P1E-ζ).
+//   - IMGUIContainer settingsPanel 280px 고정 너비. 토글 OFF 시 display:None (P1E-η).
+//   - canvas + settingsPanel 을 contentRow (Row flex) 로 감싸 sidebar 레이아웃 구성.
+//   - _OnSettingsPanelGUI → NodeWindowSettingsProvider.DrawSettingsGUI 위임 — DRY (P1E-7).
+//   - Project Settings 페이지와 같은 NodeSnapSettings.instance 공유 → 자동 동기.
 //
 //   [Phase 1-D 정식 이양 후 제거 - 2026-05-08]
 //   - Toolbar [Set as Root] 버튼 + _SetSelectedAsRoot 메서드 + 관련 using 2종 제거 (P1D-f).
