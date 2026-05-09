@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using HDiagnosis.Logger;
 using HWindows.Editor.NodeWindow.Authoring;
+using HWindows.Editor.NodeWindow.Settings;
 using HWindows.NodeWindow;
 using HWindows.NodeWindow.Identity;
 using UnityEditor;
@@ -19,6 +20,7 @@ namespace HWindows.Editor.NodeWindow {
         VisualElement emptyStateHint;
         readonly Dictionary<NodeUID, HGraphNode> nodeLookup = new();
         int lastCatalogHash;
+        GridBackground gridBackground;  // Phase 1-E P1E-ε: field 로 끌어올림 (ShowGrid 동기화용)
         #endregion
 
         #region Constructor + Lifecycle
@@ -28,9 +30,10 @@ namespace HWindows.Editor.NodeWindow {
             this.AddManipulator(new SelectionDragger());
             this.AddManipulator(new RectangleSelector());
 
-            GridBackground grid = new GridBackground();
-            Insert(0, grid);
-            grid.StretchToParentSize();
+            gridBackground = new GridBackground();
+            Insert(0, gridBackground);
+            gridBackground.StretchToParentSize();
+            gridBackground.visible = NodeSnapSettings.instance.ShowGrid;
 
             _LoadStyleSheet();
 
@@ -49,9 +52,13 @@ namespace HWindows.Editor.NodeWindow {
             // Ctrl+C / Ctrl+X / Ctrl+V (Mac 은 Cmd) — actionKey 가 platform 추상화.
             RegisterCallback<KeyDownEvent>(_OnKeyDown);
 
+            // Phase 1-E P1E-ε: ShowGrid 변경 시 GridBackground.visible 동기화.
+            NodeWindowSettingsProvider.SnapSettingsChanged += _OnSnapSettingsChanged;
+
             RegisterCallback<DetachFromPanelEvent>(_ => {
                 NodeCatalogAuthor.CatalogMutated -= _OnCatalogMutated;
                 EditorApplication.update -= _PollCatalogChanges;
+                NodeWindowSettingsProvider.SnapSettingsChanged -= _OnSnapSettingsChanged;
             });
         }
 
@@ -112,13 +119,25 @@ namespace HWindows.Editor.NodeWindow {
                 target = target.parent;
             }
 
-            // 빈 캔버스 우클릭 — Paste 만 (다른 GraphView 자동 항목은 base 미호출로 차단 유지).
+            // 빈 캔버스 우클릭 — Paste + 모두 선택 (다른 GraphView 자동 항목은 base 미호출로 차단 유지).
             DropdownMenuAction.Status pasteStatus = HGraphClipboard.IsValid(GUIUtility.systemCopyBuffer)
                 ? DropdownMenuAction.Status.Normal
                 : DropdownMenuAction.Status.Disabled;
             evt.menu.AppendAction("붙여넣기 (Paste)",
                 action => _OnContextPaste(),
                 pasteStatus);
+
+            // Phase 1-E P1E-8: 노드가 하나라도 있을 때만 활성. HGraphNode 위 우클릭은 노드 메뉴 (6 항목) 유지.
+            bool hasAnyNode = false;
+            foreach (GraphElement elem in graphElements) {
+                if (elem is HGraphNode) { hasAnyNode = true; break; }
+            }
+            DropdownMenuAction.Status selectAllStatus = hasAnyNode
+                ? DropdownMenuAction.Status.Normal
+                : DropdownMenuAction.Status.Disabled;
+            evt.menu.AppendAction("모두 선택 (Select All)",
+                action => SelectAllNodes(),
+                selectAllStatus);
         }
 
         private void _OnContextPaste() {
@@ -223,6 +242,10 @@ namespace HWindows.Editor.NodeWindow {
                         DuplicateNodes(GetSelectedNodes());
                         evt.StopPropagation();
                         return;
+                    case KeyCode.A:
+                        SelectAllNodes();
+                        evt.StopPropagation();
+                        return;
                 }
                 return;
             }
@@ -232,6 +255,31 @@ namespace HWindows.Editor.NodeWindow {
                 DeleteNodes(GetSelectedNodes());
                 evt.StopPropagation();
             }
+        }
+        #endregion
+
+        #region Multi-Select (Phase 1-E)
+        // 화면에 그려진 모든 HGraphNode 선택. graphElements 순회 (Q7 B 채택 — 시각 진실성).
+        // Phase 3 DepthTree 진입 시 "활성 layer 만" 의미 자동 정합 (코드 변경 0).
+        internal int SelectAllNodes() {
+            ClearSelection();
+            int count = 0;
+            foreach (GraphElement elem in graphElements) {
+                if (elem is HGraphNode node) {
+                    AddToSelection(node);
+                    count++;
+                }
+            }
+            return count;
+        }
+        #endregion
+
+        #region Settings Sync (Phase 1-E P1E-ε)
+        void _OnSnapSettingsChanged() {
+            if (gridBackground != null) {
+                gridBackground.visible = NodeSnapSettings.instance.ShowGrid;
+            }
+            MarkDirtyRepaint();
         }
         #endregion
 
@@ -523,6 +571,34 @@ namespace HWindows.Editor.NodeWindow {
 //   + macOS 의 main "delete" 키는 KeyCode.Backspace (Forward Delete = KeyCode.Delete) — 사용자
 //     spec 그대로 Delete 만 처리. Backspace 추가 의향 시 한 줄 추가로 대응 가능.
 //   + KeyDownEvent 의 element callback 은 panel detach 시 자동 정리 — 명시 unregister 불필요.
+// =============================================================================
+
+// =============================================================================
+// Dev Log - Phase 1-E 추가 (2026-05-08)
+// =============================================================================
+// - gridBackground field 끌어올림 (Phase 1-E P1E-ε):
+//   + 기존 로컬 변수를 fields region 의 instance field 로 변경.
+//   + ShowGrid 동기화 위해 인스턴스 보존 필요 — visible 속성 동적 갱신.
+//   + 생성자에서 초기 ShowGrid 동기화 (NodeSnapSettings.instance.ShowGrid).
+//
+// - SnapSettingsChanged 구독 (Phase 1-E P1E-ε):
+//   + NodeWindowSettingsProvider 의 static event 구독으로 settings 변경 시 GridBackground.visible
+//     + MarkDirtyRepaint 호출.
+//   + DetachFromPanelEvent 에서 unsubscribe — 메모리 누수 방지.
+//
+// - Ctrl+A / Cmd+A 단축키 (Phase 1-E P1E-α + P1E-5):
+//   + _OnKeyDown 의 actionKey 분기에 KeyCode.A 추가 — Phase 1-D 의 C/X/V/D 와 같은 path.
+//   + evt.StopPropagation() 호출 — Unity Edit > Select All 충돌 방지 (P1E-5).
+//
+// - SelectAllNodes (Phase 1-E Q7 B):
+//   + graphElements 순회 + is HGraphNode 검사 (시각 진실성).
+//   + ClearSelection + AddToSelection 으로 selection state 재구성.
+//   + 비용: O(M), M ≈ N + 3~4. N=100 시 ~1μs (Q7 비용 분석 참조).
+//   + Phase 3 DepthTree 도입 시 "활성 layer 만" 의미 자동 정합 (graphElements = 화면 표시 요소).
+//
+// - BuildContextualMenu "모두 선택" 항목 (Phase 1-E P1E-8):
+//   + 빈 캔버스 우클릭 시점만 표시 — HGraphNode 위 우클릭은 노드 메뉴 (Phase 1-D) 6 항목 유지.
+//   + graphElements foreach + is + break — first-match short-circuit.
 // =============================================================================
 
 // =============================================================================
