@@ -15,7 +15,7 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 if (kind != ObjectChangeKind.ChangeAssetObjectProperties) continue;
 
                 stream.GetChangeAssetObjectPropertiesEvent(k, out ChangeAssetObjectPropertiesEventArgs data);
-                Object obj = EditorUtility.InstanceIDToObject(data.instanceId);
+                Object obj = EditorUtility.EntityIdToObject(data.instanceId);
                 if (obj is NodeCatalogSO catalog) {
                     NodeCatalogAuthor.NotifyExternalMutation(catalog);
                 }
@@ -27,6 +27,17 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 #if UNITY_EDITOR
 // =============================================================================
 // Dev Log
+// =============================================================================
+// @Jason - PKH 2026.05.11 — InstanceIDToObject → EntityIdToObject (Obsolete 수정)
+//
+// # 변경
+// - EditorUtility.InstanceIDToObject(data.instanceId)
+//   → EditorUtility.EntityIdToObject(data.instanceId).
+//
+// # 이유
+// - Unity 6000.3.11f1 에서 InstanceIDToObject(int) 가 Obsolete 처리됨.
+//   동작 동일 — instance ID 로 UnityEngine.Object 역조회.
+//
 // =============================================================================
 // @Jason - PKH 2026-04-25 NodeCatalogObjectChangeWatcher - Inspector 직접 수정 감지
 //
