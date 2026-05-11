@@ -12,13 +12,12 @@
 //
 // 노출 항목 (P1E-9 A 채택) ::
 // Snap Settings  / NodeSnapSettings 3 필드 편집
-// UID Registry   / NodeUIDRegistry NextValue + Issued Count (ReadOnly, P1E-8)
+// UID Registry 섹션 제거 — NodeUIDRegistry 삭제 (GUID 방식 전환, 2026-05-09)
 //
 // 시각 ::
-// HTitleDrawer.Draw 로 두 그룹 헤더 (P1E-θ).
+// HTitleDrawer.Draw 로 그룹 헤더 (P1E-θ).
 // =============================================================================
 using HInspector.Editor;
-using HWindows.Editor.NodeWindow.Identity;
 using System;
 using UnityEditor;
 using UnityEngine;
@@ -50,8 +49,6 @@ namespace HWindows.Editor.NodeWindow.Settings {
         // SettingsProvider.guiHandler 와 IMGUIContainer 양쪽이 호출 — DRY (P1E-7).
         internal static void DrawSettingsGUI(string searchContext) {
             _DrawSnapSettings();
-            EditorGUILayout.Space(8);
-            _DrawUIDRegistry();
         }
         #endregion
 
@@ -74,22 +71,26 @@ namespace HWindows.Editor.NodeWindow.Settings {
             }
         }
 
-        static void _DrawUIDRegistry() {
-            HTitleDrawer.Draw("UID Registry (ReadOnly)");
-
-            NodeUIDRegistry registry = NodeUIDRegistry.instance;
-            EditorGUI.BeginDisabledGroup(true);
-            EditorGUILayout.IntField("Next UID", registry.PeekNext());
-            EditorGUILayout.IntField("Issued Count", registry.PeekNext() - 1);
-            EditorGUI.EndDisabledGroup();
-        }
         #endregion
     }
 }
 #endif
 
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.09 UID Registry UI 섹션 제거
+ *
+ * # 삭제
+ * - _DrawUIDRegistry() 메서드 제거
+ * - DrawSettingsGUI 내 _DrawUIDRegistry() 호출 제거
+ * - using HWindows.Editor.NodeWindow.Identity 제거
+ * - NodeUIDRegistry 삭제에 따른 의존 정리
+ *
+ * =============================================================================
+ */
 // =============================================================================
-// Dev Log
+// (이하 이전 엔트리 — 원래 형식 보존)
 // =============================================================================
 // 2026-05-08 (최초 설계) :: Phase 1-E P1E-α/θ + Q4 D 채택
 //
