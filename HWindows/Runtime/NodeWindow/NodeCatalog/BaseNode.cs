@@ -1,18 +1,62 @@
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * -- UID + Title 만 갖는 그래프 노드 추상 베이스 (ScriptableObject).
+ *
+ * 특징 ::
+ * 도메인 데이터 없는 그래프 정체성 베이스.
+ * + catalog 의 sub-asset 으로 저장됨.
+ * + AssignIdentity / SetTitle / ResetIdentity 는 internal — Author 전용.
+ * + [HTitle] 섹션 헤더: 정체성 / 에디터 상태. uid 는 [HReadOnly] (Author 전용).
+ *
+ * 주의사항 ::
+ * 인접 관계(Branch/Leaf 리스트)는 미보유. catalog.Edges 가 단일 source.
+ * + UnityEngine.Object 직접 필드 금지 — AssetReference / string key 로 간접만.
+ * =========================================================
+ */
+#endif
+using HInspector;
 using HWindows.NodeWindow.Identity;
 using UnityEngine;
 
 namespace HWindows.NodeWindow {
     public abstract class BaseNode : ScriptableObject {
         #region Fields
+        [HTitle("정체성")]
+        [HReadOnly]
         [SerializeField]
         NodeUID uid;
         [SerializeField]
         string title;
+
+#if UNITY_EDITOR
+        [HTitle("에디터 상태")]
+        [SerializeField]
+        Vector2 editorPosition;
+        [SerializeField]
+        bool editorFoldoutOpen;
+        [SerializeField]
+        Vector2 editorOpenSize;
+#endif
         #endregion
 
         #region Properties
         public NodeUID UID => uid;
         public string Title => title;
+
+#if UNITY_EDITOR
+        public Vector2 EditorPosition => editorPosition;
+        public bool EditorFoldoutOpen => editorFoldoutOpen;
+        public Vector2 EditorOpenSize => editorOpenSize;
+#endif
+        #endregion
+
+        #region Internal - Editor State (Phase 1-F)
+#if UNITY_EDITOR
+        internal void SetEditorPosition(Vector2 pos) { editorPosition = pos; }
+        internal void SetEditorFoldoutOpen(bool open) { editorFoldoutOpen = open; }
+        internal void SetEditorOpenSize(Vector2 size) { editorOpenSize = size; }
+#endif
         #endregion
 
         #region Internal - Identity
@@ -44,7 +88,8 @@ namespace HWindows.NodeWindow {
                 if (e.LeafUID == uid) incoming++;
                 if (e.BranchUID == uid) outgoing++;
             }
-            return $"[{GetType().Name}] {title} (UID={uid.Value}, ↓{outgoing} ↑{incoming})";
+            string shortUID = uid.IsValid ? uid.Value[..8] : "None";
+            return $"[{GetType().Name}] {title} (UID={shortUID}, ↓{outgoing} ↑{incoming})";
         }
         #endregion
 
@@ -59,8 +104,48 @@ namespace HWindows.NodeWindow {
 }
 
 #if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 — Inspector HTitle 섹션 헤더 + uid ReadOnly 추가
+ *
+ * # 변경
+ * - using HInspector 추가.
+ * - uid: [HTitle("정체성")] + [HReadOnly] — Author 전용 식별자, Inspector 직접 편집 차단.
+ * - title: 편집 허용 — Inspector 에서 직접 리네임 가능 (Author.SetTitle 채널과 별개).
+ * - editorPosition: [HTitle("에디터 상태")] 추가 (섹션 경계 표시용).
+ *
+ * # 이유
+ * - Odin 브릿지가 [HTitle] → [Title] 자동 매핑. CustomEditor 쉘 불필요.
+ * - uid 는 Author 단조 발급 불변 식별자 — Inspector 수정 시 catalog 무결성 깨짐.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.09 Phase 1-F — 에디터 상태 이관 (catalog 딕셔너리 → BaseNode)
+ *
+ * # 변경
+ * - editorPosition / editorFoldoutOpen / editorOpenSize (#if UNITY_EDITOR [SerializeField]) 추가
+ * - EditorPosition / EditorFoldoutOpen / EditorOpenSize 프로퍼티 추가
+ * - SetEditorPosition / SetEditorFoldoutOpen / SetEditorOpenSize internal 세터 추가
+ *
+ * # 이유
+ * - 기존: catalog 3개 HDictionary(editorNodeLayouts 등)에 분산 보관
+ *   → Undo.RecordObject(catalog)가 HDictionary proxy를 안정적으로 복원하지 못함
+ *   → 삭제 Undo 후 위치가 (0,0)으로 리셋되는 버그 발생
+ * - 이관 후: Undo.DestroyObjectImmediate(node)가 editorPosition/FoldoutOpen/OpenSize를 포함해
+ *   노드 전체 상태를 원자적으로 복원 → 별도 catalog Undo 불필요
+ * - 미래 DialogueNode / SkillNode 등 모든 서브 타입에 자동 적용
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.09 GetInspectorSummary UID 표시 단축 (8자)
+ *
+ * # 변경
+ * - uid.Value (int) → uid.Value[..8] (GUID 앞 8자) 로 표시 단축
+ * - uid.IsValid 체크 후 단축 표시 — None 상태에서 [..8] IndexOutOfRange 방지
+ *
+ * =============================================================================
+ */
 // =============================================================================
-// Dev Log
+// (이하 이전 엔트리 — 원래 형식 보존)
 // =============================================================================
 // @Jason - PKH 2026-04-22 BaseNode 의 역할 - 그래프 정체성만 담는 추상 SO 베이스
 //
