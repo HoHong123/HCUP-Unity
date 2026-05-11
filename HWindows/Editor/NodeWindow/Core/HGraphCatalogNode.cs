@@ -5,7 +5,7 @@
  *
  * 특징 ::
  * HGraphNode 상속. body에 참조 카탈로그 ObjectField + 더블클릭 카탈로그 전환.
- * + 복사/복제/잘라내기 컨텍스트 메뉴 차단 (이동/삭제/연결/붙여넣기만 허용).
+ * + 복사/복제/잘라내기/루트재설정 컨텍스트 메뉴 차단 (이동/삭제/붙여넣기만 허용).
  * + 포트: 입구 1개 고정, 출구 1개 고정 (다중 포트는 HubNode 가 전담).
  *
  * 주의사항 ::
@@ -47,7 +47,8 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Public Override — 컨텍스트 메뉴 (복사/복제/잘라내기 제거)
         // base.BuildContextualMenu 미호출 — 허용 항목만 직접 구성.
-        // CatalogNode 허용: 붙여넣기 / 루트 재설정 / 삭제. 이동/연결은 GraphView 기본 처리.
+        // CatalogNode 허용: 붙여넣기 / 삭제. 이동/연결은 GraphView 기본 처리.
+        // 루트 노드 재설정 제외 — CatalogNode는 루트가 될 수 없음.
         public override void BuildContextualMenu(UnityEngine.UIElements.ContextualMenuPopulateEvent evt) {
             NodeCatalogSO catalog = Catalog;
             if (catalog == null) return;
@@ -58,16 +59,6 @@ namespace HWindows.Editor.NodeWindow {
             evt.menu.AppendAction("붙여넣기 (Paste)",
                 _ => { GetFirstAncestorOfType<HGraphCanvas>()?.PasteFromClipboard(); },
                 pasteStatus);
-
-            DropdownMenuAction.Status setRootStatus = UID == catalog.RootUID
-                ? DropdownMenuAction.Status.Disabled
-                : DropdownMenuAction.Status.Normal;
-            evt.menu.AppendAction("루트 노드 재설정 (Set as Root)",
-                _ => {
-                    bool ok = NodeCatalogAuthor.SetRoot(catalog, UID);
-                    if (!ok) HLogger.Warning($"[HGraphCatalogNode] SetRoot 실패: UID={UID.Value}");
-                },
-                setRootStatus);
 
             evt.menu.AppendSeparator();
 
@@ -114,6 +105,17 @@ namespace HWindows.Editor.NodeWindow {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 CatalogNode 루트 설정 제약
+ *
+ * # 변경
+ * - BuildContextualMenu 에서 "루트 노드 재설정 (Set as Root)" 항목 제거.
+ * - 헤더 주석 허용 항목 갱신: 이동/삭제/붙여넣기만 허용 명시.
+ *
+ * # 이유
+ * - CatalogNode 는 외부 카탈로그 참조 역할만 담당. 루트는 일반 노드가 맡아야 함.
+ * - NodeCatalogAuthor.SetRoot 에도 CatalogNode 타입 가드 추가 (backend 이중 방어).
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 Phase 3+ — 다중 출구 Port 제거 (HubNode 분리)
  *
