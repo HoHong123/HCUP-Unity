@@ -1,4 +1,5 @@
 using System;
+using HWindows.NodeWindow;
 using UnityEngine;
 
 namespace HWindows.Editor.NodeWindow {
@@ -8,18 +9,19 @@ namespace HWindows.Editor.NodeWindow {
         public static readonly Color DefaultHeaderColor = new Color(0.29f, 0.435f, 0.647f);
 
         // 루트 노드 전용 색 (노란색). 도메인 커스터마이즈와 무관하게 항상 이 색 우선 적용.
-        // 사용자 지시: "루트 노드만의 고유 색상은 반드시 지켜져야 하는 규칙"
         public static readonly Color RootHeaderColor = new Color(0.85f, 0.7f, 0.2f);
+
+        // Phase 3 — CatalogNode 전용 헤더 색 (청록). 일반 노드(파란)·루트(노란)와 시각 구분.
+        public static readonly Color CatalogNodeHeaderColor = new Color(0.15f, 0.52f, 0.48f);
         #endregion
 
         #region Public
         /// <summary>
         /// 노드 타입별 헤더 색 조회.
-        /// Phase 1-A: 타입 무관하게 DefaultHeaderColor 반환 (SimpleNode 하나뿐).
-        /// 최초 도메인 서브클래스 추가 시점에 메커니즘 확정 (attribute 감지 또는 타입별 매핑).
-        /// 주의: 루트 노드 색은 이 메서드를 우회해야 함 (HGraphNode 가 isRoot 분기로 처리).
+        /// 루트 노드 색은 이 메서드를 우회 (HGraphNode 가 isRoot 분기로 처리).
         /// </summary>
         public static Color GetHeaderColorFor(Type nodeType) {
+            if (nodeType == typeof(CatalogNode)) return CatalogNodeHeaderColor;
             return DefaultHeaderColor;
         }
         #endregion
