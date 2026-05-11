@@ -60,15 +60,6 @@
     min-height: 40px;
 }
 
-.hgraph-node-resize-handle {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.15);
-    cursor: resize-up-left;
-}
 
 .hgraph-node--selected {
     border-color: #6FA5C5;
@@ -131,8 +122,4 @@
     width: 10px;
     height: 10px;
     border-radius: 5px;
-}
-
-.port > #type {
-    display: none;
 }
