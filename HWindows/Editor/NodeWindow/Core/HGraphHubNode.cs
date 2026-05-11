@@ -8,6 +8,8 @@
  * + body: 키 목록 표시 + Add/Remove 버튼 — Author.AddHubEntry / RemoveHubEntry 호출.
  * + EnsureOutputPorts(count): repopulate 시 canvas 가 호출.
  * + GetOutputPortByKey(key): repopulate 시 portKey → Port 역매핑.
+ * + 입구 "Input (N)" + 출구 "Key (N)" — RefreshPortLabels override 가 연결 수 갱신.
+ * + Inspector 키값 수정 → KeysChanged → 포트명/바디 즉시 동기화 (DetachFromPanel 구독 해제).
  *
  * 주의사항 ::
  * 복사/복제/잘라내기 컨텍스트 메뉴 차단 — HGraphNode 기본 메뉴 유지.
@@ -16,6 +18,7 @@
  */
 #endif
 using System.Collections.Generic;
+using System.Linq;
 using HWindows.Editor.NodeWindow.Authoring;
 using HWindows.NodeWindow;
 using UnityEditor.Experimental.GraphView;
@@ -34,6 +37,8 @@ namespace HWindows.Editor.NodeWindow {
             : base(dataNode, isRoot) {
             AddToClassList("hgraph-hub-node");
             _InitHubBody();
+            dataNode.KeysChanged += _OnKeysChanged;
+            RegisterCallback<DetachFromPanelEvent>(_ => dataNode.KeysChanged -= _OnKeysChanged);
         }
         #endregion
 
@@ -41,7 +46,7 @@ namespace HWindows.Editor.NodeWindow {
         // 입력 1개(좌) + 출구 컬럼(우). EnsureOutputPorts 로 동적 추가.
         protected override void _BuildPorts() {
             inputPort = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
-            inputPort.portName = "";
+            inputPort.portName = "Input";
 
             _outputPortColumn = new VisualElement();
             _outputPortColumn.AddToClassList("hgraph-hub-port-column");
@@ -58,6 +63,18 @@ namespace HWindows.Editor.NodeWindow {
         #region Public Override — 인덱스로 출력 포트 조회
         public override Port GetOutputPort(int index) {
             return index >= 0 && index < _outputPorts.Count ? _outputPorts[index] : null;
+        }
+
+        // 입구 "Input (N)" + 출구 각각 "Key (N)" 형식으로 갱신.
+        // 키값이 비어 있는 인덱스는 빈 베이스 + 카운트만 표시.
+        public override void RefreshPortLabels() {
+            if (inputPort != null) inputPort.portName = $"Input ({inputPort.connections.Count()})";
+            HubNode hub = DataNode as HubNode;
+            for (int i = 0; i < _outputPorts.Count; i++) {
+                string baseName = (hub != null && i < hub.Entries.Count) ? hub.Entries[i].Key : string.Empty;
+                int count = _outputPorts[i].connections.Count();
+                _outputPorts[i].portName = $"{baseName} ({count})";
+            }
         }
         #endregion
 
@@ -163,6 +180,24 @@ namespace HWindows.Editor.NodeWindow {
 
             NodeCatalogAuthor.RemoveHubEntry(catalog, hub.UID, index);
         }
+
+        // Inspector 키값 수정 → HubNode.OnValidate → KeysChanged → 호출.
+        // 포트 수 동기화 + portName 갱신 + 바디 재구성. CatalogMutated repopulate 없는 경량 경로.
+        private void _OnKeysChanged() {
+            HubNode hub = DataNode as HubNode;
+            if (hub == null) return;
+            while (_outputPorts.Count < hub.Entries.Count) _AddOutputPort();
+            bool removed = false;
+            while (_outputPorts.Count > hub.Entries.Count) {
+                int last = _outputPorts.Count - 1;
+                _outputPortColumn.Remove(_outputPorts[last]);
+                _outputPorts.RemoveAt(last);
+                removed = true;
+            }
+            if (removed) RefreshPorts();
+            RefreshPortLabels();
+            _RebuildEntryList(hub);
+        }
         #endregion
     }
 }
@@ -170,6 +205,42 @@ namespace HWindows.Editor.NodeWindow {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — RefreshPortLabels override + portName 갱신 일원화
+ *
+ * # 변경
+ * - using System.Linq 추가 (port.connections.Count()).
+ * - RefreshPortLabels() override: 입구 "Input (N)" + 출구 각 "Key (N)" 형식.
+ * - _OnKeysChanged(): 직접 portName 루프 제거 → RefreshPortLabels() 위임.
+ *
+ * # 이유
+ * - 포트 라벨 갱신 진입점 일원화 — Inspector 키 수정 / 캔버스 repopulate 가 동일 포맷 사용.
+ * - 연결 수 + 키값을 한 형식으로 묶어 사용자가 라우팅 상태 즉시 확인.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — Inspector 키값 수정 즉시 동기화
+ *
+ * # 변경
+ * - 생성자: dataNode.KeysChanged += _OnKeysChanged 구독.
+ *   RegisterCallback<DetachFromPanelEvent> 로 패널 분리 시 구독 해제 — 메모리 누수 방지.
+ * - _OnKeysChanged(): 포트 수 동기화(추가/제거) + portName 갱신 + _RebuildEntryList.
+ *
+ * # 이유
+ * - entries [HReadOnly] 제거로 Inspector 직접 편집 가능. HubNode.OnValidate → KeysChanged 발화.
+ *   전체 CatalogMutated repopulate 없이 뷰만 부분 갱신하는 경량 경로.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — 입구 포트 portName "Input" 부여
+ *
+ * # 변경
+ * - _BuildPorts() override: inputPort.portName = "Input" ("" → "Input").
+ * - 출구 포트는 _AddOutputPort 가 이미 hub.Entries[i].Key 를 portName 으로 부여.
+ *   USS 라벨 노출과 결합되어 도트 좌측에 키가 자동 표시됨.
+ *
+ * # 이유
+ * - 전역 USS 규칙 `.port > #type { display: none }` 제거에 따라 portName 이 화면에 노출.
+ *   이전 라운드의 별도 Label 래핑 접근은 불필요 — Unity 표준 portName 으로 일원화.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 Phase 3+ — HGraphHubNode 베이스 코드 생성
  *
