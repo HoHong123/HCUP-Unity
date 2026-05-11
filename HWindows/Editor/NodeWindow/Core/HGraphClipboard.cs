@@ -56,18 +56,16 @@ namespace HWindows.Editor.NodeWindow {
             Entry[] entries = new Entry[validNodes.Count];
             for (int k = 0; k < validNodes.Count; k++) {
                 BaseNode n = validNodes[k];
+                // Phase 1-F: 에디터 상태(layout/foldout/openSize)는 node 자체 필드에서 읽음.
+                // nodeJson(JsonUtility.ToJson) 에 이미 포함되어 _RestoreFromEntry 의
+                // FromJsonOverwrite 가 자동 복원. entry 필드는 명시적 접근용으로 유지.
                 Entry e = new Entry {
                     typeName = n.GetType().AssemblyQualifiedName,
                     nodeJson = JsonUtility.ToJson(n),
-                    layout = Vector2.zero,
-                    foldoutOpen = false,
-                    openSize = Vector2.zero,
+                    layout = n.EditorPosition,
+                    foldoutOpen = n.EditorFoldoutOpen,
+                    openSize = n.EditorOpenSize,
                 };
-                if (catalog != null) {
-                    if (catalog.EditorNodeLayouts.TryGetValue(n.UID, out Vector2 layout)) e.layout = layout;
-                    if (catalog.EditorNodeFoldoutOpen.TryGetValue(n.UID, out bool fOpen)) e.foldoutOpen = fOpen;
-                    if (catalog.EditorNodeOpenSizes.TryGetValue(n.UID, out Vector2 openSize)) e.openSize = openSize;
-                }
                 entries[k] = e;
             }
 
@@ -117,6 +115,17 @@ namespace HWindows.Editor.NodeWindow {
 #if UNITY_EDITOR
 // =============================================================================
 // Dev Log
+// =============================================================================
+// @Jason - PKH 2026.05.09 Phase 1-F — Serialize 에디터 상태 읽기 이관 (catalog → BaseNode)
+//
+// # 변경
+// - Serialize: catalog.EditorNodeLayouts / FoldoutOpen / OpenSizes dict 읽기
+//   → n.EditorPosition / n.EditorFoldoutOpen / n.EditorOpenSize 직접 읽기
+// - catalog 파라미터: 보조 맵 읽기 제거 후 미사용 상태이나 미래 확장용으로 시그니처 유지
+//
+// # 이유
+// - NodeCatalogSO Phase 1-F 에서 editor HDictionary 3개 제거에 따른 소비처 갱신.
+//
 // =============================================================================
 // @Jason - PKH 2026-05-07 HGraphClipboard 의 역할 - Cut/Paste 직렬화 + 검증 단일 게이트
 //
