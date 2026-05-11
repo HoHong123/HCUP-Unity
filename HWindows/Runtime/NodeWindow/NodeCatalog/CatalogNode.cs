@@ -6,7 +6,7 @@
  * 특징 ::
  * BaseNode 상속. referencedCatalog (#if UNITY_EDITOR) 필드만 추가.
  * + HGraphCatalogNode(Editor)가 ObjectField + 더블클릭 네비게이션 처리.
- * + [HTitle("참조 카탈로그")] + [HReadOnly] — GraphView ObjectField 가 정식 편집 채널.
+ * + [HTitle("Referenced Catalog")] + [HReadOnly] — GraphView ObjectField 가 정식 편집 채널.
  *
  * 주의사항 ::
  * referencedCatalog는 Editor-only — 빌드에 SO 참조 메모리/크기 영향 없음.
@@ -21,7 +21,7 @@ namespace HWindows.NodeWindow {
     public sealed class CatalogNode : BaseNode {
 #if UNITY_EDITOR
         #region Fields
-        [HTitle("참조 카탈로그")]
+        [HTitle("Referenced Catalog")]
         [HReadOnly]
         [SerializeField]
         NodeCatalogSO referencedCatalog;
@@ -50,6 +50,16 @@ namespace HWindows.NodeWindow {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — HTitle 라벨 영문화
+ *
+ * # 변경
+ * - [HTitle("참조 카탈로그")] → [HTitle("Referenced Catalog")].
+ * - 헤더 주석의 라벨 인용 동기화.
+ *
+ * # 이유
+ * - 전역 규칙: 코드/변수명은 영어. HTitle 인자는 화면 표시 라벨 + 코드 식별자 양쪽 성격.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 — Inspector HTitle + HReadOnly 추가
  *
