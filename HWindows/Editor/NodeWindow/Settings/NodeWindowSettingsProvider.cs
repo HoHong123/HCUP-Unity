@@ -8,7 +8,7 @@
 // 특징 ::
 // SettingsProvider (Project Settings 페이지) 와 IMGUIContainer (HGraphWindow 사이드패널)
 // 양쪽이 internal static DrawSettingsGUI 헬퍼 호출 — DRY 단일 진입점 (P1E-7).
-// SnapSettingsChanged event 로 GridBackground.visible 동기화 + HGraphCanvas 갱신.
+// SnapSettingsChanged<bool> 로 showGrid 값 직달 → GridBackground.display 동기화 + HGraphCanvas 갱신.
 //
 // 노출 항목 (P1E-9 A 채택) ::
 // Snap Settings  / NodeSnapSettings 3 필드 편집
@@ -30,8 +30,9 @@ namespace HWindows.Editor.NodeWindow.Settings {
 
         #region Events
         // SettingsProvider GUI 또는 사이드패널 GUI 에서 NodeSnapSettings 변경 시 발화.
-        // HGraphCanvas 가 구독해 GridBackground.visible 동기화 + 시각 갱신.
-        internal static event Action SnapSettingsChanged;
+        // bool 파라미터 = so.FindProperty("showGrid").boolValue — ApplyModifiedProperties 타이밍 이슈 방지.
+        // HGraphCanvas 가 구독해 GridBackground.display 동기화 + 시각 갱신.
+        internal static event Action<bool> SnapSettingsChanged;
         #endregion
 
         #region SettingsProvider 등록
@@ -65,9 +66,11 @@ namespace HWindows.Editor.NodeWindow.Settings {
             EditorGUILayout.PropertyField(so.FindProperty("mode"));
 
             if (EditorGUI.EndChangeCheck()) {
+                // ApplyModifiedProperties 전에 값을 읽어야 SerializedProperty 기준 최신값 보장.
+                bool showGrid = so.FindProperty("showGrid").boolValue;
                 so.ApplyModifiedProperties();
                 settings.Save();
-                SnapSettingsChanged?.Invoke();
+                SnapSettingsChanged?.Invoke(showGrid);
             }
         }
 
@@ -78,6 +81,23 @@ namespace HWindows.Editor.NodeWindow.Settings {
 
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.12 Show Grid 미적용 버그픽스 — SnapSettingsChanged Action → Action<bool>
+ *
+ * # 변경
+ * - SnapSettingsChanged 이벤트 시그니처: Action → Action<bool>.
+ * - _DrawSnapSettings: ApplyModifiedProperties 전에 so.FindProperty("showGrid").boolValue 를 캡처.
+ *   showGrid 값을 Invoke 인자로 직접 전달.
+ *
+ * # 이유
+ * - ApplyModifiedProperties 이후 ScriptableSingleton C# 필드 갱신이 지연될 수 있음.
+ *   NodeSnapSettings.instance.ShowGrid 를 콜백에서 읽을 때 old 값을 반환하는 경우.
+ * - SerializedProperty.boolValue (so 기준) 는 PropertyField 가 수정한 직후 값이므로 타이밍 무관 신뢰 가능.
+ *
+ * # 결과
+ * - _OnSnapSettingsChanged(bool showGrid) 가 올바른 값 수신.
+ *   HGraphCanvas 에서 gridBackground.style.display 갱신 정상화.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.09 UID Registry UI 섹션 제거
  *
