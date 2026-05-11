@@ -1,10 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using TMPro;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Popup {
     public class AlertPopup : BasePopupUi {
-        [Title("Texts")]
+        [HTitle("Texts")]
         [SerializeField]
         TMP_Text titleTxt;
         [SerializeField]

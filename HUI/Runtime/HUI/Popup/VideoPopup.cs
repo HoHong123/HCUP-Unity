@@ -1,18 +1,18 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Popup {
     public class VideoPopup : BasePopupUi {
-        [Title("Video")]
+        [HTitle("Video")]
         [SerializeField]
         VideoPlayer video;
         [SerializeField]
         RenderTexture render;
 
-        [Title("Button")]
+        [HTitle("Button")]
         [SerializeField]
         Button panelBtn;
 

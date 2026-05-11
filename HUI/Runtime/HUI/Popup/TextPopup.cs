@@ -1,22 +1,18 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.Popup {
     public class TextPopup : BasePopupUi {
-        [Title("Texts")]
+        [HTitle("Texts")]
         [SerializeField]
         TMP_Text titleTxt;
         [SerializeField]
         TMP_Text bodyTxt;
 
-        [Title("UI")]
-        [SerializeField]
-        Image titleBgImg;
-        [SerializeField]
-        Image bodyBgImg;
+        [HTitle("UI")]
         [SerializeField]
         Button okBtn;
         [SerializeField]
@@ -28,9 +24,7 @@ namespace HUI.Popup {
 
         public event Action OnClickOk;
 
-        public Color TitleColor { set => titleBgImg.color = value; }
         public Color TitleTextColor { set => titleTxt.color = value; }
-        public Color BodyColor { set => bodyBgImg.color = value; }
         public Color BodyTextColor { set => bodyTxt.color = value; }
 
 

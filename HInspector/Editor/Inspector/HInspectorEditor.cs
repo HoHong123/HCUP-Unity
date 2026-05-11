@@ -56,18 +56,12 @@ namespace HInspector.Editor {
             | BindingFlags.NonPublic
             | BindingFlags.DeclaredOnly;
 
-        const float TITLE_TOP_PADDING = 6f;
-        const float TITLE_TO_LINE_GAP = 3f;
-        const float TITLE_LINE_THICKNESS = 1f;
-        const float TITLE_LINE_TO_FIELD_GAP = 4f;
-
         const float BUTTONS_TOP_PADDING = 4f;
         const float SHOW_IN_INSPECTOR_TOP_PADDING = 6f;
         #endregion
 
         #region Static Fields
         static GUIStyle boxGroupStyle;
-        static GUIStyle titleStyle;
         #endregion
 
         #region Fields
@@ -356,47 +350,15 @@ namespace HInspector.Editor {
         }
 
         private static void _DrawBoxGroupHeader(string groupName) {
-            // HBoxGroup 상단에 그룹명을 HTitle 스타일(bold + 구분선)로 렌더.
-            // TITLE_TOP_PADDING은 적용하지 않는다 — BoxGroup의 내부 padding이 이미 존재.
-            Rect blockRect = GUILayoutUtility.GetRect(0, _GetTitleBlockHeight(), GUILayout.ExpandWidth(true));
-            _DrawTitleCore(blockRect, groupName);
-            GUILayout.Space(TITLE_LINE_TO_FIELD_GAP);
+            // HBoxGroup 상단 그룹명 렌더 — BoxGroup 내부 padding 이 이미 존재해 상단 여백 생략.
+            Rect blockRect = GUILayoutUtility.GetRect(0, HTitleDrawer._GetTitleBlockHeight(),
+                                                       GUILayout.ExpandWidth(true));
+            HTitleDrawer._DrawTitleCore(blockRect, groupName);
+            GUILayout.Space(4f);
         }
 
         private static void _DrawTitleIndependent(HTitleAttribute titleAttribute) {
-            GUILayout.Space(TITLE_TOP_PADDING);
-            Rect blockRect = GUILayoutUtility.GetRect(0, _GetTitleBlockHeight(), GUILayout.ExpandWidth(true));
-            _DrawTitleCore(blockRect, titleAttribute.Title);
-            GUILayout.Space(TITLE_LINE_TO_FIELD_GAP);
-        }
-
-        private static void _DrawTitleCore(Rect blockRect, string title) {
-            // HTitle 시각 규격 (볼드 라벨 + 구분선)의 단일 구현.
-            // _DrawTitleIndependent(HTitle 어트리뷰트)와 _DrawBoxGroupHeader(HBoxGroup 그룹명) 양쪽에서 사용.
-            Rect titleRect = new Rect(blockRect.x, blockRect.y, blockRect.width, EditorGUIUtility.singleLineHeight);
-            EditorGUI.LabelField(titleRect, title, _GetTitleStyle());
-
-            float lineY = titleRect.yMax + TITLE_TO_LINE_GAP;
-            Color lineColor = EditorGUIUtility.isProSkin
-                ? new Color(0.45f, 0.45f, 0.45f)
-                : new Color(0.55f, 0.55f, 0.55f);
-            Rect lineRect = new Rect(blockRect.x, lineY, blockRect.width, TITLE_LINE_THICKNESS);
-            EditorGUI.DrawRect(lineRect, lineColor);
-        }
-
-        private static float _GetTitleBlockHeight() {
-            return EditorGUIUtility.singleLineHeight + TITLE_TO_LINE_GAP + TITLE_LINE_THICKNESS;
-        }
-
-        private static GUIStyle _GetTitleStyle() {
-            if (titleStyle != null) return titleStyle;
-
-            titleStyle = new GUIStyle(EditorStyles.boldLabel) {
-                fontSize = 11,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft
-            };
-            return titleStyle;
+            HTitleDrawer.Draw(titleAttribute.Title);
         }
 
         private (string name, GroupMode mode) _GetGroupInfo(Type targetType, SerializedProperty property) {

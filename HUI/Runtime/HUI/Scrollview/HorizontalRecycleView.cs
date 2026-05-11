@@ -18,20 +18,20 @@
 
 using System;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using HInspector;
 
 namespace HUI.ScrollView {
     [Serializable]
     public class HorizontalRecycleView<TCellView, TCellData> : BaseRecycleView<TCellView, TCellData>, IRecycleView
         where TCellData : BaseRecycleCellData
         where TCellView : BaseRecycleCellView<TCellData> {
-        [Title("Cell View")]
+        [HTitle("Cell View")]
         [SerializeField]
         float spacing = 10f;
         [SerializeField]
         float itemWidth = 100f;
 
-        [Title("Padding")]
+        [HTitle("Padding")]
         [SerializeField]
         float leftPadding = 0f;
         [SerializeField]

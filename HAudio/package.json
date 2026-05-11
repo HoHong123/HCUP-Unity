@@ -1,0 +1,18 @@
+{
+  "name": "com.hohong123.haudio",
+  "displayName": "Hohong123 Audio Layer",
+  "version": "1.0.0",
+  "unity": "2021.3",
+  "description": "Audio runtime: token-based AudioManager + catalog/repository with legacy compatibility partials.",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  },
+  "samples": [
+    {
+      "displayName": "Audio Sample",
+      "description": "Token-based playback sample with catalog and spatial pool.",
+      "path": "Samples~/Sound"
+    }
+  ]
+}

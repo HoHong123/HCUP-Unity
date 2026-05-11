@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * 프로젝트에서 사용하는 씬 관리 매니저의 베이스 클래스입니다.
@@ -19,7 +19,6 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
-using HCore;
 using HInspector;
 
 namespace HCore.Scene {
@@ -43,7 +42,7 @@ namespace HCore.Scene {
         protected override void Awake() {
             base.Awake();
 #if UNITY_EDITOR || DEBUG
-            if (useDevRef) Assert.IsNotNull(devRef, "[Dr2SceneManager] useDevRef is true but devRef is null.");
+            if (useDevRef) Assert.IsNotNull(devRef, "[SceneManager] useDevRef is true but devRef is null.");
             SceneLoader.Initialize(releaseRef, useDevRef ? devRef : null);
 #else
             SceneLoader.Initialize(releaseRef);

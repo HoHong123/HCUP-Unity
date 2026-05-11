@@ -1,0 +1,22 @@
+{
+    "name": "HCUP.HAudio",
+    "rootNamespace": "HAudio",
+    "references": [
+        "UniTask",
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HCore",
+        "HCUP.HInspector",
+        "HCUP.HDiagnosis",
+        "HCUP.HCollection"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

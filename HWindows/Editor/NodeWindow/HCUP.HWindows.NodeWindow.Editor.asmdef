@@ -1,0 +1,23 @@
+{
+    "name": "HCUP.HWindows.NodeWindow.Editor",
+    "rootNamespace": "HWindows.Editor.NodeWindow",
+    "references": [
+        "HCUP.HWindows.NodeWindow",
+        "HCUP.HInspector.Editor",
+        "HCUP.HUtil",
+        "HCUP.HUtil.Editor",
+        "HCUP.HDiagnosis",
+        "HCUP.HCollection"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

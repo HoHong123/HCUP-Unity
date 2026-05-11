@@ -315,7 +315,6 @@ namespace HCollection {
         
         #region Private - Entry Sync
         private void _UpdateFirstEntryValue(TKey key, TValue value) {
-            Debug.Log($"[HDictionary] Updating value of existing key in entries. Key='{key}'.");
             IEqualityComparer<TKey> comparer = Comparer;
             for (int k = 0; k < entries.Count; k++) {
                 if (!comparer.Equals(entries[k].Key, key)) continue;
