@@ -6,7 +6,7 @@
  * 특징 ::
  * 입구 Port 1개 + 출구 Port N개 (사용자 정의 string 키 목록).
  * + 각 키는 하나의 출구 Port 에 1:1 대응.
- * + [HTitle("출구 포트")] + [HReadOnly] — GraphView body 의 Add/Remove 버튼이 정식 채널.
+ * + [HTitle("Output Ports")] — Inspector 키값 직접 수정 시 OnValidate → KeysChanged → HGraphHubNode 즉시 동기화.
  *
  * 주의사항 ::
  * 키값 범위 / 규칙 / 의미는 사용자 정의 — 시스템이 검증하지 않음.
@@ -20,16 +20,21 @@ using HInspector;
 using UnityEngine;
 
 namespace HWindows.NodeWindow {
-    [Serializable]
-    public struct HubPortEntry {
-        public string Key;
-        public HubPortEntry(string key) { Key = key; }
-    }
-
     public class HubNode : BaseNode {
+        #region Public - Clipboard
+        public override string ClipboardMagic => "HGRAPH_HUB_NODE_V1";
+        #endregion
+
+        #region Nested Types
+        [Serializable]
+        public struct HubPortEntry {
+            public string Key;
+            public HubPortEntry(string key) { Key = key; }
+        }
+        #endregion
+
         #region Fields
-        [HTitle("출구 포트")]
-        [HReadOnly]
+        [HTitle("Output Ports")]
         [SerializeField]
         List<HubPortEntry> entries = new();
         #endregion
@@ -41,6 +46,9 @@ namespace HWindows.NodeWindow {
 
         #region Internal - Entry Mutation (Editor Only)
 #if UNITY_EDITOR
+        internal event Action KeysChanged;
+        private void OnValidate() => KeysChanged?.Invoke();
+
         internal void AddEntry(string key) {
             entries.Add(new HubPortEntry(key));
         }
@@ -56,16 +64,35 @@ namespace HWindows.NodeWindow {
         }
 #endif
         #endregion
-
-        #region Public - Clipboard
-        public override string ClipboardMagic => "HGRAPH_HUB_NODE_V1";
-        #endregion
     }
 }
 
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — HTitle 라벨 영문화
+ *
+ * # 변경
+ * - [HTitle("출구 포트")] → [HTitle("Output Ports")].
+ * - 헤더 주석의 라벨 인용 동기화.
+ *
+ * # 이유
+ * - 전역 규칙: 코드/변수명은 영어. HTitle 인자는 화면 표시 라벨 + 코드 식별자 양쪽 성격.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — [HReadOnly] 제거 + Inspector 키값 편집 즉시 동기화
+ *
+ * # 변경
+ * - entries: [HReadOnly] 제거 — Inspector 직접 키값 수정 허용.
+ * - KeysChanged (internal event Action) + OnValidate() 추가 (#if UNITY_EDITOR).
+ *   Inspector 편집 완료 시 OnValidate → KeysChanged 발화 → HGraphHubNode 가 구독.
+ *
+ * # 이유
+ * - [HReadOnly] 시절 키값 수정 채널이 GraphView body 버튼뿐 → UX 불편.
+ * - OnValidate + event 패턴: SO → 뷰 의존 역전 없이 뷰가 구독/해제 관리.
+ *   키값만 변경 시 CatalogMutated 전체 repopulate 없이 포트명 + 바디 부분 갱신.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 — Inspector HTitle + HReadOnly 추가
  *
