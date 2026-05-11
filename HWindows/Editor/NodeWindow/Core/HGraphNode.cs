@@ -1,3 +1,20 @@
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * -- BaseNode 1개에 대응하는 GraphView 시각 노드.
+ *
+ * 특징 ::
+ * 헤더(색·아이콘·타이틀 2행) + 바디 + 입출력 포트(portRow, 항상 표시) + 리사이즈 핸들 + 폴드아웃 토글.
+ * + Snap-to-Grid 드래그, 우클릭 컨텍스트 메뉴 (루트 전환 / 삭제 / 연결선 끊기).
+ * + editorPosition / foldoutOpen / openSize — BaseNode 에 직접 저장 (Phase 1-F 이후).
+ * + OnSelected → Selection.activeObject = DataNode → Inspector 자동 동기화.
+ *
+ * 주의사항 ::
+ * Capabilities.Copiable | Deletable 비활성 — 복사/삭제는 HGraphCanvas._OnKeyDown 집중.
+ * + UnityEditor.Experimental.GraphView 경계 파일 — 빌드 제외 필수.
+ * =========================================================
+ */
+#endif
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -12,7 +29,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace HWindows.Editor.NodeWindow {
-    public sealed class HGraphNode : Node {
+    public class HGraphNode : Node {
         #region Const
         const string USS_ASSET_NAME = "HGraphNode";
         const string ARROW_OPEN = "▼";
@@ -28,8 +45,11 @@ namespace HWindows.Editor.NodeWindow {
         VisualElement headerBar;
         Label titleLabel;
         Label toggleArrow;
-        VisualElement bodyArea;
+        protected VisualElement bodyArea;
         VisualElement resizeHandle;
+        protected Port inputPort;
+        protected Port outputPort;
+        protected VisualElement portRow;
         Vector2 openSize;
         bool isResizing;
         Vector2 resizeStartMousePos;
@@ -42,6 +62,10 @@ namespace HWindows.Editor.NodeWindow {
         public bool IsRoot => isRoot;
         public VisualElement ResizeHandle => resizeHandle;
         public Vector2 OpenSize => openSize;
+        public Port InputPort => inputPort;
+        public Port OutputPort => outputPort;
+        // CatalogNode 다중 출력 포트 인터페이스. 기본 노드는 index 무관 단일 outputPort 반환.
+        public virtual Port GetOutputPort(int index) => outputPort;
         #endregion
 
         #region Events
@@ -68,9 +92,9 @@ namespace HWindows.Editor.NodeWindow {
             AddToClassList("hgraph-node");
 
             _BuildHeader();
-            _BuildTitle();
             _BuildBody();
             _BuildResizeHandle();
+            _BuildPorts();
 
             expanded = false;
             RefreshExpandedState();
@@ -102,6 +126,7 @@ namespace HWindows.Editor.NodeWindow {
         public override void OnSelected() {
             base.OnSelected();
             AddToClassList("hgraph-node--selected");
+            Selection.activeObject = dataNode;
         }
 
         public override void OnUnselected() {
@@ -110,13 +135,14 @@ namespace HWindows.Editor.NodeWindow {
         }
         #endregion
 
-        #region Public - GraphView Override (Phase 1-E 실시간 스냅)
+        #region Public - GraphView Override
         // SelectionDragger 가 매 frame 호출하는 위치 갱신 진입점.
         // NodeSnapSettings 의 Mode + Event.current.shift 분기로 quantize 적용 (좌상단 기준, milestone §1-2-3).
         public override void SetPosition(Rect newPos) {
             Rect quantized = _ApplySnap(newPos);
             base.SetPosition(quantized);
         }
+
         #endregion
 
         #region Private - Snap (Phase 1-E)
@@ -140,6 +166,21 @@ namespace HWindows.Editor.NodeWindow {
         #region Internal - Catalog Reference (Phase 1-D)
         // HGraphCanvas Populate 시점에 currentCatalog 주입. BuildContextualMenu 의 핸들러가 catalog 조회용.
         internal NodeCatalogSO Catalog { get; set; }
+        #endregion
+
+        #region Internal - Foldout State (Phase 1-F)
+        // HGraphCanvas.CloseAllFoldouts 가 일괄 닫기 시 호출.
+        internal bool IsExpanded => expanded;
+
+        internal void CloseIfExpanded() {
+            if (!expanded) return;
+            expanded = false;
+            if (toggleArrow != null) toggleArrow.text = _GetToggleSymbol();
+            RefreshExpandedState();
+            _ApplyOpenSize();
+            _ApplyResizeHandleVisibility();
+            FoldoutChanged?.Invoke(false);
+        }
         #endregion
 
         #region Public - Context Menu (Phase 1-D)
@@ -246,28 +287,32 @@ namespace HWindows.Editor.NodeWindow {
                 : HGraphNodeStyles.GetHeaderColorFor(dataNode.GetType());
             headerBar.style.backgroundColor = new StyleColor(headerColor);
 
+            // 상단 행: 토글 화살표 + 타입명.
+            VisualElement headerRow = new VisualElement();
+            headerRow.AddToClassList("hgraph-node-header-row");
+
             // 토글 진입점 (1) — 헤더 좌측 ▶/▼ 아이콘 클릭 (P1B-e A).
             toggleArrow = new Label(_GetToggleSymbol());
             toggleArrow.AddToClassList("hgraph-node-toggle-arrow");
             toggleArrow.RegisterCallback<MouseDownEvent>(_OnToggleArrowMouseDown);
-            headerBar.Add(toggleArrow);
+            headerRow.Add(toggleArrow);
 
             string headerText = isRoot
                 ? $"{dataNode.GetType().Name}  [ROOT]"
                 : dataNode.GetType().Name;
             Label headerLabel = new Label(headerText);
-            headerBar.Add(headerLabel);
+            headerRow.Add(headerLabel);
+            headerBar.Add(headerRow);
+
+            // 타이틀 행 — 헤더 내 두 번째 행 (닫힘/열림 무관하게 항상 표시).
+            titleLabel = new Label(dataNode.Title);
+            titleLabel.AddToClassList("hgraph-node-title");
+            headerBar.Add(titleLabel);
 
             // 토글 진입점 (2) — 헤더 더블클릭 (P1B-e B). toggleArrow 위 클릭은 (1) 이 먼저 잡음.
             headerBar.RegisterCallback<MouseDownEvent>(_OnHeaderMouseDown);
 
             mainContainer.Insert(0, headerBar);
-        }
-
-        private void _BuildTitle() {
-            titleLabel = new Label(dataNode.Title);
-            titleLabel.AddToClassList("hgraph-node-title");
-            mainContainer.Add(titleLabel);
         }
 
         private void _BuildBody() {
@@ -296,6 +341,24 @@ namespace HWindows.Editor.NodeWindow {
             _ApplyResizeHandleVisibility();
         }
 
+        protected virtual void _BuildPorts() {
+            // 입력 포트(리프 측)와 출력 포트(브랜치 측).
+            // mainContainer 직속 portRow 에 배치 — GraphView collapse 관리 범위 밖이라 항상 표시됨.
+            inputPort = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
+            inputPort.portName = "";
+
+            outputPort = InstantiatePort(Orientation.Horizontal, Direction.Output, Port.Capacity.Multi, typeof(bool));
+            outputPort.portName = "";
+
+            portRow = new VisualElement();
+            portRow.AddToClassList("hgraph-node-port-row");
+            portRow.Add(inputPort);
+            portRow.Add(outputPort);
+
+            // headerBar 는 index 0. portRow 를 index 1 에 삽입해 헤더와 바디(extensionContainer) 사이에 배치.
+            mainContainer.Insert(1, portRow);
+        }
+
         private void _LoadStyleSheet() {
             string[] guids = AssetDatabase.FindAssets($"t:StyleSheet {USS_ASSET_NAME}");
             if (guids.Length == 0) return;
@@ -320,6 +383,11 @@ namespace HWindows.Editor.NodeWindow {
         private void _OnHeaderMouseDown(MouseDownEvent evt) {
             if (evt.button != 0) return;
             if (evt.clickCount != 2) return;
+            OnHeaderDoubleClick(evt);
+        }
+
+        // 더블클릭 액션. 파생 타입(HGraphCatalogNode 등)이 override해 다른 동작 삽입 가능.
+        protected virtual void OnHeaderDoubleClick(MouseDownEvent evt) {
             _ToggleExpanded();
             evt.StopPropagation();
         }
@@ -416,8 +484,96 @@ namespace HWindows.Editor.NodeWindow {
 }
 
 #if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 — 노드 선택 시 Inspector 동기화
+ *
+ * # 변경
+ * - OnSelected(): Selection.activeObject = dataNode 추가.
+ *   노드 클릭 시 대응 BaseNode ScriptableObject 가 Unity Inspector 에 표시됨.
+ *
+ * # 이유
+ * - GraphView 선택 상태와 Unity 전역 Selection 이 분리되어 있어 Inspector 에 아무것도 표시되지 않았음.
+ *   단 한 줄로 Inspector 동기화를 달성할 수 있는 가장 직접적인 진입점.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 Phase 3+ — 동적 출력 포트 확장점 (inputPort/outputPort/portRow protected, _BuildPorts virtual)
+ *
+ * # 변경
+ * - inputPort / outputPort / portRow : private → protected (파생 클래스 직접 접근용).
+ * - _BuildPorts() : private → protected virtual → HGraphCatalogNode 가 override 가능.
+ * - portRow : _BuildPorts 로컬 변수 → 클래스 필드 (파생 클래스에서 Add 가능).
+ * - GetOutputPort(int index) public virtual 추가 : 기본 노드는 index 무관 outputPort 반환.
+ *   CatalogNode 가 override 해 인덱스별 동적 포트 반환.
+ *
+ * # 이유
+ * - CatalogNode 는 출구 포트 N개(연결선 수 + 1 스페어)를 동적으로 생성.
+ *   파생 클래스가 _BuildPorts 를 override 해 portRow 에 포트를 추가/제거해야 함.
+ * - HGraphCanvas 엣지 연결 시 GetOutputPort(index) 로 포트를 조회 → 단일 노드/다중 포트 노드 통합.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 Phase 3 — 파생 타입 확장점 추가 (sealed 제거)
+ *
+ * # 변경
+ * - sealed 제거 → HGraphCatalogNode 등 도메인별 파생 타입 상속 허용.
+ * - bodyArea: private → protected → 파생 타입이 body 콘텐츠 교체 가능.
+ * - _OnHeaderMouseDown: 더블클릭 동작을 OnHeaderDoubleClick(protected virtual) 로 위임.
+ *   기본 동작 = _ToggleExpanded (기존과 동일). 파생 타입은 override 로 교체.
+ *
+ * # 이유
+ * - CatalogNode 는 헤더 더블클릭 시 foldout 토글 대신 카탈로그 전환 동작 필요.
+ * - body 에 ObjectField 를 표시하려면 base._BuildBody 가 추가한 UID Label 을
+ *   파생 타입에서 Clear 후 재구성 가능해야 함.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 포트 위치 수정 + 타이틀 헤더 이동
+ *
+ * # 변경
+ * - _BuildPorts(): inputContainer/outputContainer → mainContainer 직속 portRow 로 이동.
+ *   mainContainer.Insert(1, portRow) — headerBar(0) 바로 다음, 바디(extensionContainer) 위.
+ * - _ForcePortContainersVisible() 헬퍼 및 4개 호출 지점(생성자/ApplyEditorState/CloseIfExpanded/_ToggleExpanded) 전부 제거.
+ * - _BuildHeader(): column 레이아웃 전환. headerRow(화살표+타입명) + titleLabel 2행 구조.
+ * - _BuildTitle() 메서드 제거. titleLabel 이 headerBar 안으로 이동.
+ *
+ * # 이유
+ * - _ForcePortContainersVisible() 는 GraphView 내부 레이아웃 패스와 싸우는 임시 우회.
+ *   portRow → mainContainer 이동이 닫힌 노드 엣지 어긋남 이슈의 구조적 해결.
+ *   mainContainer 는 GraphView 의 expanded 상태 변화 영향 밖 → worldBound 항상 유효.
+ * - 타이틀을 headerBar 안으로 이동해 닫힘/열림 무관 노드 정보를 헤더에 집중.
+ *
+ * @Jason - PKH 2026.05.10 닫힌 노드 포트 항상 표시 + 엣지 worldBound 보장
+ *
+ * # 변경
+ * - _ForcePortContainersVisible() 헬퍼 추가.
+ *   RefreshExpandedState() 직후 호출로 top / inputContainer / outputContainer 를 Flex 강제 복원.
+ *   RefreshExpandedState() 4개 호출 지점(생성자 / ApplyEditorState / CloseIfExpanded / _ToggleExpanded) 모두 적용.
+ * - 이전 RefreshExpandedState() override 제거 (CS0506 — Node 베이스에서 virtual 미노출).
+ * - Public - GraphView Override 영역 이름에서 "(Phase 1-E 실시간 스냅)" 접미 제거.
+ *
+ * # 이유
+ * - GraphView base.RefreshExpandedState() 가 collapsed 시 top 컨테이너를 숨김.
+ *   포트가 hidden 부모 안에 있으면 worldBound = {0,0,0,0} → 엣지가 (0,0)으로 잘못 연결.
+ *   (Repopulate 후 닫힌 노드 엣지 어긋남 이슈의 직접 원인)
+ * - 닫힌 상태에서도 포트 dot 를 표시해 연결 상태 시각 확인 + 드래그 연결 가능.
+ *
+ * @Jason - PKH 2026.05.10 Phase 2 — Port 추가 (inputPort / outputPort)
+ *
+ * # 추가
+ * - _BuildPorts(): InputPort(Direction.Input) + OutputPort(Direction.Output) 생성.
+ *   Orientation.Horizontal, Capacity.Multi, portName="" (레이블 숨김).
+ *   inputContainer(좌) / outputContainer(우) 에 각각 Add.
+ * - InputPort / OutputPort public 프로퍼티 노출 (HGraphCanvas 포트 연결용).
+ *
+ * # 이유
+ * - HGraphCanvas._PopulateInternal 이 HGraphEdge.input / output 에 포트를 할당해야 함.
+ * - portName="" 로 레이블 숨겨 컴팩트 노드 외관 유지.
+ *
+ * =============================================================================
+ */
+
 // =============================================================================
-// Dev Log
+// (이하 이전 엔트리 — 원래 형식 보존)
 // =============================================================================
 // @Jason - PKH 2026-04-24 HGraphNode 의 역할 - BaseNode 1개에 대응하는 시각 객체
 //
@@ -545,6 +701,14 @@ namespace HWindows.Editor.NodeWindow {
 //     + 노드 인스턴스가 사라져도 (RemoveElement) 람다 자기 캡처 currentCatalog 가 stale 될 수 있으나,
 //       capture 가 풀린 시점이라 호출 경로 자체가 발생 안 함.
 // =============================================================================
+//
+// [Phase 1-F CloseIfExpanded 추가 - 2026-05-09]
+// - Internal - Foldout State (Phase 1-F) 영역 신설:
+//   + IsExpanded: expanded 프로퍼티 노출 — HGraphCanvas.CloseAllFoldouts 에서 일괄 확인용.
+//   + CloseIfExpanded(): 이미 닫혀 있으면 early return. 열린 경우에만 닫힘 상태로 전환.
+//     ApplyEditorState 와 같은 닫힘 경로 (toggleArrow 업데이트 + RefreshExpandedState +
+//     _ApplyOpenSize + _ApplyResizeHandleVisibility + FoldoutChanged?.Invoke(false)).
+//   + FoldoutChanged.Invoke(false) 발화 — HGraphCanvas 의 catalog 갱신 경로 자동 트리거.
 //
 // [Phase 1-E SetPosition override + _ApplySnap - 2026-05-08]
 // - SetPosition override (P1E-α/β/γ + Q5 A + Q6 A):
