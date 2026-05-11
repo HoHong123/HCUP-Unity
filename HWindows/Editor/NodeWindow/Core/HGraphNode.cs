@@ -8,6 +8,7 @@
  * + Snap-to-Grid 드래그, 우클릭 컨텍스트 메뉴 (루트 전환 / 삭제 / 연결선 끊기).
  * + editorPosition / foldoutOpen / openSize — BaseNode 에 직접 저장 (Phase 1-F 이후).
  * + OnSelected → Selection.activeObject = DataNode → Inspector 자동 동기화.
+ * + 입구/출구 포트 portName = "Input (N)" / "Output (N)" — RefreshPortLabels 가 연결 수 갱신.
  *
  * 주의사항 ::
  * Capabilities.Copiable | Deletable 비활성 — 복사/삭제는 HGraphCanvas._OnKeyDown 집중.
@@ -34,9 +35,6 @@ namespace HWindows.Editor.NodeWindow {
         const string USS_ASSET_NAME = "HGraphNode";
         const string ARROW_OPEN = "▼";
         const string ARROW_CLOSED = "▶";
-        // Resize 최소값 — USS .hgraph-node 의 min-width/min-height 와 정합 유지.
-        const float MIN_RESIZE_WIDTH = 180f;
-        const float MIN_RESIZE_HEIGHT = 64f;
         #endregion
 
         #region Fields
@@ -46,40 +44,37 @@ namespace HWindows.Editor.NodeWindow {
         Label titleLabel;
         Label toggleArrow;
         protected VisualElement bodyArea;
-        VisualElement resizeHandle;
         protected Port inputPort;
         protected Port outputPort;
         protected VisualElement portRow;
-        Vector2 openSize;
-        bool isResizing;
-        Vector2 resizeStartMousePos;
-        Vector2 resizeStartSize;
         #endregion
 
         #region Properties
         public BaseNode DataNode => dataNode;
         public NodeUID UID => dataNode.UID;
         public bool IsRoot => isRoot;
-        public VisualElement ResizeHandle => resizeHandle;
-        public Vector2 OpenSize => openSize;
         public Port InputPort => inputPort;
         public Port OutputPort => outputPort;
         // CatalogNode 다중 출력 포트 인터페이스. 기본 노드는 index 무관 단일 outputPort 반환.
         public virtual Port GetOutputPort(int index) => outputPort;
+
+        // 포트 라벨에 연결 수 표시. canvas._PopulateInternal 의 edges 루프 종료 직후 호출.
+        // base: "Input (N)" / "Output (N)" 고정. Hub override 는 키별 카운트 표시.
+        public virtual void RefreshPortLabels() {
+            if (inputPort != null) inputPort.portName = $"Input ({inputPort.connections.Count()})";
+            if (outputPort != null) outputPort.portName = $"Output ({outputPort.connections.Count()})";
+        }
         #endregion
 
         #region Events
         // Foldout 토글 시 발화. HGraphCanvas 가 구독해 Author.SetFoldoutOpen 호출.
         public event Action<bool> FoldoutChanged;
-        // Resize 종료 (MouseUp) 시 발화. HGraphCanvas 가 구독해 Author.SetOpenSize 호출.
-        public event Action<Vector2> OpenSizeChanged;
         #endregion
 
         #region Constructor
         public HGraphNode(BaseNode dataNode, bool isRoot = false) {
             this.dataNode = dataNode;
             this.isRoot = isRoot;
-            this.openSize = Vector2.zero;
 
             // GraphView 기본 메뉴의 Cut/Copy/Duplicate/Delete 자동 추가 차단 (P1D-a 정공).
             // capabilities 비트 플래그 꺼서 base.BuildContextualMenu 가 해당 항목을 생략하게 만듦.
@@ -93,7 +88,6 @@ namespace HWindows.Editor.NodeWindow {
 
             _BuildHeader();
             _BuildBody();
-            _BuildResizeHandle();
             _BuildPorts();
 
             expanded = false;
@@ -104,19 +98,10 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Public - Editor State
         // HGraphCanvas Populate 가 catalog 에서 읽은 상태를 노드에 적용.
-        public void ApplyEditorState(bool isExpanded, Vector2 openSize) {
-            this.openSize = openSize;
+        public void ApplyEditorState(bool isExpanded) {
             expanded = isExpanded;
             if (toggleArrow != null) toggleArrow.text = _GetToggleSymbol();
             RefreshExpandedState();
-            _ApplyOpenSize();
-            _ApplyResizeHandleVisibility();
-        }
-
-        // Resize Manipulator (Task F) 가 MouseUp 시점에 호출. openSize 갱신 + 이벤트 발화.
-        internal void NotifyResizeFinished(Vector2 newSize) {
-            openSize = newSize;
-            OpenSizeChanged?.Invoke(newSize);
         }
         #endregion
 
@@ -177,8 +162,6 @@ namespace HWindows.Editor.NodeWindow {
             expanded = false;
             if (toggleArrow != null) toggleArrow.text = _GetToggleSymbol();
             RefreshExpandedState();
-            _ApplyOpenSize();
-            _ApplyResizeHandleVisibility();
             FoldoutChanged?.Invoke(false);
         }
         #endregion
@@ -329,26 +312,14 @@ namespace HWindows.Editor.NodeWindow {
             extensionContainer.Add(bodyArea);
         }
 
-        private void _BuildResizeHandle() {
-            resizeHandle = new VisualElement();
-            resizeHandle.AddToClassList("hgraph-node-resize-handle");
-            // 인라인 Resize Manipulator (Phase 1-B-2, P1B-g/h/i).
-            // MouseDown 시 capture + StopPropagation 으로 GraphView SelectionDragger 차단 필수.
-            resizeHandle.RegisterCallback<MouseDownEvent>(_OnResizeHandleMouseDown);
-            resizeHandle.RegisterCallback<MouseMoveEvent>(_OnResizeHandleMouseMove);
-            resizeHandle.RegisterCallback<MouseUpEvent>(_OnResizeHandleMouseUp);
-            Add(resizeHandle);
-            _ApplyResizeHandleVisibility();
-        }
-
         protected virtual void _BuildPorts() {
             // 입력 포트(리프 측)와 출력 포트(브랜치 측).
             // mainContainer 직속 portRow 에 배치 — GraphView collapse 관리 범위 밖이라 항상 표시됨.
             inputPort = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
-            inputPort.portName = "";
+            inputPort.portName = "Input";
 
             outputPort = InstantiatePort(Orientation.Horizontal, Direction.Output, Port.Capacity.Multi, typeof(bool));
-            outputPort.portName = "";
+            outputPort.portName = "Output";
 
             portRow = new VisualElement();
             portRow.AddToClassList("hgraph-node-port-row");
@@ -396,88 +367,7 @@ namespace HWindows.Editor.NodeWindow {
             expanded = !expanded;
             if (toggleArrow != null) toggleArrow.text = _GetToggleSymbol();
             RefreshExpandedState();
-            _ApplyOpenSize();
-            _ApplyResizeHandleVisibility();
             FoldoutChanged?.Invoke(expanded);
-        }
-
-        private void _ApplyOpenSize() {
-            if (expanded && openSize.x > 0f && openSize.y > 0f) {
-                style.width = openSize.x;
-                style.height = openSize.y;
-            } else {
-                // 닫힘 시 또는 openSize 미보유 시 USS min-width/min-height 로 자연 복귀 (P1B-f).
-                style.width = StyleKeyword.Null;
-                style.height = StyleKeyword.Null;
-            }
-        }
-
-        private void _ApplyResizeHandleVisibility() {
-            if (resizeHandle == null) return;
-            if (expanded) {
-                resizeHandle.pickingMode = PickingMode.Position;
-                resizeHandle.style.display = DisplayStyle.Flex;
-            } else {
-                resizeHandle.pickingMode = PickingMode.Ignore;
-                resizeHandle.style.display = DisplayStyle.None;
-            }
-        }
-        #endregion
-
-        #region Private - Resize (Phase 1-B-2)
-        private void _OnResizeHandleMouseDown(MouseDownEvent evt) {
-            if (evt.button != 0) return;
-            if (!expanded) return;
-
-            isResizing = true;
-            resizeStartMousePos = evt.mousePosition;
-            resizeStartSize = new Vector2(
-                resolvedStyle.width > 0f ? resolvedStyle.width : MIN_RESIZE_WIDTH,
-                resolvedStyle.height > 0f ? resolvedStyle.height : MIN_RESIZE_HEIGHT);
-
-            // capture + StopPropagation 둘 다 필수.
-            // capture 만 잡으면 capture-phase 에서 GraphView SelectionDragger 가 먼저 처리 가능.
-            // StopPropagation 만 두면 capture 가 풀려 외부 mouse 이동 추적 끊김.
-            resizeHandle.CaptureMouse();
-            evt.StopPropagation();
-        }
-
-        private void _OnResizeHandleMouseMove(MouseMoveEvent evt) {
-            if (!isResizing) return;
-
-            // panel 좌표 delta 를 그래프 좌표로 변환 (zoom 보정).
-            // panel 1px 이동 = 그래프 (1 / scale) px 이동. scale=1 일 때 그대로.
-            float scale = _GetGraphViewScale();
-            Vector2 panelDelta = (Vector2)evt.mousePosition - resizeStartMousePos;
-            Vector2 graphDelta = panelDelta / scale;
-
-            float newWidth = Mathf.Max(MIN_RESIZE_WIDTH, resizeStartSize.x + graphDelta.x);
-            float newHeight = Mathf.Max(MIN_RESIZE_HEIGHT, resizeStartSize.y + graphDelta.y);
-            style.width = newWidth;
-            style.height = newHeight;
-
-            evt.StopPropagation();
-        }
-
-        private void _OnResizeHandleMouseUp(MouseUpEvent evt) {
-            if (!isResizing) return;
-            isResizing = false;
-
-            resizeHandle.ReleaseMouse();
-
-            // 최종 크기로 catalog 갱신 이벤트 발화 (P1B-i).
-            Vector2 finalSize = new Vector2(resolvedStyle.width, resolvedStyle.height);
-            NotifyResizeFinished(finalSize);
-
-            evt.StopPropagation();
-        }
-
-        // GraphView 의 viewTransform.scale 을 부모 traversal 로 조회. zoom 0 인 경우 1 fallback.
-        private float _GetGraphViewScale() {
-            GraphView gv = GetFirstAncestorOfType<GraphView>();
-            if (gv == null) return 1f;
-            float scale = gv.viewTransform.scale.x;
-            return scale > 0f ? scale : 1f;
         }
         #endregion
     }
@@ -486,6 +376,48 @@ namespace HWindows.Editor.NodeWindow {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — 리사이즈 시스템 전면 제거 (최후순위 이월)
+ *
+ * # 변경
+ * - MIN_RESIZE_WIDTH / MIN_RESIZE_HEIGHT 상수 제거.
+ * - resizeHandle / openSize / isResizing / resizeStartMousePos / resizeStartSize 필드 제거.
+ * - ResizeHandle / OpenSize 프로퍼티 제거.
+ * - OpenSizeChanged 이벤트 제거.
+ * - NotifyResizeFinished / _BuildResizeHandle / _ApplyOpenSize / _ApplyResizeHandleVisibility
+ *   / _OnResizeHandleMouseDown/Move/Up / _GetGraphViewScale 메서드 제거.
+ * - _ToggleExpanded / CloseIfExpanded / ApplyEditorState: openSize 파라미터·호출 제거.
+ * - ApplyEditorState 시그니처 (bool isExpanded) 로 단순화.
+ *
+ * # 이유
+ * - GraphView.Node 의 contentContainer/mainContainer 레이아웃 제약(flex-basis:auto)으로
+ *   핸들 위치·FoldOut 이벤트 차단·크기 복원 등 3중 충돌 발생. 단기 해결 복잡도 > 기능 가치.
+ * - 기능 상세 및 시도 이력은 이 엔트리 아래 세 개 이전 엔트리 (삭제됨) 참고.
+ * - 이월 항목: 메모리 project_deferred_features.md 에 등록.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — RefreshPortLabels() virtual 추가
+ *
+ * # 변경
+ * - public virtual RefreshPortLabels(): inputPort/outputPort 의 portName 을
+ *   "Input (N)" / "Output (N)" 형식으로 갱신. N = port.connections.Count().
+ *
+ * # 이유
+ * - 포트 라벨에 연결 엣지 수를 시각 노출 — 노드 연결 상태 한눈에 파악.
+ * - virtual — HGraphHubNode 가 키별 카운트 형식으로 override.
+ * - HGraphCanvas._PopulateInternal 의 edges 루프 종료 직후 단일 호출 지점.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — 포트 portName 기본값 부여 (Input/Output)
+ *
+ * # 변경
+ * - _BuildPorts(): inputPort.portName = "Input", outputPort.portName = "Output".
+ *   기존 "" 빈 문자열은 USS 라벨 노출 후 빈 공간으로 남아 도트 외관이 어색해짐.
+ *
+ * # 이유
+ * - HGraphNode.uss 의 `.port > #type { display: none }` 전역 규칙 제거와 짝.
+ *   SimpleNode / CatalogNode 가 본 베이스를 그대로 사용하므로 양쪽이 동시에 라벨을 표시.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 — 노드 선택 시 Inspector 동기화
  *
