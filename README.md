@@ -1,6 +1,14 @@
 # Hong's Custom Utility - Unity (HCUP)
 
-> 공용 유틸리티, UI, 게임 로직, 오디오 패키지를 함께 관리하는 Unity 패키지 저장소입니다. (업데이트: 2026-05-05, 문서 기준 버전 1.0.3)
+> 공용 유틸리티, UI, 게임 로직, 오디오, 에디터 윈도우 패키지를 함께 관리하는 Unity 패키지 저장소입니다. (업데이트: 2026-05-12, 문서 기준 버전 1.1.1)
+
+---
+
+## 1.1.1 릴리스 하이라이트
+
+- `HWindows` 패키지 신설 — GraphView 기반 `NodeWindow` 에디터 서브모듈 도입. 메인 UPM 패키지가 4개에서 5개로 증가했습니다.
+- NodeWindow: `NodeCatalogSO`(그래프 컨테이너 SO) + 3 노드 타입(Simple / Hub / Catalog) + Undo/Redo + Cut/Paste(JSON 클립보드) + Search + 메뉴바([View▾][Edit▾]).
+- Unity 2022.3 LTS ~ 6000.3.11f1 호환 확인. C# 9 상한 준수 (`#if UNITY_6000_0_OR_NEWER` 분기 적용).
 
 ---
 
@@ -27,13 +35,14 @@
 
 ## 개요
 
-이 저장소는 반복 구현되던 Unity 기능을 네 메인 패키지 + 다섯 어셈블리로 분리해 재사용하기 쉽게 정리한 묶음입니다.
+이 저장소는 반복 구현되던 Unity 기능을 다섯 메인 패키지 + 다섯 어셈블리로 분리해 재사용하기 쉽게 정리한 묶음입니다.
 
-### 메인 UPM 패키지 (4개)
+### 메인 UPM 패키지 (5개)
 - `HUtil`: 공용 기반 계층 (AssetHandler / Pooling / Animation / Font)
 - `HUI`: UI 계층 (Button / Toggle / DropDown / Popup / Panel / Scrollview / DebugConsole)
 - `HGame`: 게임 로직 계층 (GameModule / Player / Skill / World / Camera / 2D / Character)
 - `HAudio`: 오디오 계층 (token 기반 AudioManager / Catalog / Repository / AddOn / Load)
+- `HWindows`: 에디터 윈도우 계층 (Editor-only. NodeWindow 서브모듈 포함)
 
 ### 분리 어셈블리 (5개, sibling)
 - `HCollection`: HDictionary / IHDictionary / EnumArray / CircularList
@@ -68,6 +77,12 @@
 - 핵심 축: `AudioManager`, `Catalog`, `Repository`, `AddOn`, `Load`, `Core`
 - 문서: `HAudio/README.md`, `HAudio/doc/CHANGELOG.md`
 
+### HWindows
+- 역할: GraphView 기반 커스텀 에디터 윈도우 계층을 담당합니다. 현재 활성 서브모듈은 `NodeWindow`이며, `FileBrowser` 등 추가 서브모듈은 별도 asmdef로 확장 가능합니다.
+- 핵심 축: `NodeCatalogSO`(그래프 컨테이너), `BaseNode`(노드 데이터), `NodeCatalogAuthor`(단일 mutation 게이트), `HGraphCanvas`(GraphView 어댑터), `HGraphWindow`(EditorWindow 진입점)
+- 의존: `HUtil`, `HCollection`, `HInspector` (`HGame`, `HUI` 역방향 참조 금지)
+- 문서: `HWindows/README.md`
+
 ---
 
 ## 디렉토리 맵
@@ -98,6 +113,17 @@
 - `Editor`: 사운드 카탈로그 생성/편집/미리보기/디버그 윈도우 4
 - `Samples~`: `Sound` (token 기반 재생 샘플)
 
+### `HWindows` (UPM 패키지)
+- `Editor/NodeWindow/`
+  - `Core(8)`: HGraphWindow, HGraphCanvas, HGraphNode, HGraphCatalogNode, HGraphHubNode, HGraphEdge, HGraphClipboard, HGraphNodeStyles
+  - `NodeCatalog/Authoring(2)`: NodeCatalogAuthor, NodeCatalogObjectChangeWatcher
+  - `NodeCatalog/Identity(1)`: NodeUIDDrawer
+  - `Settings(3)`: NodeSnapSettings, NodeWindowSettingsProvider, SnapMode
+  - `UI(2)`: HGraphWindow.uss, HGraphNode.uss
+- `Runtime/NodeWindow/`
+  - `NodeCatalog(8)`: NodeCatalogSO, BaseNode, SimpleNode, HubNode, CatalogNode, BaseNodeEdge, SimpleNodeEdge, HubNodeEdge
+  - `Identity(1)`: NodeUID
+
 ### `HCollection` / `HCore` / `HData` / `HDiagnosis` / `HInspector` (sibling 어셈블리)
 - 별도 UPM 패키지가 아니라 같은 repo 안의 sibling 폴더입니다.
 - 메인 패키지를 import 시 같은 sub-tree 안에 함께 가져갑니다.
@@ -123,7 +149,8 @@
 2. UI 작업이 목적이면 `HUI` 를 확인하고, `Scrollview` 와 `Popup` 샘플부터 보는 편이 빠릅니다.
 3. 게임 진행 흐름이 목적이면 `HGame` 의 `GameModule` 부터 확인하십시오.
 4. 오디오 재생 / 카탈로그 / sfx addon 이 목적이면 `HAudio` 의 `AudioManager` 와 `Catalog` 부터 확인하십시오.
-5. 샘플은 참고용입니다. 실제 프로젝트에는 그대로 복사하지 말고 입력 체계, 네임스페이스, 초기화 순서에 맞게 다시 감싸서 넣으십시오.
+5. 노드 그래프 에디터 / 데이터 시각화가 목적이면 `HWindows` 의 `NodeWindow` 와 `NodeCatalogSO` 부터 확인하십시오.
+6. 샘플은 참고용입니다. 실제 프로젝트에는 그대로 복사하지 말고 입력 체계, 네임스페이스, 초기화 순서에 맞게 다시 감싸서 넣으십시오.
 
 ---
 
@@ -144,7 +171,7 @@
 - 게임 계층은 상태 전환과 샘플 흐름이 얽혀 있으므로 초기화 순서를 무시하면 바로 불안정해집니다.
 - 오디오 계층은 token preload 후 재생을 전제로 합니다. preload 누락 시 첫 재생이 무음이 되거나 비동기 hitch 가 발생할 수 있습니다.
 - `Samples~` 는 참고용입니다. 실제 배포 빌드에는 포함하지 않거나 별도 패키지로 분리하는 편이 맞습니다.
-- HWindows 는 1.1.0 에서 도입 예정이며 이번 1.0.2 릴리즈에는 포함되지 않습니다.
+- HWindows 는 Editor-only 패키지입니다. Runtime 어셈블리(`HCUP.HWindows.NodeWindow`)는 노드 데이터 계약(ScriptableObject)만 포함하며 빌드에 포함되어도 무방하지만, Editor 어셈블리는 에디터 전용입니다.
 
 ---
 
@@ -162,6 +189,9 @@
 - `HAudio`
   - `https://github.com/HoHong123/HCUP-Unity.git?path=/HAudio`
   - `https://github.com/HoHong123/HCUP-Unity.git?path=/HAudio#HAudio-1.0.0`
+- `HWindows`
+  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HWindows`
+  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HWindows#HWindows-1.0.0`
 
 태그 컨벤션은 `{어셈블리}-{버전}` 형식입니다 (예: `HUtil-1.0.2`, `v1.0.2` umbrella). 분리 어셈블리도 동일 패턴(`HCollection-1.0.2` 등)으로 태그가 부여되어 있습니다.
 
@@ -169,9 +199,10 @@
 
 ## 참고 문서
 
-- 패키지 README: `HUtil/README.md`, `HUI/README.md`, `HGame/README.md`, `HAudio/README.md`
+- 패키지 README: `HUtil/README.md`, `HUI/README.md`, `HGame/README.md`, `HAudio/README.md`, `HWindows/README.md`
 - 패키지 CHANGELOG: `HUtil/docs/CHANGELOG.md`, `HUI/docs/CHANGELOG.md`, `HGame/doc/CHANGELOG.md`, `HAudio/doc/CHANGELOG.md`
-- 릴리즈 노트: `docs/ReleaseNote/v1.0.2.md`, `docs/ReleaseNote/HUtil-1.0.2.md` 등 9개 파일
+- 파일별 변경 이력 (HWindows): `docs/history/HWindows/Editor/NodeWindow/`
+- 릴리즈 노트: `docs/ReleaseNote/v1.1.1.md`, `docs/ReleaseNote/v1.0.2.md`, `docs/ReleaseNote/HWindows-1.0.0.md` 등
 - 릴리즈 워크플로우: `RELEASE_WORKFLOW.md`
 
 ---

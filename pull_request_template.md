@@ -18,6 +18,8 @@
 - [ ] HUtil (Animation, AssetHandler, Data, Font, Pooling)
 - [ ] HUI (UI 컴포넌트)
 - [ ] HGame (게임 로직)
+- [ ] HAudio (AudioManager, Catalog, Repository, AddOn, Load)
+- [ ] HWindows (NodeWindow — NodeCatalogSO / BaseNode / HGraphCanvas / HGraphWindow)
 
 **Foundation Assemblies**
 - [ ] HData (Primitives, Encode, Encrypt, Mathx)
