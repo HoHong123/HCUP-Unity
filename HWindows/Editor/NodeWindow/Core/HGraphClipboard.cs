@@ -16,14 +16,13 @@ namespace HWindows.Editor.NodeWindow {
 
         #region Types
         // 단일 노드의 직렬 데이터 묶음. typeName 으로 도메인 타입 동적 생성, nodeJson 으로 필드 복원.
-        // layout / foldoutOpen / openSize 는 catalog 의 Editor-only 보조 맵 데이터.
+        // layout / foldoutOpen 는 Editor-only 보조 상태.
         [Serializable]
         public struct Entry {
             public string typeName;
             public string nodeJson;
             public Vector2 layout;
             public bool foldoutOpen;
-            public Vector2 openSize;
         }
 
         // 클립보드 wrapper. magic + version 으로 다른 형식 클립보드 거부.
@@ -36,7 +35,7 @@ namespace HWindows.Editor.NodeWindow {
         #endregion
 
         #region Public - Serialize
-        // 노드 리스트 → JSON wrapper. catalog 가 null 이면 보조 맵 (layout/foldout/openSize) 은 default.
+        // 노드 리스트 → JSON wrapper. catalog 가 null 이면 보조 맵 (layout/foldout) 은 default.
         // selection 의 ClipboardMagic 일관성 검사 — mixed 도메인 시 null 반환 (caller Warning 책임).
         public static string Serialize(NodeCatalogSO catalog, IReadOnlyList<BaseNode> nodes) {
             if (nodes == null || nodes.Count == 0) return null;
@@ -56,7 +55,7 @@ namespace HWindows.Editor.NodeWindow {
             Entry[] entries = new Entry[validNodes.Count];
             for (int k = 0; k < validNodes.Count; k++) {
                 BaseNode n = validNodes[k];
-                // Phase 1-F: 에디터 상태(layout/foldout/openSize)는 node 자체 필드에서 읽음.
+                // Phase 1-F: 에디터 상태(layout/foldout)는 node 자체 필드에서 읽음.
                 // nodeJson(JsonUtility.ToJson) 에 이미 포함되어 _RestoreFromEntry 의
                 // FromJsonOverwrite 가 자동 복원. entry 필드는 명시적 접근용으로 유지.
                 Entry e = new Entry {
@@ -64,7 +63,6 @@ namespace HWindows.Editor.NodeWindow {
                     nodeJson = JsonUtility.ToJson(n),
                     layout = n.EditorPosition,
                     foldoutOpen = n.EditorFoldoutOpen,
-                    openSize = n.EditorOpenSize,
                 };
                 entries[k] = e;
             }
