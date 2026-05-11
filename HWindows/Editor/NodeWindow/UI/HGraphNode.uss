@@ -15,24 +15,27 @@
 }
 
 .hgraph-node-header {
-    height: 24px;
     padding-left: 10px;
     padding-right: 10px;
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
     -unity-font-style: bold;
     font-size: 10px;
     color: rgb(255, 255, 255);
+}
+
+.hgraph-node-header-row {
+    height: 24px;
+    flex-direction: row;
+    align-items: center;
     -unity-text-align: middle-left;
 }
 
 .hgraph-node-title {
-    flex-grow: 1;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 4px;
+    padding-bottom: 6px;
     font-size: 14px;
     color: rgb(232, 232, 232);
-    -unity-text-align: middle-center;
+    -unity-text-align: middle-left;
 }
 
 /* Phase 1-B - Body / Toggle / Resize / Highlight */
@@ -73,4 +76,63 @@
     border-bottom-width: 2px;
     border-left-width: 2px;
     border-right-width: 2px;
+}
+
+/* Phase 2 - 연결선 선택 시 연결된 노드 하이라이트 */
+.hgraph-node--edge-highlight {
+    border-color: #B8A55A;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-right-width: 2px;
+}
+
+/* Phase 3 - CatalogNode: 청록 계열 외곽선으로 일반 노드와 시각 구분 */
+.hgraph-catalog-node {
+    border-color: #267A73;
+}
+
+/* Phase 3+ - HubNode: 주황 계열 외곽선으로 허브 라우팅 노드 시각 구분 */
+.hgraph-hub-node {
+    border-color: #B87333;
+}
+
+/* Phase 3+ - HubNode 출력 포트 세로 컬럼 (오른쪽 끝 정렬) */
+.hgraph-hub-port-column {
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+/* Phase 3+ - HubNode body Add 버튼 */
+.hgraph-hub-add-btn {
+    margin-top: 4px;
+    font-size: 10px;
+    -unity-text-align: middle-center;
+}
+
+/* Phase 2 - portRow: mainContainer 직속 → GraphView collapse 관리 밖 항상 표시 */
+.hgraph-node-port-row {
+    flex-direction: row;
+    justify-content: space-between;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* Phase 2 - 포트 스타일: 작고 미니멀한 원형 점 */
+.port {
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.port > #connector {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+}
+
+.port > #type {
+    display: none;
 }
