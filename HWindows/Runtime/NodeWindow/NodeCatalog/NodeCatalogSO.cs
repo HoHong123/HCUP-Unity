@@ -22,15 +22,6 @@ namespace HWindows.NodeWindow {
         [SerializeReference]
         List<BaseNodeEdge> edges = new();
 
-#if UNITY_EDITOR
-        [HTitle("Debug")]
-        [SerializeField]
-        HDictionary<NodeUID, Vector2> editorNodeLayouts = new();
-        [SerializeField]
-        HDictionary<NodeUID, bool> editorNodeFoldoutOpen = new();
-        [SerializeField]
-        HDictionary<NodeUID, Vector2> editorNodeOpenSizes = new();
-#endif
 
         [System.NonSerialized]
         Dictionary<(NodeUID Branch, NodeUID Leaf), BaseNodeEdge> edgeByPair;
@@ -50,11 +41,6 @@ namespace HWindows.NodeWindow {
         public int EdgeCount => edges.Count;
         public NodeUID RootUID => rootUID;
         public bool HasRoot => rootUID.IsValid;
-#if UNITY_EDITOR
-        public IReadOnlyDictionary<NodeUID, Vector2> EditorNodeLayouts => editorNodeLayouts;
-        public IReadOnlyDictionary<NodeUID, bool> EditorNodeFoldoutOpen => editorNodeFoldoutOpen;
-        public IReadOnlyDictionary<NodeUID, Vector2> EditorNodeOpenSizes => editorNodeOpenSizes;
-#endif
         #endregion
 
         #region Public - Serialization
@@ -126,31 +112,6 @@ namespace HWindows.NodeWindow {
             rootUID = NodeUID.None;
         }
 
-#if UNITY_EDITOR
-        internal void InternalSetLayout(NodeUID uid, Vector2 pos) {
-            editorNodeLayouts[uid] = pos;
-        }
-
-        internal void InternalRemoveLayout(NodeUID uid) {
-            editorNodeLayouts.Remove(uid);
-        }
-
-        internal void InternalSetFoldoutOpen(NodeUID uid, bool open) {
-            editorNodeFoldoutOpen[uid] = open;
-        }
-
-        internal void InternalRemoveFoldoutOpen(NodeUID uid) {
-            editorNodeFoldoutOpen.Remove(uid);
-        }
-
-        internal void InternalSetOpenSize(NodeUID uid, Vector2 size) {
-            editorNodeOpenSizes[uid] = size;
-        }
-
-        internal void InternalRemoveOpenSize(NodeUID uid) {
-            editorNodeOpenSizes.Remove(uid);
-        }
-#endif
         #endregion
 
         #region Private
@@ -168,6 +129,13 @@ namespace HWindows.NodeWindow {
 // =============================================================================
 // Dev Log
 // =============================================================================
+// @Jason - PKH 2026.05.09 Phase 1-F — 에디터 상태 3개 딕셔너리 제거
+//
+//   변경 / editorNodeLayouts / editorNodeFoldoutOpen / editorNodeOpenSizes 필드·프로퍼티·Internal 메서드 전부 제거.
+//   이유 / 에디터 상태 소유권을 BaseNode 로 이관. Undo.DestroyObjectImmediate(node) 가 상태 전체 원자 복원.
+//         catalog 수준 HDictionary Undo 복원 불안정 문제 구조적 제거.
+//   결과 / catalog 는 nodes / edges / rootUID 순수 그래프 데이터만 보유. 에디터 상태 완전 분리.
+//
 // @Jason - PKH 2026-04-22 NodeCatalogSO 의 역할 - 노드/엣지/루트의 단일 데이터 소유자
 //
 //   [역할]
