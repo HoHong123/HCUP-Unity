@@ -249,8 +249,15 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _OnContextSetAsRoot(NodeCatalogSO catalog) {
-            bool ok = NodeCatalogAuthor.SetRoot(catalog, UID);
-            if (!ok) HLogger.Warning($"[HGraphNode] SetRoot failed for UID {UID.Value}");
+            // Phase 5: canvas.SetSelectedAsRoot(UID) 로 위임. 명시 UID 오버로드 사용 —
+            // GraphView 가 우클릭 시 selection 갱신 안 하므로 selection 기반 오버로드와 분리.
+            HGraphCanvas canvas = GetFirstAncestorOfType<HGraphCanvas>();
+            if (canvas != null) {
+                canvas.SetSelectedAsRoot(UID);
+            } else {
+                bool ok = NodeCatalogAuthor.SetRoot(catalog, UID);
+                if (!ok) HLogger.Warning($"[HGraphNode] SetRoot failed for UID {UID.Value}");
+            }
         }
 
         private void _OnContextDelete(NodeCatalogSO catalog, List<HGraphNode> targets) {
@@ -633,6 +640,12 @@ namespace HWindows.Editor.NodeWindow {
 //     + 노드 인스턴스가 사라져도 (RemoveElement) 람다 자기 캡처 currentCatalog 가 stale 될 수 있으나,
 //       capture 가 풀린 시점이라 호출 경로 자체가 발생 안 함.
 // =============================================================================
+//
+// [Phase 5 - 2026-05-11] _OnContextSetAsRoot → canvas.SetSelectedAsRoot(UID) 위임.
+//   이유 / Set as Root 로직(Author.SetRoot) 을 HGraphCanvas.SetSelectedAsRoot 에 통합.
+//          메뉴바 진입점과 우클릭 메뉴 진입점이 같은 Author.SetRoot 경유 — DRY.
+//          명시 UID 오버로드 사용: 우클릭 시 GraphView selection 갱신 X 이므로 this.UID 직접 전달.
+//          canvas null fallback 유지 — Panel 밖에서 호출되는 극단 케이스 방어.
 //
 // [Phase 1-F CloseIfExpanded 추가 - 2026-05-09]
 // - Internal - Foldout State (Phase 1-F) 영역 신설:
