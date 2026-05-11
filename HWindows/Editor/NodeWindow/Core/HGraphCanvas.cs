@@ -52,7 +52,11 @@ namespace HWindows.Editor.NodeWindow {
 
             gridBackground = new GridBackground();
             Insert(0, gridBackground);
-            gridBackground.StretchToParentSize();
+            gridBackground.style.position = Position.Absolute;
+            gridBackground.style.left = 0;
+            gridBackground.style.top = 0;
+            gridBackground.style.right = 0;
+            gridBackground.style.bottom = 0;
             gridBackground.visible = NodeSnapSettings.instance.ShowGrid;
 
             _LoadStyleSheet();
@@ -119,12 +123,12 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         public Vector2 GetViewportCenterWorld() {
-            Vector3 vt = viewTransform.position;
-            float scale = viewTransform.scale.x;
+            Translate vt = contentViewContainer.resolvedStyle.translate;
+            float scale = contentViewContainer.resolvedStyle.scale.value.x;
             if (scale == 0f) scale = 1f;
             Rect rect = contentRect;
             Vector2 screenCenter = new Vector2(rect.width / 2f, rect.height / 2f);
-            return (screenCenter - new Vector2(vt.x, vt.y)) / scale;
+            return (screenCenter - new Vector2(vt.x.value, vt.y.value)) / scale;
         }
         #endregion
 
@@ -406,13 +410,13 @@ namespace HWindows.Editor.NodeWindow {
         public void CenterViewportOn(Vector2 worldPos) {
             Rect rect = contentRect;
             Vector2 screenCenter = new Vector2(rect.width / 2f, rect.height / 2f);
-            float scale = viewTransform.scale.x;
+            float scale = contentViewContainer.resolvedStyle.scale.value.x;
             if (scale == 0f) scale = 1f;
             Vector3 newPos = new Vector3(
                 screenCenter.x - worldPos.x * scale,
                 screenCenter.y - worldPos.y * scale,
                 0f);
-            UpdateViewTransform(newPos, viewTransform.scale);
+            UpdateViewTransform(newPos, contentViewContainer.resolvedStyle.scale.value);
         }
 
         // 현재 catalog 의 RootUID layout 으로 viewport 이동. 루트 미보유 시 false.
@@ -560,16 +564,14 @@ namespace HWindows.Editor.NodeWindow {
                 }
 
                 // Phase 1-F: 에디터 상태를 catalog 딕셔너리가 아닌 node 자체에서 읽음.
-                // Undo.DestroyObjectImmediate(node) 가 editorPosition/FoldoutOpen/OpenSize 를 포함해
+                // Undo.DestroyObjectImmediate(node) 가 editorPosition/FoldoutOpen 을 포함해
                 // 원자 복원하므로 삭제 Undo 후에도 위치가 올바르게 복원됨.
 #if UNITY_EDITOR
                 Vector2 pos = data.EditorPosition;
                 bool isExpanded = data.EditorFoldoutOpen;
-                Vector2 openSize = data.EditorOpenSize;
 #else
                 Vector2 pos = Vector2.zero;
                 bool isExpanded = false;
-                Vector2 openSize = Vector2.zero;
 #endif
 
                 bool isRoot = pair.Key == currentCatalog.RootUID;
@@ -581,13 +583,12 @@ namespace HWindows.Editor.NodeWindow {
                 };
                 view.Catalog = currentCatalog;
                 view.SetPosition(new Rect(pos, Vector2.zero));
-                view.ApplyEditorState(isExpanded, openSize);
+                view.ApplyEditorState(isExpanded);
 
                 // 이벤트 구독으로 catalog 갱신 진입점 통합 (Phase 1-A 의 graphViewChanged 와 같은 책임 분리).
                 // closure 캡처용 로컬 변수 - foreach 변수 직접 캡처는 일부 C# 버전에서 stale 가능.
                 NodeUID uid = pair.Key;
                 view.FoldoutChanged += isOpen => NodeCatalogAuthor.SetFoldoutOpen(currentCatalog, uid, isOpen);
-                view.OpenSizeChanged += size => NodeCatalogAuthor.SetOpenSize(currentCatalog, uid, size);
 
                 AddElement(view);
                 nodeLookup[pair.Key] = view;
@@ -642,6 +643,12 @@ namespace HWindows.Editor.NodeWindow {
 
                 AddElement(edgeView);
                 edgeLookup[(dataEdge.BranchUID, dataEdge.LeafUID)] = edgeView;
+            }
+
+            // 모든 엣지 연결 완료 후 포트 라벨에 연결 수 반영 (Input/Output/Hub 키 + (N)).
+            // Port.connections 는 Connect() 호출 즉시 반영되므로 이 시점 카운트가 정확.
+            foreach (HGraphNode view in nodeLookup.Values) {
+                view.RefreshPortLabels();
             }
 
             // GraphView 가 자식 변경 후 자동 redraw 안 하는 케이스 방지.
@@ -708,6 +715,41 @@ namespace HWindows.Editor.NodeWindow {
 
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — ITransform Obsolete 수정 (viewTransform.position/scale → resolvedStyle)
+ *
+ * # 변경
+ * - GetViewportCenterWorld(): viewTransform.position → contentViewContainer.resolvedStyle.translate.
+ *   viewTransform.scale.x → contentViewContainer.resolvedStyle.scale.value.x.
+ * - CenterViewportOn(): 동일 패턴. UpdateViewTransform 의 scale 인자도 resolvedStyle.scale.value.
+ *
+ * # 이유
+ * - Unity 6 에서 ITransform.position / ITransform.scale getter 가 Obsolete 처리됨.
+ *   "읽기 → resolvedStyle, 쓰기 → UpdateViewTransform 유지" 권장 패턴 적용.
+ *   contentViewContainer.transform = viewTransform 이므로 읽기 값 동일.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — GridBackground StretchToParentSize() → 인라인 스타일 교체
+ *
+ * # 변경
+ * - gridBackground.StretchToParentSize() → style.position/left/top/right/bottom 4줄 인라인.
+ *   동작 동일 (position:absolute + 상하좌우 0).
+ *
+ * # 이유
+ * - StretchToParentSize() 가 Unity 6000.3.11f1 에서 Obsolete 경고 발생.
+ *   UIElements 인라인 스타일로 직접 명시해 경고 제거.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — _PopulateInternal 끝 RefreshPortLabels 일괄 호출
+ *
+ * # 변경
+ * - edges 루프 종료 후 nodeLookup 전체 순회 → view.RefreshPortLabels() 호출.
+ *   Port.connections 가 Connect() 시점 즉시 반영되므로 카운트 정확.
+ *
+ * # 이유
+ * - 포트 라벨에 연결 수 표시 ("Input (N)" / "Output (N)" / "Key (N)") — 사용자 시각 피드백.
+ * - 모든 엣지 변경은 CatalogMutated → repopulate 경로로 흐르므로 본 한 지점만 호출.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 Phase 3+ — HubNode 지원 + CatalogNode 단순화
  *
@@ -881,7 +923,8 @@ namespace HWindows.Editor.NodeWindow {
 // - StretchToParentSize() = position:absolute + left/right/top/bottom:0 → flex 레이아웃 무시, root 전체 덮음.
 // - 결과: Toolbar 가 Canvas 아래 숨어 보이지 않음.
 // - 해결: StretchToParentSize() 제거. HGraphWindow 가 canvas.style.flexGrow = 1 로 영역 할당.
-// - 내부 GridBackground 의 StretchToParentSize() 는 canvas 내부를 채우는 용도로 유지.
+// - 내부 GridBackground 는 style.position/left/top/right/bottom 인라인으로 canvas 내부를 채움.
+//   (StretchToParentSize() Unity 6 Obsolete → 2026.05.11 인라인 스타일로 교체)
 // =============================================================================
 
 // =============================================================================
