@@ -7,7 +7,7 @@
  * 도메인 데이터 없는 그래프 정체성 베이스.
  * + catalog 의 sub-asset 으로 저장됨.
  * + AssignIdentity / SetTitle / ResetIdentity 는 internal — Author 전용.
- * + [HTitle] 섹션 헤더: 정체성 / 에디터 상태. uid 는 [HReadOnly] (Author 전용).
+ * + [HTitle] 섹션 헤더: Identity / Editor State. uid 는 [HReadOnly] (Author 전용).
  *
  * 주의사항 ::
  * 인접 관계(Branch/Leaf 리스트)는 미보유. catalog.Edges 가 단일 source.
@@ -22,7 +22,7 @@ using UnityEngine;
 namespace HWindows.NodeWindow {
     public abstract class BaseNode : ScriptableObject {
         #region Fields
-        [HTitle("정체성")]
+        [HTitle("Identity")]
         [HReadOnly]
         [SerializeField]
         NodeUID uid;
@@ -30,14 +30,19 @@ namespace HWindows.NodeWindow {
         string title;
 
 #if UNITY_EDITOR
-        [HTitle("에디터 상태")]
+        [HTitle("Editor State")]
         [SerializeField]
         Vector2 editorPosition;
         [SerializeField]
         bool editorFoldoutOpen;
-        [SerializeField]
-        Vector2 editorOpenSize;
 #endif
+        #endregion
+
+        #region Public - Clipboard (Phase 1-D)
+        // 도메인별 클립보드 식별자 (Cut/Copy wrapper 의 magic).
+        // 서브 override 권장 — 도메인 추가 시 자기 magic 명시.
+        // 명명 규칙: "HGRAPH_<DOMAIN>_NODE_V<N>" — 예: "HGRAPH_SIMPLE_NODE_V1".
+        public virtual string ClipboardMagic => "HGRAPH_BASE_NODE_V1";
         #endregion
 
         #region Properties
@@ -47,7 +52,6 @@ namespace HWindows.NodeWindow {
 #if UNITY_EDITOR
         public Vector2 EditorPosition => editorPosition;
         public bool EditorFoldoutOpen => editorFoldoutOpen;
-        public Vector2 EditorOpenSize => editorOpenSize;
 #endif
         #endregion
 
@@ -55,7 +59,6 @@ namespace HWindows.NodeWindow {
 #if UNITY_EDITOR
         internal void SetEditorPosition(Vector2 pos) { editorPosition = pos; }
         internal void SetEditorFoldoutOpen(bool open) { editorFoldoutOpen = open; }
-        internal void SetEditorOpenSize(Vector2 size) { editorOpenSize = size; }
 #endif
         #endregion
 
@@ -92,20 +95,36 @@ namespace HWindows.NodeWindow {
             return $"[{GetType().Name}] {title} (UID={shortUID}, ↓{outgoing} ↑{incoming})";
         }
         #endregion
-
-        #region Public - Clipboard (Phase 1-D)
-        // 도메인별 클립보드 식별자 (Cut/Copy wrapper 의 magic).
-        // 서브 override 권장 — 도메인 추가 시 자기 magic 명시.
-        // 명명 규칙: "HGRAPH_<DOMAIN>_NODE_V<N>" — 예: "HGRAPH_SIMPLE_NODE_V1".
-        // 미override 시 BaseNode default 가 그대로 적용 (HGraphClipboard 의 prefix/suffix 패턴 통과).
-        public virtual string ClipboardMagic => "HGRAPH_BASE_NODE_V1";
-        #endregion
     }
 }
 
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — editorOpenSize 제거 (리사이즈 기능 최후순위 이월)
+ *
+ * # 변경
+ * - editorOpenSize [SerializeField] 필드 제거.
+ * - EditorOpenSize 프로퍼티 제거.
+ * - SetEditorOpenSize internal 세터 제거.
+ *
+ * # 이유
+ * - 리사이즈 핸들 / 노드 크기 저장 기능 전면 이월 결정.
+ * - editorPosition / editorFoldoutOpen 만 에디터 상태로 유지.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — HTitle 라벨 영문화
+ *
+ * # 변경
+ * - [HTitle("정체성")] → [HTitle("Identity")].
+ * - [HTitle("에디터 상태")] → [HTitle("Editor State")].
+ * - 헤더 주석의 라벨 인용 동기화 (정체성/에디터 상태 → Identity/Editor State).
+ *
+ * # 이유
+ * - 전역 규칙: 코드/변수명은 영어. HTitle 인자는 화면 표시 라벨 + 코드 식별자 양쪽 성격.
+ * - 다른 도메인 SO (DialogueNode/SkillNode 등) 추가 시 영문 라벨 일관성 사전 확보.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 — Inspector HTitle 섹션 헤더 + uid ReadOnly 추가
  *
@@ -143,51 +162,48 @@ namespace HWindows.NodeWindow {
  * - uid.IsValid 체크 후 단축 표시 — None 상태에서 [..8] IndexOutOfRange 방지
  *
  * =============================================================================
+ * @Jason - PKH 2026-04-22 BaseNode 의 역할 - 그래프 정체성만 담는 추상 SO 베이스
+ * 
+ *   [역할]
+ *   - 도메인 데이터 없는 그래프 정체성 베이스 (UID + Title 만).
+ *   - ScriptableObject 상속 → catalog 의 sub-asset 으로 저장됨.
+ * 
+ *   [필드 경계 - 매우 중요]
+ *   - UID, Title 만 보유. 그 외 도메인 필드·인접 정보·에셋 참조 모두 금지.
+ *   + 인접 관계(Branch/Leaf 리스트) 미보유: catalog.edges 가 단일 source.
+ *   + 자기 이웃을 모름. catalog.GetIncomingEdges(uid) 등으로 외부 조회.
+ *   + 이 정책으로 양방향 싱크 책임이 구조적으로 사라짐.
+ *
+ *   [도메인 확장 정책]
+ *   - 도메인 SO 는 BaseNode 상속 (예: DialogueNode : BaseNode).
+ *   - 에셋 참조는 AssetReference (Addressables) 또는 string key 로 간접만.
+ *   + UnityEngine.Object 타입 직접 필드 금지 (Sprite/AnimationClip/AudioClip 등).
+ *   + HCUP AssetHandler 경로 강제 (CLAUDE.md 전역 규칙).
+ *   + SO 메모리 오버헤드 1000-3000배 감소 + 빌드 크기 분리 가능.
+ *
+ *   [Author 진입점]
+ *   - AssignIdentity / SetTitle 은 internal — InternalsVisibleTo 로 Editor
+ *     asmdef 의 Author 만 호출 가능. 외부 어셈블리 컴파일 차단.
+ *   - AssignIdentity 는 최초 1회만 (uid.IsValid 체크). 재할당 차단.
+ * 
+ *   [GetInspectorSummary]
+ *   - virtual — 도메인 서브가 override 해 요약 확장.
+ *   - 기본 구현은 UID + Title + 연결 개수 (↓ outgoing / ↑ incoming).
+ * 
+ *   [Phase 1-D 확장 - 2026-05-07/08]
+ *   - ResetIdentity() internal 추가 (Duplicate / Paste 공통 지원):
+ *   + ScriptableObject.Instantiate 가 readonly-style internal 필드 (uid/title) 복사 후
+ *     AssignIdentity 가 if (uid.IsValid) return 으로 차단됨.
+ *   + ResetIdentity 로 NodeUID.None 리셋 → AssignIdentity 새 UID 발급 가능.
+ *   + 도메인 데이터는 보존 (식별자만 비움). InternalsVisibleTo 로 Editor Author 만 호출 가능.
+ *   - ClipboardMagic virtual 추가 (사용자 결정 2026-05-08):
+ *   + Cut/Copy 의 wrapper magic. 도메인 서브 override 권장.
+ *   + 명명 규칙 "HGRAPH_<DOMAIN>_NODE_V<N>" — SimpleNode → "HGRAPH_SIMPLE_NODE_V1".
+ *   + Mixed 도메인 selection 시 HGraphClipboard.Serialize 가 일관성 검사로 거부.
+ *   + base default = "HGRAPH_BASE_NODE_V1" (서브 override 안 해도 패턴 정합 통과).
+ *   - 폐기: Phase 1-D 본 라운드 잠시 추가됐던 GetCopyText virtual + _AppendAdjacencySection helper.
+ *   + 사용자 결정 — Copy 도 JSON 으로 통일 (HGraphClipboard.Serialize 활용). ToString 텍스트 폐기.
+ *   + milestone §1-2-2 의 ToString 형식 명세는 후속 phase (디버그 콘솔 / Preview Phase 4) 재도입 가능.
+ * =============================================================================
  */
-// =============================================================================
-// (이하 이전 엔트리 — 원래 형식 보존)
-// =============================================================================
-// @Jason - PKH 2026-04-22 BaseNode 의 역할 - 그래프 정체성만 담는 추상 SO 베이스
-//
-//   [역할]
-//   - 도메인 데이터 없는 그래프 정체성 베이스 (UID + Title 만).
-//   - ScriptableObject 상속 → catalog 의 sub-asset 으로 저장됨.
-//
-//   [필드 경계 - 매우 중요]
-//   - UID, Title 만 보유. 그 외 도메인 필드·인접 정보·에셋 참조 모두 금지.
-//   + 인접 관계(Branch/Leaf 리스트) 미보유: catalog.edges 가 단일 source.
-//   + 자기 이웃을 모름. catalog.GetIncomingEdges(uid) 등으로 외부 조회.
-//   + 이 정책으로 양방향 싱크 책임이 구조적으로 사라짐.
-//
-//   [도메인 확장 정책]
-//   - 도메인 SO 는 BaseNode 상속 (예: DialogueNode : BaseNode).
-//   - 에셋 참조는 AssetReference (Addressables) 또는 string key 로 간접만.
-//   + UnityEngine.Object 타입 직접 필드 금지 (Sprite/AnimationClip/AudioClip 등).
-//   + HCUP AssetHandler 경로 강제 (CLAUDE.md 전역 규칙).
-//   + SO 메모리 오버헤드 1000-3000배 감소 + 빌드 크기 분리 가능.
-//
-//   [Author 진입점]
-//   - AssignIdentity / SetTitle 은 internal — InternalsVisibleTo 로 Editor
-//     asmdef 의 Author 만 호출 가능. 외부 어셈블리 컴파일 차단.
-//   - AssignIdentity 는 최초 1회만 (uid.IsValid 체크). 재할당 차단.
-//
-//   [GetInspectorSummary]
-//   - virtual — 도메인 서브가 override 해 요약 확장.
-//   - 기본 구현은 UID + Title + 연결 개수 (↓ outgoing / ↑ incoming).
-//
-//   [Phase 1-D 확장 - 2026-05-07/08]
-//   - ResetIdentity() internal 추가 (Duplicate / Paste 공통 지원):
-//   + ScriptableObject.Instantiate 가 readonly-style internal 필드 (uid/title) 복사 후
-//     AssignIdentity 가 if (uid.IsValid) return 으로 차단됨.
-//   + ResetIdentity 로 NodeUID.None 리셋 → AssignIdentity 새 UID 발급 가능.
-//   + 도메인 데이터는 보존 (식별자만 비움). InternalsVisibleTo 로 Editor Author 만 호출 가능.
-//   - ClipboardMagic virtual 추가 (사용자 결정 2026-05-08):
-//   + Cut/Copy 의 wrapper magic. 도메인 서브 override 권장.
-//   + 명명 규칙 "HGRAPH_<DOMAIN>_NODE_V<N>" — SimpleNode → "HGRAPH_SIMPLE_NODE_V1".
-//   + Mixed 도메인 selection 시 HGraphClipboard.Serialize 가 일관성 검사로 거부.
-//   + base default = "HGRAPH_BASE_NODE_V1" (서브 override 안 해도 패턴 정합 통과).
-//   - 폐기: Phase 1-D 본 라운드 잠시 추가됐던 GetCopyText virtual + _AppendAdjacencySection helper.
-//   + 사용자 결정 — Copy 도 JSON 으로 통일 (HGraphClipboard.Serialize 활용). ToString 텍스트 폐기.
-//   + milestone §1-2-2 의 ToString 형식 명세는 후속 phase (디버그 콘솔 / Preview Phase 4) 재도입 가능.
-// =============================================================================
 #endif
