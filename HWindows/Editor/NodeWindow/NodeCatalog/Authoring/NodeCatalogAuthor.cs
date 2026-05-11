@@ -7,11 +7,11 @@
  * 상태 0, 필드 0. 모든 컨텍스트는 파라미터로 전달.
  * + CreateNode / DuplicateNode / RemoveNode / ConnectEdge / DisconnectEdge / SetRoot
  * + Cut / Paste (JSON 클립보드 기반)
- * + SetLayout / SetFoldoutOpen / SetOpenSize (고빈도 상태)
+ * + SetLayout / SetFoldoutOpen (고빈도 상태)
  *
  * 주의사항 ::
  * 모든 mutation 후 SetDirty + SaveAssets 트리오 필수.
- * + SetLayout / SetFoldoutOpen / SetOpenSize 는 SaveAssets 미호출 (고빈도 분류).
+ * + SetLayout / SetFoldoutOpen 는 SaveAssets 미호출 (고빈도 분류).
  * =========================================================
  */
 #endif
@@ -92,9 +92,16 @@ namespace HWindows.Editor.NodeWindow.Authoring {
         // Phase 3 — NodeCatalogSO 를 canvas 특정 위치에 CatalogNode 로 생성.
         // HGraphWindow 드래그드롭 (카탈로그 이미 바인드 상태) 전용 진입점.
         // 1:1 양방향: referenced 에도 catalog 를 참조하는 CatalogNode 자동 생성 (미존재 시).
+        // 단일 제한: 같은 catalog 안에 동일 referenced 를 가리키는 CatalogNode 는 최대 1개.
         public static CatalogNode CreateCatalogNodeAt(NodeCatalogSO catalog, NodeCatalogSO referenced, Vector2 dropPosition) {
             if (catalog == null) {
                 HLogger.Error("[NodeCatalogAuthor] catalog is null in CreateCatalogNodeAt");
+                return null;
+            }
+
+            // 중복 거부: catalog 에 referenced 를 가리키는 CatalogNode 가 이미 존재하면 null 반환.
+            if (referenced != null && _HasCatalogNodeFor(catalog, referenced)) {
+                HLogger.Warning($"[NodeCatalogAuthor] CreateCatalogNodeAt rejected: '{catalog.name}' already contains a CatalogNode for '{referenced.name}'");
                 return null;
             }
 
@@ -136,7 +143,8 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             return node;
         }
 
-        // referenced 카탈로그에 target 을 참조하는 CatalogNode 가 이미 있는지 확인.
+        // catalog 안에 target 을 참조하는 CatalogNode 가 이미 있는지 확인.
+        // 순방향 중복 거부 + 역방향 자동 생성 가드 양쪽에서 사용.
         private static bool _HasCatalogNodeFor(NodeCatalogSO catalog, NodeCatalogSO target) {
             foreach (BaseNode node in catalog.Nodes.Values) {
 #if UNITY_EDITOR
@@ -514,24 +522,6 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 #endif
         }
 
-        /// <summary>
-        /// 노드 Open 크기를 node.editorOpenSize 에 반영.
-        /// Resize Manipulator 의 MouseUp 시점에서만 호출 (드래그 중 매 프레임 호출 X, 고빈도 분류).
-        /// </summary>
-        public static void SetOpenSize(NodeCatalogSO catalog, NodeUID uid, Vector2 size) {
-            if (catalog == null) {
-                HLogger.Error("[NodeCatalogAuthor] catalog is null in SetOpenSize");
-                return;
-            }
-#if UNITY_EDITOR
-            if (!catalog.Nodes.TryGetValue(uid, out BaseNode node)) {
-                HLogger.Warning($"[NodeCatalogAuthor] SetOpenSize rejected: node {uid} not in catalog");
-                return;
-            }
-            node.SetEditorOpenSize(size);
-            EditorUtility.SetDirty(node);
-#endif
-        }
         #endregion
 
         #region Private - Validation
@@ -616,6 +606,28 @@ namespace HWindows.Editor.NodeWindow.Authoring {
  * # 이유
  * - CreateNode<CatalogNode> 후 SetReferencedCatalog 하면 CatalogMutated가 두 번 발화해
  *   repopulate 가 두 번 일어남 (위치 flicker 유발). 단일 메서드로 원자 처리.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — CreateCatalogNodeAt 순방향 중복 거부 추가
+ *
+ * # 변경
+ * - CreateCatalogNodeAt: 진입부에 _HasCatalogNodeFor(catalog, referenced) 검사 추가.
+ *   동일 referenced 를 가리키는 CatalogNode 가 이미 존재하면 Warning + null 반환.
+ * - _HasCatalogNodeFor 주석: 역방향 전용 → 순방향/역방향 양쪽 사용 명시.
+ *
+ * # 이유
+ * - catalog 당 referenced 당 CatalogNode 는 최대 1개 제한 (1:1 관계 무결성).
+ *   기존 역방향 가드(_HasCatalogNodeFor)를 순방향에도 재사용 — 추가 로직 없음.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 — SetOpenSize 제거 (리사이즈 기능 최후순위 이월)
+ *
+ * # 변경
+ * - SetOpenSize 메서드 제거.
+ * - 헤더 주석의 SetOpenSize 참조 제거.
+ *
+ * # 이유
+ * - 리사이즈 기능 전면 이월 결정. BaseNode.editorOpenSize 필드 제거와 연동.
  *
  * =============================================================================
  * @Jason - PKH 2026.05.09 Phase 1-F — 에디터 상태 이관 (catalog HDictionary → BaseNode)
