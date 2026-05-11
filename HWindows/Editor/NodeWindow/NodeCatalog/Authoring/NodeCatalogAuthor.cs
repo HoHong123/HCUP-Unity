@@ -8,6 +8,7 @@
  * + CreateNode / DuplicateNode / RemoveNode / ConnectEdge / DisconnectEdge / SetRoot
  * + Cut / Paste (JSON 클립보드 기반)
  * + SetLayout / SetFoldoutOpen (고빈도 상태)
+ * + PurgeNullNodes (sub-asset 외부 삭제 고스트 UID 자동 정리)
  *
  * 주의사항 ::
  * 모든 mutation 후 SetDirty + SaveAssets 트리오 필수.
@@ -135,7 +136,7 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             Undo.RegisterCreatedObjectUndo(node, "Create Catalog Node");
             catalog.InternalAddNode(node);
 
-            if (!catalog.HasRoot) catalog.InternalSetRoot(uid);
+            // CatalogNode는 루트 후보 제외 — 루트는 SimpleNode/HubNode가 담당.
 
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
@@ -367,6 +368,10 @@ namespace HWindows.Editor.NodeWindow.Authoring {
         #region Public - Root
         public static bool SetRoot(NodeCatalogSO catalog, NodeUID uid) {
             if (catalog == null || !catalog.Nodes.ContainsKey(uid)) return false;
+            if (catalog.Nodes[uid] is CatalogNode) {
+                HLogger.Warning("[NodeCatalogAuthor] SetRoot rejected: CatalogNode cannot be the root node.");
+                return false;
+            }
             Undo.RecordObject(catalog, "Set Root");
             catalog.InternalSetRoot(uid);
             EditorUtility.SetDirty(catalog);
@@ -524,6 +529,58 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
         #endregion
 
+        #region Public - Repair
+        // catalog.Nodes 에서 value 가 null(sub-asset 외부 삭제 고스트 UID)인 항목을 일괄 제거.
+        // 연결된 엣지 + RootUID 이전 처리 포함. SetDirty + SaveAssets 호출.
+        // _NotifyMutated 는 미호출 — 호출자(HGraphCanvas._PopulateInternal)가 이미 populate 중이므로
+        // SaveAssets 가 ObjectChangeWatcher 를 통해 다음 repopulate 를 자동으로 예약함.
+        // 반환: 제거한 항목 수. 0 이면 catalog 변경 없음.
+        public static int PurgeNullNodes(NodeCatalogSO catalog) {
+            if (catalog == null) return 0;
+
+            List<NodeUID> nullUIDs = null;
+            foreach (KeyValuePair<NodeUID, BaseNode> pair in catalog.Nodes) {
+                if (pair.Value == null) {
+                    if (nullUIDs == null) nullUIDs = new List<NodeUID>();
+                    nullUIDs.Add(pair.Key);
+                }
+            }
+
+            if (nullUIDs == null) return 0;
+
+            HLogger.Warning($"[NodeCatalogAuthor] PurgeNullNodes: {nullUIDs.Count} ghost UID(s) detected. Purging.");
+
+            bool rootAffected = false;
+            foreach (NodeUID uid in nullUIDs) {
+                List<(NodeUID, NodeUID)> touching = null;
+                foreach (BaseNodeEdge e in catalog.Edges) {
+                    if (e == null) continue;
+                    if (e.BranchUID == uid || e.LeafUID == uid) {
+                        if (touching == null) touching = new List<(NodeUID, NodeUID)>();
+                        touching.Add((e.BranchUID, e.LeafUID));
+                    }
+                }
+                if (touching != null) {
+                    foreach ((NodeUID b, NodeUID l) in touching) catalog.InternalRemoveEdge(b, l);
+                }
+
+                if (catalog.RootUID == uid) rootAffected = true;
+                catalog.InternalRemoveNode(uid);
+            }
+
+            if (rootAffected) {
+                // 모든 null 항목 제거 후 첫 번째 유효 노드를 Root 로 이전.
+                NodeUID fallback = _FindAnyOtherNode(catalog, NodeUID.None);
+                if (fallback.IsValid) catalog.InternalSetRoot(fallback);
+                else catalog.InternalClearRoot();
+            }
+
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            return nullUIDs.Count;
+        }
+        #endregion
+
         #region Private - Validation
         static bool _ValidateEdgeCreation(NodeCatalogSO catalog, NodeUID branch, NodeUID leaf, out string reason) {
             reason = null;
@@ -539,11 +596,11 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 reason = "self-loop forbidden";
                 return false;
             }
-            if (!catalog.Nodes.ContainsKey(branch)) {
+            if (!catalog.Nodes.TryGetValue(branch, out BaseNode branchNode) || branchNode == null) {
                 reason = $"branch node {branch} not in catalog";
                 return false;
             }
-            if (!catalog.Nodes.ContainsKey(leaf)) {
+            if (!catalog.Nodes.TryGetValue(leaf, out BaseNode leafNode) || leafNode == null) {
                 reason = $"leaf node {leaf} not in catalog";
                 return false;
             }
@@ -567,6 +624,40 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.12 PurgeNullNodes + _ValidateEdgeCreation null 가드
+ *
+ * # 변경
+ * - PurgeNullNodes(catalog) 신설: catalog.Nodes 에서 value == null 항목(ghost UID) 을
+ *   엣지 cascade + Root 이전 포함해 일괄 제거. SetDirty + SaveAssets 호출.
+ *   _NotifyMutated 는 미호출 — 호출자가 이미 populate 중이므로 ObjectChangeWatcher 경로로 예약.
+ * - _ValidateEdgeCreation: ContainsKey → TryGetValue + null 가드.
+ *   value 가 null 인 ghost UID 에 대한 엣지 생성을 거부.
+ *
+ * # 이유
+ * - Unity Project 창에서 sub-asset 직접 삭제 시, HDictionary UID 키는 남고 BaseNode SO 참조만
+ *   null 이 됨. Author 정상 경로(InternalRemoveNode → Undo.DestroyObjectImmediate)를 우회.
+ * - _PopulateInternal 가 매 repopulate 마다 Warning 을 내고, ContainsKey 는 ghost UID 를
+ *   존재하는 노드로 판단해 ghost 노드로의 엣지 생성을 허용하는 문제.
+ *
+ * # 결과
+ * - 윈도우 열기 시 및 repopulate 시 ghost UID 자동 정리. Warning 소멸.
+ * - ghost 노드로의 엣지 생성 차단.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 CatalogNode 루트 설정 제약
+ *
+ * # 변경
+ * - SetRoot: CatalogNode 타입 가드 추가 — 대상 노드가 CatalogNode 이면 Warning + false 반환.
+ * - _CreateCatalogNodeCore: `if (!catalog.HasRoot) InternalSetRoot(uid)` 제거.
+ *   CatalogNode 생성 시 자동 루트 지정 경로 차단.
+ *
+ * # 이유
+ * - CatalogNode 는 외부 카탈로그 참조 역할. 루트는 SimpleNode / HubNode 가 담당해야 일관됨.
+ * - UI(컨텍스트 메뉴 제거)만 방어하면 SetRoot 직접 호출 경로 우회 가능 → backend 이중 방어.
+ * - 자동 루트 지정 제거: 빈 카탈로그에 CatalogNode 가 처음 추가될 때 루트 없는 상태가 됨.
+ *   다음 SimpleNode / HubNode 생성 시 `if (!catalog.HasRoot)` 로 자연스럽게 루트 지정됨.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.10 Phase 3+ — HubNode API 추가 (CreateHubNode / AddHubEntry / RemoveHubEntry / ConnectHubEdge)
  *
