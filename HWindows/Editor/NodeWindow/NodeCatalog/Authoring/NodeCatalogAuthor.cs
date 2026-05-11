@@ -1,9 +1,25 @@
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * -- 카탈로그 mutation 단일 게이트 (Editor-only static class).
+ *
+ * 특징 ::
+ * 상태 0, 필드 0. 모든 컨텍스트는 파라미터로 전달.
+ * + CreateNode / DuplicateNode / RemoveNode / ConnectEdge / DisconnectEdge / SetRoot
+ * + Cut / Paste (JSON 클립보드 기반)
+ * + SetLayout / SetFoldoutOpen / SetOpenSize (고빈도 상태)
+ *
+ * 주의사항 ::
+ * 모든 mutation 후 SetDirty + SaveAssets 트리오 필수.
+ * + SetLayout / SetFoldoutOpen / SetOpenSize 는 SaveAssets 미호출 (고빈도 분류).
+ * =========================================================
+ */
+#endif
 using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using HWindows.Editor.NodeWindow;
-using HWindows.Editor.NodeWindow.Identity;
 using HWindows.NodeWindow;
 using HWindows.NodeWindow.Identity;
 using HDiagnosis.Logger;
@@ -45,31 +61,89 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 return null;
             }
 
-            NodeUID uid = NodeUIDRegistry.instance.Issue();
+            NodeUID uid = NodeUID.New();
 
-            string finalTitle = string.IsNullOrWhiteSpace(title) ? $"Node_{uid.Value}" : title;
+            string finalTitle = string.IsNullOrWhiteSpace(title) ? $"Node_{uid.Value[..8]}" : title;
+
+            Undo.RecordObject(catalog, "Create Node");
 
             T node = ScriptableObject.CreateInstance<T>();
             node.name = finalTitle;
             node.AssignIdentity(uid, finalTitle);
 
             AssetDatabase.AddObjectToAsset(node, catalog);
+            Undo.RegisterCreatedObjectUndo(node, "Create Node");
             catalog.InternalAddNode(node);
 
             if (!catalog.HasRoot) catalog.InternalSetRoot(uid);
 
 #if UNITY_EDITOR
-            // 신규 노드는 즉시 자동 layout 부여. catalog 가 항상 nodes 와 layouts 동기 상태 유지.
-            // 공식 = (기존 노드 수 - 1) * stride. catalog.Nodes.Count 는 방금 InternalAddNode 후라 N.
+            // 신규 노드 자동 layout — node 자체에 저장 (Phase 1-F 이관).
             int autoIndex = catalog.Nodes.Count - 1;
-            Vector2 autoPos = new Vector2(autoIndex * AUTO_LAYOUT_STRIDE_X, 0f);
-            catalog.InternalSetLayout(uid, autoPos);
+            node.SetEditorPosition(new Vector2(autoIndex * AUTO_LAYOUT_STRIDE_X, 0f));
 #endif
 
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
             _NotifyMutated(catalog);
             return node;
+        }
+
+        // Phase 3 — NodeCatalogSO 를 canvas 특정 위치에 CatalogNode 로 생성.
+        // HGraphWindow 드래그드롭 (카탈로그 이미 바인드 상태) 전용 진입점.
+        // 1:1 양방향: referenced 에도 catalog 를 참조하는 CatalogNode 자동 생성 (미존재 시).
+        public static CatalogNode CreateCatalogNodeAt(NodeCatalogSO catalog, NodeCatalogSO referenced, Vector2 dropPosition) {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in CreateCatalogNodeAt");
+                return null;
+            }
+
+            CatalogNode forwardNode = _CreateCatalogNodeCore(catalog, referenced, dropPosition);
+
+            // 양방향: referenced 카탈로그에 역방향 CatalogNode(catalog) 미존재 시 자동 생성.
+            if (referenced != null && referenced != catalog && !_HasCatalogNodeFor(referenced, catalog)) {
+                _CreateCatalogNodeCore(referenced, catalog, new Vector2(100f, 100f));
+            }
+
+            return forwardNode;
+        }
+
+        // 단일 CatalogNode 생성 코어 — dirty/save/notify 포함. CreateCatalogNodeAt 와 양방향 생성만 사용.
+        private static CatalogNode _CreateCatalogNodeCore(NodeCatalogSO catalog, NodeCatalogSO referenced, Vector2 position) {
+            NodeUID uid = NodeUID.New();
+            string title = referenced != null ? referenced.name : $"Node_{uid.Value[..8]}";
+
+            Undo.RecordObject(catalog, "Create Catalog Node");
+
+            CatalogNode node = ScriptableObject.CreateInstance<CatalogNode>();
+            node.name = title;
+            node.AssignIdentity(uid, title);
+
+#if UNITY_EDITOR
+            node.SetReferencedCatalog(referenced);
+            node.SetEditorPosition(position);
+#endif
+
+            AssetDatabase.AddObjectToAsset(node, catalog);
+            Undo.RegisterCreatedObjectUndo(node, "Create Catalog Node");
+            catalog.InternalAddNode(node);
+
+            if (!catalog.HasRoot) catalog.InternalSetRoot(uid);
+
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return node;
+        }
+
+        // referenced 카탈로그에 target 을 참조하는 CatalogNode 가 이미 있는지 확인.
+        private static bool _HasCatalogNodeFor(NodeCatalogSO catalog, NodeCatalogSO target) {
+            foreach (BaseNode node in catalog.Nodes.Values) {
+#if UNITY_EDITOR
+                if (node is CatalogNode cn && cn.ReferencedCatalog == target) return true;
+#endif
+            }
+            return false;
         }
 
         public static T DuplicateNode<T>(NodeCatalogSO catalog, NodeUID sourceUID) where T : BaseNode {
@@ -87,8 +161,10 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 return null;
             }
 
-            NodeUID newUID = NodeUIDRegistry.instance.Issue();
-            string baseTitle = $"Node_{newUID.Value}";
+            NodeUID newUID = NodeUID.New();
+            string baseTitle = $"Node_{newUID.Value[..8]}";
+
+            Undo.RecordObject(catalog, "Duplicate Node");
 
             // ScriptableObject.Instantiate (P1D-c) — Unity 가 SerializedObject 복사 자동 처리.
             T duplicate = UnityEngine.Object.Instantiate(sourceTyped);
@@ -98,14 +174,12 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             duplicate.AssignIdentity(newUID, baseTitle);
 
             AssetDatabase.AddObjectToAsset(duplicate, catalog);
+            Undo.RegisterCreatedObjectUndo(duplicate, "Duplicate Node");
             catalog.InternalAddNode(duplicate);
 
 #if UNITY_EDITOR
-            // 위치 offset (40, 40) — 원본과 겹침 회피. milestone §1-2-3 stride 220 의 일부.
-            Vector2 sourcePos = Vector2.zero;
-            if (catalog.EditorNodeLayouts.TryGetValue(sourceUID, out Vector2 sp)) sourcePos = sp;
-            Vector2 newPos = sourcePos + new Vector2(40f, 40f);
-            catalog.InternalSetLayout(newUID, newPos);
+            // 위치 offset (40, 40) — 원본과 겹침 회피.
+            duplicate.SetEditorPosition(sourceTyped.EditorPosition + new Vector2(40f, 40f));
 #endif
 
             EditorUtility.SetDirty(catalog);
@@ -116,6 +190,8 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
         public static bool RemoveNode(NodeCatalogSO catalog, NodeUID uid) {
             if (catalog == null || !catalog.Nodes.TryGetValue(uid, out BaseNode node)) return false;
+
+            Undo.RecordObject(catalog, "Remove Node");
 
             // 연결된 모든 엣지 쌍 수집 후 일괄 제거 (orphan 방지)
             List<(NodeUID, NodeUID)> touching = new();
@@ -133,16 +209,95 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             }
 
             catalog.InternalRemoveNode(uid);
-            AssetDatabase.RemoveObjectFromAsset(node);
-            UnityEngine.Object.DestroyImmediate(node, allowDestroyingAssets: true);
-
-#if UNITY_EDITOR
-            catalog.InternalRemoveLayout(uid);
-            catalog.InternalRemoveFoldoutOpen(uid);
-            catalog.InternalRemoveOpenSize(uid);
-#endif
+            // Undo.DestroyObjectImmediate: AssetDatabase.RemoveObjectFromAsset + DestroyImmediate 를 대체.
+            // undo 시 sub-asset(editorPosition/FoldoutOpen/OpenSize 포함) 을 원자 복원.
+            Undo.DestroyObjectImmediate(node);
 
             EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return true;
+        }
+        #endregion
+
+        #region Public - HubNode Lifecycle
+        // HubNode 생성 — CreateNode<HubNode> 와 같은 패턴이지만 포트 항목 없이 시작.
+        public static HubNode CreateHubNode(NodeCatalogSO catalog, Vector2 position) {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null in CreateHubNode");
+                return null;
+            }
+
+            NodeUID uid = NodeUID.New();
+            string title = $"Hub_{uid.Value[..8]}";
+
+            Undo.RecordObject(catalog, "Create Hub Node");
+
+            HubNode node = ScriptableObject.CreateInstance<HubNode>();
+            node.name = title;
+            node.AssignIdentity(uid, title);
+#if UNITY_EDITOR
+            node.SetEditorPosition(position);
+#endif
+            AssetDatabase.AddObjectToAsset(node, catalog);
+            Undo.RegisterCreatedObjectUndo(node, "Create Hub Node");
+            catalog.InternalAddNode(node);
+
+            if (!catalog.HasRoot) catalog.InternalSetRoot(uid);
+
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return node;
+        }
+
+        // HubNode 에 출구 포트 항목 추가 — 키값 중복 여부는 사용자가 판단.
+        public static bool AddHubEntry(NodeCatalogSO catalog, NodeUID hubUID, string key) {
+            if (catalog == null || !catalog.Nodes.TryGetValue(hubUID, out BaseNode node)) {
+                HLogger.Warning("[NodeCatalogAuthor] AddHubEntry: catalog or node not found");
+                return false;
+            }
+            if (node is not HubNode hub) {
+                HLogger.Warning("[NodeCatalogAuthor] AddHubEntry: node is not HubNode");
+                return false;
+            }
+
+            Undo.RecordObject(hub, "Add Hub Entry");
+            hub.AddEntry(key);
+            EditorUtility.SetDirty(hub);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return true;
+        }
+
+        // HubNode 의 출구 포트 항목 제거 — 해당 항목에 연결된 엣지도 cascade 제거.
+        public static bool RemoveHubEntry(NodeCatalogSO catalog, NodeUID hubUID, int entryIndex) {
+            if (catalog == null || !catalog.Nodes.TryGetValue(hubUID, out BaseNode node)) {
+                HLogger.Warning("[NodeCatalogAuthor] RemoveHubEntry: catalog or node not found");
+                return false;
+            }
+            if (node is not HubNode hub) {
+                HLogger.Warning("[NodeCatalogAuthor] RemoveHubEntry: node is not HubNode");
+                return false;
+            }
+            if (entryIndex < 0 || entryIndex >= hub.Entries.Count) {
+                HLogger.Warning($"[NodeCatalogAuthor] RemoveHubEntry: index {entryIndex} out of range");
+                return false;
+            }
+
+            string removedKey = hub.Entries[entryIndex].Key;
+
+            // 해당 키를 사용하는 엣지 cascade 제거.
+            List<(NodeUID, NodeUID)> toRemove = new();
+            foreach (BaseNodeEdge edge in catalog.Edges) {
+                if (edge is HubNodeEdge he && he.BranchUID == hubUID && he.BranchPortKey == removedKey)
+                    toRemove.Add((he.BranchUID, he.LeafUID));
+            }
+            foreach ((NodeUID b, NodeUID l) in toRemove) DisconnectEdge(catalog, b, l);
+
+            Undo.RecordObject(hub, "Remove Hub Entry");
+            hub.RemoveEntry(entryIndex);
+            EditorUtility.SetDirty(hub);
             AssetDatabase.SaveAssets();
             _NotifyMutated(catalog);
             return true;
@@ -157,6 +312,8 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 return null;
             }
 
+            Undo.RecordObject(catalog, "Connect Edge");
+
             TEdge edge = new();
             edge.AssignIdentity(branch, leaf);
 
@@ -167,8 +324,30 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             return edge;
         }
 
+        // HubNode 전용 ConnectEdge — portKey 를 HubNodeEdge 에 저장.
+        public static HubNodeEdge ConnectHubEdge(NodeCatalogSO catalog, NodeUID branch, NodeUID leaf, string portKey) {
+            if (!_ValidateEdgeCreation(catalog, branch, leaf, out string reason)) {
+                HLogger.Warning($"[NodeCatalogAuthor] HubEdge 생성 거부: {reason}");
+                return null;
+            }
+
+            Undo.RecordObject(catalog, "Connect Hub Edge");
+
+            HubNodeEdge edge = new HubNodeEdge();
+            edge.AssignIdentity(branch, leaf);
+#if UNITY_EDITOR
+            edge.SetPortKey(portKey);
+#endif
+            catalog.InternalAddEdge(edge);
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return edge;
+        }
+
         public static bool DisconnectEdge(NodeCatalogSO catalog, NodeUID branch, NodeUID leaf) {
             if (catalog == null || !catalog.HasEdgeBetween(branch, leaf)) return false;
+            Undo.RecordObject(catalog, "Disconnect Edge");
             catalog.InternalRemoveEdge(branch, leaf);
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
@@ -180,6 +359,7 @@ namespace HWindows.Editor.NodeWindow.Authoring {
         #region Public - Root
         public static bool SetRoot(NodeCatalogSO catalog, NodeUID uid) {
             if (catalog == null || !catalog.Nodes.ContainsKey(uid)) return false;
+            Undo.RecordObject(catalog, "Set Root");
             catalog.InternalSetRoot(uid);
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
@@ -190,22 +370,20 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
         #region Public - Layout (Phase 1-A)
         /// <summary>
-        /// 노드 위치를 catalog 의 editorNodeLayouts 에 반영. SetDirty 만 호출 (SaveAssets 생략).
-        /// Phase 1-A 에서는 Undo 통합 없음 - Phase 1-F 에서 외부 wrapping 레이어로 처리.
+        /// 노드 위치를 node.editorPosition 에 반영. SetDirty 만 호출 (SaveAssets 생략, 고빈도 분류).
         /// </summary>
         public static void SetLayout(NodeCatalogSO catalog, NodeUID uid, Vector2 pos) {
             if (catalog == null) {
                 HLogger.Error("[NodeCatalogAuthor] catalog is null in SetLayout");
                 return;
             }
-            if (!catalog.Nodes.ContainsKey(uid)) {
+#if UNITY_EDITOR
+            if (!catalog.Nodes.TryGetValue(uid, out BaseNode node)) {
                 HLogger.Warning($"[NodeCatalogAuthor] SetLayout rejected: node {uid} not in catalog");
                 return;
             }
-
-#if UNITY_EDITOR
-            catalog.InternalSetLayout(uid, pos);
-            EditorUtility.SetDirty(catalog);
+            node.SetEditorPosition(pos);
+            EditorUtility.SetDirty(node);
 #endif
         }
         #endregion
@@ -261,6 +439,9 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 return 0;
             }
 
+            Undo.RecordObject(catalog, "Paste Nodes");
+            Undo.SetCurrentGroupName("Paste Nodes");
+
             int restored = 0;
             for (int k = 0; k < payload.entries.Length; k++) {
                 BaseNode r = _RestoreFromEntry(catalog, payload.entries[k]);
@@ -296,21 +477,18 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             // 사용자 결정 (2026-05-08) — Paste 는 항상 새 UID 발급.
             // 두 catalog 가 같은 UID 노드를 보유 가능한 환경 → UID 충돌 회피 + 데이터 무결성 우선.
             // 원본 title 은 보존 (사용자가 의도적으로 변경한 title 존중). 빈 문자열이면 Node_{newUID} fallback.
-            NodeUID newUID = NodeUIDRegistry.instance.Issue();
+            NodeUID newUID = NodeUID.New();
             string preservedTitle = node.Title;
-            if (string.IsNullOrEmpty(preservedTitle)) preservedTitle = $"Node_{newUID.Value}";
+            if (string.IsNullOrEmpty(preservedTitle)) preservedTitle = $"Node_{newUID.Value[..8]}";
             node.ResetIdentity();
             node.AssignIdentity(newUID, preservedTitle);
 
             node.name = preservedTitle;
+            // editorPosition / editorFoldoutOpen / editorOpenSize 는 FromJsonOverwrite 가 이미 복원.
+            // catalog.InternalSet* 불필요 (Phase 1-F 이관).
             AssetDatabase.AddObjectToAsset(node, catalog);
+            Undo.RegisterCreatedObjectUndo(node, "Paste Nodes");
             catalog.InternalAddNode(node);
-
-#if UNITY_EDITOR
-            catalog.InternalSetLayout(newUID, entry.layout);
-            if (entry.foldoutOpen) catalog.InternalSetFoldoutOpen(newUID, true);
-            if (entry.openSize.x > 0f && entry.openSize.y > 0f) catalog.InternalSetOpenSize(newUID, entry.openSize);
-#endif
 
             return node;
         }
@@ -318,42 +496,40 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 
         #region Public - Foldout / OpenSize (Phase 1-B)
         /// <summary>
-        /// 노드 Foldout 열림/닫힘 상태를 catalog 의 editorNodeFoldoutOpen 에 반영.
-        /// "고빈도 상태 업데이트" 분류 - SetDirty 만 (SaveAssets 생략, P1B-i / P1-g 정합).
+        /// 노드 Foldout 열림/닫힘 상태를 node.editorFoldoutOpen 에 반영.
+        /// "고빈도 상태 업데이트" 분류 - SetDirty 만 (SaveAssets 생략).
         /// </summary>
         public static void SetFoldoutOpen(NodeCatalogSO catalog, NodeUID uid, bool open) {
             if (catalog == null) {
                 HLogger.Error("[NodeCatalogAuthor] catalog is null in SetFoldoutOpen");
                 return;
             }
-            if (!catalog.Nodes.ContainsKey(uid)) {
+#if UNITY_EDITOR
+            if (!catalog.Nodes.TryGetValue(uid, out BaseNode node)) {
                 HLogger.Warning($"[NodeCatalogAuthor] SetFoldoutOpen rejected: node {uid} not in catalog");
                 return;
             }
-
-#if UNITY_EDITOR
-            catalog.InternalSetFoldoutOpen(uid, open);
-            EditorUtility.SetDirty(catalog);
+            node.SetEditorFoldoutOpen(open);
+            EditorUtility.SetDirty(node);
 #endif
         }
 
         /// <summary>
-        /// 노드 Open 크기를 catalog 의 editorNodeOpenSizes 에 반영.
-        /// Resize Manipulator 의 MouseUp 시점에서만 호출 (드래그 중 매 프레임 호출 X, P1B-i).
+        /// 노드 Open 크기를 node.editorOpenSize 에 반영.
+        /// Resize Manipulator 의 MouseUp 시점에서만 호출 (드래그 중 매 프레임 호출 X, 고빈도 분류).
         /// </summary>
         public static void SetOpenSize(NodeCatalogSO catalog, NodeUID uid, Vector2 size) {
             if (catalog == null) {
                 HLogger.Error("[NodeCatalogAuthor] catalog is null in SetOpenSize");
                 return;
             }
-            if (!catalog.Nodes.ContainsKey(uid)) {
+#if UNITY_EDITOR
+            if (!catalog.Nodes.TryGetValue(uid, out BaseNode node)) {
                 HLogger.Warning($"[NodeCatalogAuthor] SetOpenSize rejected: node {uid} not in catalog");
                 return;
             }
-
-#if UNITY_EDITOR
-            catalog.InternalSetOpenSize(uid, size);
-            EditorUtility.SetDirty(catalog);
+            node.SetEditorOpenSize(size);
+            EditorUtility.SetDirty(node);
 #endif
         }
         #endregion
@@ -399,8 +575,89 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 }
 
 #if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 Phase 3+ — HubNode API 추가 (CreateHubNode / AddHubEntry / RemoveHubEntry / ConnectHubEdge)
+ *
+ * # 변경
+ * - CreateHubNode(catalog, position): HubNode SO 생성 + sub-asset 등록. 초기 entries 없음.
+ * - AddHubEntry(catalog, hubUID, key): hub.AddEntry → SetDirty(hub) → CatalogMutated.
+ * - RemoveHubEntry(catalog, hubUID, index): 해당 key 사용 HubNodeEdge cascade 제거 후 hub.RemoveEntry.
+ * - ConnectHubEdge(catalog, branch, leaf, portKey): HubNodeEdge 생성 + portKey 할당 + edge 등록.
+ *   기존 ConnectEdge<TEdge> 와 별개 — portKey 할당이 필요하므로 분리.
+ *
+ * # 이유
+ * - HubNode 는 포트 항목 수만큼 동적으로 output port 를 시각화.
+ *   AddEntry/RemoveEntry 가 CatalogMutated 를 발화해야 repopulate 가 포트 수 갱신.
+ * - HubNodeEdge.BranchPortKey 로 repopulate 시 key → Port 역매핑 (암묵 인덱스 불필요).
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 Phase 3+ — 양방향 CatalogNode 생성 + _CreateCatalogNodeCore 추출
+ *
+ * # 변경
+ * - CreateCatalogNodeAt: 기존 로직 → _CreateCatalogNodeCore 로 위임.
+ *   referenced 에 catalog 를 역방향으로 참조하는 CatalogNode 미존재 시 자동 생성 (1:1 양방향).
+ * - _CreateCatalogNodeCore: 단일 CatalogNode 생성 코어 (dirty/save/notify 포함).
+ * - _HasCatalogNodeFor(catalog, target): catalog 에 target 을 참조하는 CatalogNode 존재 여부 확인.
+ *
+ * # 이유
+ * - 사양: A→B 연결 시 B에 A CatalogNode 자동 생성 (1:1 관계).
+ *   동일 catalog 또는 already-exists 체크로 무한루프·중복 방지.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.10 Phase 3 — CreateCatalogNodeAt 추가
+ *
+ * # 변경
+ * - CreateCatalogNodeAt(catalog, referenced, dropPosition): CatalogNode 생성 전용 진입점.
+ *   CreateNode<T> 와 달리 참조 카탈로그 설정 + 드롭 위치를 단일 Undo 그룹으로 처리.
+ *   HGraphWindow 드래그드롭 (카탈로그 이미 바인드 상태) 에서 호출.
+ *
+ * # 이유
+ * - CreateNode<CatalogNode> 후 SetReferencedCatalog 하면 CatalogMutated가 두 번 발화해
+ *   repopulate 가 두 번 일어남 (위치 flicker 유발). 단일 메서드로 원자 처리.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.09 Phase 1-F — 에디터 상태 이관 (catalog HDictionary → BaseNode)
+ *
+ * # 변경
+ * - SetLayout / SetFoldoutOpen / SetOpenSize: catalog.InternalSet* → node.Set* + SetDirty(node)
+ * - CreateNode 자동 배치: catalog.InternalSetLayout → node.SetEditorPosition 직접 호출
+ * - DuplicateNode 위치 읽기: catalog.EditorNodeLayouts[sourceUID] → sourceTyped.EditorPosition
+ * - RemoveNode cascade: InternalRemoveLayout/FoldoutOpen/OpenSize 3줄 제거 (node 소멸로 자동 처리)
+ * - _RestoreFromEntry: catalog.InternalSet* 3줄 제거 — FromJsonOverwrite 가 nodeJson 에서 자동 복원
+ *
+ * # 이유
+ * - 삭제 Undo 후 노드 위치 (0,0) 리셋 버그: catalog HDictionary Undo 복원이
+ *   DisconnectEdge cascade 의 AssetDatabase.SaveAssets 호출로 손상됨.
+ * - 이관 후 Undo.DestroyObjectImmediate(node) 가 editorPosition/FoldoutOpen/OpenSize
+ *   포함 노드 전체 상태를 원자 복원 → catalog 단계 Undo 불필요.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.09 Phase 1-F — Undo 레이어 추가
+ *
+ * # 변경
+ * - CreateNode: Undo.RecordObject(catalog) + Undo.RegisterCreatedObjectUndo(node)
+ * - DuplicateNode: 동일 패턴
+ * - RemoveNode: Undo.RecordObject(catalog) + Undo.DestroyObjectImmediate(node)
+ *   (AssetDatabase.RemoveObjectFromAsset + DestroyImmediate 대체)
+ * - ConnectEdge / DisconnectEdge / SetRoot: Undo.RecordObject(catalog)
+ * - PasteNodes: Undo.RecordObject(catalog) + SetCurrentGroupName("Paste Nodes")
+ * - _RestoreFromEntry: Undo.RegisterCreatedObjectUndo(node, "Paste Nodes")
+ * - 고빈도 (SetLayout / SetFoldoutOpen / SetOpenSize): Undo 미적용 유지 (고빈도 히스토리 오염 방지)
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.09 NodeUID.New() 전환 — NodeUIDRegistry 의존 제거
+ *
+ * # 변경
+ * - CreateNode / DuplicateNode / _RestoreFromEntry 의 NodeUIDRegistry.instance.Issue() → NodeUID.New()
+ * - 자동 타이틀 fallback: $"Node_{uid.Value}" → $"Node_{uid.Value[..8]}" (GUID 8자 단축)
+ * - using HWindows.Editor.NodeWindow.Identity 제거 (Registry 삭제로 불필요)
+ *
+ * =============================================================================
+ */
 // =============================================================================
-// Dev Log
+// (이하 이전 엔트리 — 원래 형식 보존)
 // =============================================================================
 // @Jason - PKH 2026-04-22 NodeCatalogAuthor 의 역할 - mutation 단일 게이트
 //
