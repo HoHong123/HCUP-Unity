@@ -8,6 +8,8 @@
  * + nodeLookup: NodeUID → HGraphNode 역매핑. 선택/하이라이트/Floating GUI 경로 활용.
  * + edgeLookup: (Branch, Leaf) → HGraphEdge 역매핑. 엣지 시각 관리.
  * + graphViewChanged 훅으로 드래그 이동 + 엣지 생성 처리.
+ * + SearchNodes/AdvanceSearch/ClearSearch: 타이틀 검색 + CSS hgraph-node--search-active 토글.
+ * + GetSingleSelectedHGraphNode / SetSelectedAsRoot(UID): 메뉴바 Set as Root 진입점 헬퍼.
  *
  * 주의사항 ::
  * StretchToParentSize() 제거됨 — HGraphWindow 가 flexGrow=1 로 영역 할당.
@@ -32,6 +34,7 @@ namespace HWindows.Editor.NodeWindow {
     public sealed class HGraphCanvas : GraphView {
         #region Const
         const string USS_ASSET_NAME = "HGraphWindow";
+        const string CSS_SEARCH_ACTIVE = "hgraph-node--search-active";
         #endregion
 
         #region Fields
@@ -41,6 +44,12 @@ namespace HWindows.Editor.NodeWindow {
         readonly Dictionary<(NodeUID Branch, NodeUID Leaf), HGraphEdge> edgeLookup = new();
         int lastCatalogHash;
         GridBackground gridBackground;  // Phase 1-E P1E-ε: field 로 끌어올림 (ShowGrid 동기화용)
+        // Phase 4 — Search
+        string _searchQuery = string.Empty;
+        readonly List<HGraphNode> _searchResults = new();
+        int _searchIndex = -1;
+        // PurgeNullNodes 가 SaveAssets → ObjectChangeWatcher → _OnCatalogMutated 재진입 방지.
+        bool _isPopulating;
         #endregion
 
         #region Constructor + Lifecycle
@@ -57,7 +66,9 @@ namespace HWindows.Editor.NodeWindow {
             gridBackground.style.top = 0;
             gridBackground.style.right = 0;
             gridBackground.style.bottom = 0;
-            gridBackground.visible = NodeSnapSettings.instance.ShowGrid;
+            gridBackground.style.display = NodeSnapSettings.instance.ShowGrid
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
 
             _LoadStyleSheet();
 
@@ -116,6 +127,7 @@ namespace HWindows.Editor.NodeWindow {
 
         private void _OnCatalogMutated(NodeCatalogSO catalog) {
             if (currentCatalog == null || catalog != currentCatalog) return;
+            if (_isPopulating) return;
             // viewport 위치는 사용자가 조정해 둔 상태일 수 있으므로 _Populate 가
             // 강제 리셋하지 않도록 별도 경로. 현재 구현은 _Populate 가 viewport 리셋을 포함하므로
             // 빈번한 mutation 에서 깜빡일 가능성 있음. 필요 시 viewport 보존 분기 추가.
@@ -341,6 +353,16 @@ namespace HWindows.Editor.NodeWindow {
                         Undo.PerformRedo();
                         evt.StopPropagation();
                         return;
+                    case KeyCode.Home:
+                        // Phase 5: Ctrl+Home = Go To Root. 메뉴바 [View → Go To Root] 와 동일 진입점.
+                        GoToRoot();
+                        evt.StopPropagation();
+                        return;
+                    case KeyCode.Alpha0:
+                        // Phase 5: Ctrl+0 = Close All Foldouts. 메뉴바 [View → Close All] 와 동일 진입점.
+                        CloseAllFoldouts();
+                        evt.StopPropagation();
+                        return;
                 }
                 return;
             }
@@ -386,9 +408,11 @@ namespace HWindows.Editor.NodeWindow {
         #endregion
 
         #region Settings Sync (Phase 1-E P1E-ε)
-        void _OnSnapSettingsChanged() {
+        // showGrid 는 NodeWindowSettingsProvider 에서 SerializedProperty 기준으로 캡처한 값 — 타이밍 이슈 없음.
+        // style.display 사용: GraphView 렌더 패스에서 visibility:hidden 미반영 케이스 방지.
+        void _OnSnapSettingsChanged(bool showGrid) {
             if (gridBackground != null) {
-                gridBackground.visible = NodeSnapSettings.instance.ShowGrid;
+                gridBackground.style.display = showGrid ? DisplayStyle.Flex : DisplayStyle.None;
             }
             MarkDirtyRepaint();
         }
@@ -440,6 +464,35 @@ namespace HWindows.Editor.NodeWindow {
                 if (s is HGraphNode n) result.Add(n);
             }
             return result;
+        }
+
+        // Phase 5 — selection 에서 HGraphNode 가 정확히 1 개이면 반환, 0 개 또는 2 개 이상이면 null.
+        // 메뉴바 [Edit → Set as Root] status callback + SetSelectedAsRoot() 두 곳에서 사용.
+        internal HGraphNode GetSingleSelectedHGraphNode() {
+            HGraphNode result = null;
+            foreach (ISelectable s in selection) {
+                if (s is HGraphNode n) {
+                    if (result != null) return null;
+                    result = n;
+                }
+            }
+            return result;
+        }
+
+        // Phase 5 (메뉴바 진입점) — selection 에서 단일 HGraphNode 의 UID 로 루트 재설정.
+        // 반환: 성공 true. catalog null / 단일 미선택 / SetRoot 실패 → false.
+        internal bool SetSelectedAsRoot() {
+            HGraphNode node = GetSingleSelectedHGraphNode();
+            return node != null && SetSelectedAsRoot(node.UID);
+        }
+
+        // Phase 5 (우클릭 메뉴 위임 진입점) — 명시 UID 로 루트 재설정.
+        // HGraphNode._OnContextSetAsRoot 가 selection 동기화 우려 없이 this.UID 를 직접 전달.
+        internal bool SetSelectedAsRoot(NodeUID uid) {
+            if (currentCatalog == null) return false;
+            bool ok = NodeCatalogAuthor.SetRoot(currentCatalog, uid);
+            if (!ok) HLogger.Warning($"[HGraphCanvas] SetSelectedAsRoot failed for UID {uid.Value}");
+            return ok;
         }
 
         // Phase 2 — UID 로 노드 VisualElement 를 찾아 시점 중앙으로 이동.
@@ -547,6 +600,7 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _PopulateInternal() {
+            ClearSearch();  // Phase 4: node 인스턴스 전면 교체 전 stale ref 방지
             _ClearAll();
 
             if (currentCatalog == null) {
@@ -555,6 +609,11 @@ namespace HWindows.Editor.NodeWindow {
             }
 
             _HideEmptyStateHint();
+
+            _isPopulating = true;
+            // PurgeNullNodes: sub-asset 외부 삭제로 발생한 ghost UID 를 dict + edge 에서 제거.
+            // SaveAssets → ObjectChangeWatcher 동기 재진입은 _isPopulating 가드로 차단.
+            NodeCatalogAuthor.PurgeNullNodes(currentCatalog);
 
             foreach (KeyValuePair<NodeUID, BaseNode> pair in currentCatalog.Nodes) {
                 BaseNode data = pair.Value;
@@ -655,6 +714,7 @@ namespace HWindows.Editor.NodeWindow {
             // CatalogMutated 이벤트로 호출된 Repopulate 가 다음 사용자 인터랙션까지
             // 미뤄지지 않도록 명시적으로 dirty 표시.
             MarkDirtyRepaint();
+            _isPopulating = false;
         }
 
         private void _ClearAll() {
@@ -669,6 +729,59 @@ namespace HWindows.Editor.NodeWindow {
                 RemoveElement(node);
             }
             nodeLookup.Clear();
+        }
+        #endregion
+
+        #region Search (Phase 4)
+        // query 가 변경될 때마다 결과 목록 재구성 + index 0 으로 이동. 첫 결과 없으면 (0, 0) 반환.
+        // HGraphWindow 의 TextField RegisterValueChangedCallback 에서 호출.
+        internal (int count, int current) SearchNodes(string query) {
+            if (string.IsNullOrEmpty(query)) { ClearSearch(); return (0, 0); }
+
+            _ClearSearchHighlights();
+            _searchResults.Clear();
+            _searchQuery = query;
+
+            string lower = query.ToLowerInvariant();
+            foreach (GraphElement elem in graphElements) {
+                if (elem is HGraphNode node &&
+                    (node.DataNode.Title ?? string.Empty).ToLowerInvariant().Contains(lower)) {
+                    _searchResults.Add(node);
+                }
+            }
+
+            _searchIndex = _searchResults.Count > 0 ? 0 : -1;
+            _ApplySearchHighlight();
+            return (_searchResults.Count, _searchIndex >= 0 ? _searchIndex + 1 : 0);
+        }
+
+        // 기존 결과 내에서 다음 항목으로 순환. HGraphWindow 의 Enter 키 핸들러에서 호출.
+        // 결과 없음 (ClearSearch 또는 repopulate 후) → (0, 0) 반환.
+        internal (int count, int current) AdvanceSearch() {
+            if (_searchResults.Count == 0) return (0, 0);
+            _searchIndex = (_searchIndex + 1) % _searchResults.Count;
+            _ApplySearchHighlight();
+            return (_searchResults.Count, _searchIndex + 1);
+        }
+
+        // 검색 상태 완전 초기화. _PopulateInternal + 카탈로그 전환 + ESC 진입점.
+        internal void ClearSearch() {
+            _ClearSearchHighlights();
+            _searchQuery = string.Empty;
+            _searchResults.Clear();
+            _searchIndex = -1;
+        }
+
+        private void _ClearSearchHighlights() {
+            foreach (HGraphNode n in _searchResults) n.RemoveFromClassList(CSS_SEARCH_ACTIVE);
+        }
+
+        private void _ApplySearchHighlight() {
+            _ClearSearchHighlights();
+            if (_searchIndex < 0 || _searchIndex >= _searchResults.Count) return;
+            HGraphNode target = _searchResults[_searchIndex];
+            target.AddToClassList(CSS_SEARCH_ACTIVE);
+            CenterViewportOn(target.GetPosition().position);
         }
         #endregion
 
@@ -715,6 +828,51 @@ namespace HWindows.Editor.NodeWindow {
 
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.12 PurgeNullNodes 호출 + _isPopulating 재진입 가드
+ *
+ * # 변경
+ * - _isPopulating 필드 추가 (bool, Fields region).
+ * - _PopulateInternal: _HideEmptyStateHint 직후 _isPopulating = true + PurgeNullNodes 호출.
+ *   MarkDirtyRepaint 직후 _isPopulating = false.
+ * - _OnCatalogMutated: if (_isPopulating) return 가드 추가.
+ *
+ * # 이유
+ * - sub-asset 외부 삭제로 발생한 ghost UID 항목 자동 정리 (NodeCatalogAuthor.PurgeNullNodes).
+ * - PurgeNullNodes 내부 AssetDatabase.SaveAssets 가 ObjectChangeWatcher 를 동기 발화하면
+ *   _OnCatalogMutated → _PopulateInternal 재진입 위험 → _isPopulating 가드로 차단.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.12 Show Grid 미적용 버그픽스
+ *
+ * # 변경
+ * - _OnSnapSettingsChanged: 시그니처 void() → void(bool showGrid) — SnapSettingsChanged<bool> 수신.
+ * - _OnSnapSettingsChanged: gridBackground.visible = ... → gridBackground.style.display = ... Flex/None.
+ * - 생성자: gridBackground.visible = ... → gridBackground.style.display = ... 동일 패턴.
+ *
+ * # 이유
+ * - 이중 원인 차단.
+ *   (1) ApplyModifiedProperties 이후 ScriptableSingleton C# 필드 갱신 지연 가능 —
+ *       NodeWindowSettingsProvider 쪽에서 SerializedProperty.boolValue 를 캡처해 Invoke 인자로 전달,
+ *       콜백이 NodeSnapSettings.instance.ShowGrid 를 재조회하지 않도록 구조 변경.
+ *   (2) GraphView 렌더 패스에서 visibility:hidden 이 GridBackground generateVisualContent 를
+ *       막지 못하는 케이스 존재 — style.display=None 은 렌더 트리에서 요소 자체를 제거하므로 더 확실.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.11 Phase 4 — 타이틀 검색 (SearchNodes / AdvanceSearch / ClearSearch)
+ *
+ * # 변경
+ * - CSS_SEARCH_ACTIVE 상수 추가 ("hgraph-node--search-active").
+ * - _searchQuery / _searchResults / _searchIndex 필드 추가.
+ * - Search 영역 신설: SearchNodes / AdvanceSearch / ClearSearch / _ClearSearchHighlights / _ApplySearchHighlight.
+ * - _PopulateInternal 첫 줄 ClearSearch() 호출 추가.
+ *
+ * # 이유
+ * - SearchNodes: 쿼리 변경 시마다 graphElements 순회 → Title 포함 검색 → index 0. value changed 경로.
+ * - AdvanceSearch: 동일 결과 리스트에서 index % count 순환. Enter 경로.
+ * - ClearSearch: repopulate 전 stale HGraphNode ref 조기 해제. 카탈로그 전환·ESC 공유 진입점.
+ * - _ApplySearchHighlight: CenterViewportOn(target.GetPosition().position) — GoToRoot / CenterOnNode 와 동일 좌표계.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.11 — ITransform Obsolete 수정 (viewTransform.position/scale → resolvedStyle)
  *
@@ -1001,6 +1159,25 @@ namespace HWindows.Editor.NodeWindow {
 //   + Author.SetFoldoutOpen / SetOpenSize 는 _NotifyMutated 호출 없음 (P1B-i 고빈도 분류).
 //   + Foldout 토글은 본인 노드만 갱신하므로 hash polling 진입 불필요.
 //   + Inspector 에서 editorNodeFoldoutOpen 직접 수정은 ObjectChangeWatcher 가 처리.
+// =============================================================================
+
+// =============================================================================
+// Dev Log - Phase 5 (2026-05-11)
+// =============================================================================
+// @Jason - PKH 2026.05.11 Phase 5 — 메뉴바 단축키 + Single-Selection 헬퍼
+//
+//   변경 / _OnKeyDown actionKey 분기에 Home / Alpha0 case 추가.
+//          GetSingleSelectedHGraphNode() — selection 에서 HGraphNode 정확히 1 개 반환 헬퍼.
+//          SetSelectedAsRoot() — 메뉴바 진입점. selection 기반.
+//          SetSelectedAsRoot(NodeUID uid) — 우클릭 메뉴 위임 진입점. selection 무관, 명시 UID.
+//   이유 / Ctrl+Home / Ctrl+0 메뉴바 단축키 라벨과 실제 기능 일치.
+//          SetSelectedAsRoot 두 오버로드 분리 이유:
+//            우클릭 시 GraphView 가 selection 갱신 안 하므로, 우클릭 노드 자체의 UID 를
+//            직접 전달해야 안전. selection 기반 오버로드는 메뉴바 전용.
+//   결과 / HGraphNode._OnContextSetAsRoot → canvas.SetSelectedAsRoot(UID) 위임으로 단순화.
+//          메뉴바 + 우클릭 메뉴 양쪽이 같은 Author.SetRoot 진입점 공유 (DRY).
+//   주의 / Ctrl+0 글로벌 핫키 충돌 가능성 — element-scoped _OnKeyDown 으로 canvas focus 시만 발화.
+//          Ctrl+Home — Mac 에서는 Cmd+Home, 별도 글로벌 매핑 없음 확인됨.
 // =============================================================================
 
 // =============================================================================
