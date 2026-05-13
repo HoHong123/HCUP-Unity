@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * 외부 메시지 수신 시스템을 관리하는 매니저입니다.
@@ -38,7 +38,7 @@ namespace HCore.Web {
             }
         }
 
-        private void OnDestroy() {
+        private new void OnDestroy() {
             foreach (var reciver in receivers) {
                 Unregister(reciver);
             }
