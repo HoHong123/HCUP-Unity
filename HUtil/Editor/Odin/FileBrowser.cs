@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR && ODIN_INSPECTOR
+#if UNITY_EDITOR && ODIN_INSPECTOR
 /* =========================================================
  * @Jason - PKH
  * 프로젝트 내 ScriptableObject 에셋을 탐색하기 위한 에디터 전용 파일 브라우저 윈도우입니다.
@@ -19,7 +19,7 @@ using HDiagnosis.Logger;
 
 namespace HUtil.Editor {
     public class FileBrowser : OdinEditorWindow {
-        [MenuItem("HCUP/View/File Browser")]
+        [MenuItem("HCUP/Windows/File Browser")]
         private static void Open() {
             var w = GetWindow<FileBrowser>();
             w.titleContent = new GUIContent("File Browser");
