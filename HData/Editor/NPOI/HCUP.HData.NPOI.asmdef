@@ -1,0 +1,21 @@
+{
+    "name": "HCUP.HData.NPOI.Editor",
+    "rootNamespace": "HData.NPOI.Editor",
+    "references": [
+        "GUID:8713a21b18988d64a80416a73699dc20",
+        "GUID:2687c067fc80bbd448e188188cdbe214",
+        "GUID:7912ec58de9231c47aa15fe05be8f6e4",
+        "GUID:e36d0f774dc645c4d87e8e20a72bcdde"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
