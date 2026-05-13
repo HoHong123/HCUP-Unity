@@ -2,7 +2,10 @@
     "name": "HCUP.HInspector.Editor",
     "rootNamespace": "HInspector.Editor",
     "references": [
-        "HCUP.HInspector"
+        "HCUP.HInspector",
+        "HCUP.HDiagnosis",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
     ],
     "includePlatforms": [
         "Editor"
