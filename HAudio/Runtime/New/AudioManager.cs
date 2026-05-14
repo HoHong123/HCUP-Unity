@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -105,14 +105,13 @@ namespace HAudio {
             _BuildRepository();
         }
 
-        void Start() {
+        private void Start() {
             if (instance != this) return;
             _CheckPlayerPrefs();
         }
 
-        void OnDestroy() {
+        private new void OnDestroy() {
             if (instance != this) return;
-
             clipRepository?.ReleaseOwner(ownerId);
             AssetOwnerIdGenerator.NotifyReleased(ownerId);
         }
