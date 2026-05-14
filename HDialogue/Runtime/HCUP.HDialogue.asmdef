@@ -1,0 +1,22 @@
+{
+    "name": "HCUP.HDialogue",
+    "rootNamespace": "HDialogue",
+    "references": [
+        "UniTask",
+        "Unity.TextMeshPro",
+        "UniTask.TextMeshPro",
+        "HCUP.HUtil",
+        "HCUP.HUI",
+        "HCUP.HAudio",
+        "HCUP.HCore"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
