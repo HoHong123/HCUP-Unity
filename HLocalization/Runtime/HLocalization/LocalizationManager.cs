@@ -99,7 +99,7 @@ namespace HLocalization {
                 return false;
             }
 
-            currentSO       = so;
+            currentSO = so;
             currentLanguage = language;
             HTextLocalizer.GetText = _GetText;
             return true;
