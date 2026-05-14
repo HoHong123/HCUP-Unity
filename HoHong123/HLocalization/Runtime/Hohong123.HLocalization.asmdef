@@ -1,0 +1,21 @@
+{
+    "name": "Hohong123.HLocalization",
+    "rootNamespace": "HLocalization",
+    "references": [
+        "UniTask",
+        "UniTask.Addressables",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "Hohong123.HUtil",
+        "Hohong123.HUI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
