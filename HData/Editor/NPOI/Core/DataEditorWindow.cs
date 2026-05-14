@@ -18,8 +18,8 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using HData.NPOI.Samples;
 using HData.NPOI.Core.Editor;
+using HData.NPOI.Localization;
 
 namespace HData.NPOI.Core {
     public class DataEditorWindow : EditorWindow {
@@ -130,8 +130,7 @@ namespace HData.NPOI.Core {
         #region Private - Entry Management
         private void _BuildEntries() {
             entries = new List<(string, ScriptableObject)> {
-                ("00. Sample",  SampleTableLoader.Instance),
-                ("01. Goods",   GoodsTableLoader.Instance),
+                ("00. Localization", LocalizationTableLoader.Instance),
             };
         }
 
@@ -159,6 +158,21 @@ namespace HData.NPOI.Core {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.13 "00. Localization" 항목 추가 (Phase 2)
+ *
+ * # 변경
+ * - using HData.NPOI.Localization 추가
+ * - _BuildEntries() : ("00. Localization", LocalizationTableLoader.Instance) 추가
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.13 Samples 항목 제거 — LocalizationTableLoader 연동 전 빈 목록으로 초기화
+ *
+ * # 변경
+ * - using HData.NPOI.Samples 제거
+ * - _BuildEntries() : Sample / Goods 항목 삭제 → 빈 List 초기화
+ * - Phase 2 완료 시 "00. Localization" + LocalizationTableLoader.Instance 추가 예정
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 CreateEditor 타입 명시 수정
  *
