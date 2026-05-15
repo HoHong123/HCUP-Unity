@@ -26,11 +26,11 @@ namespace HDialogue.Editor {
 
         public readonly struct ValidationIssue {
             public readonly IssueSeverity Severity;
-            public readonly string        Message;
+            public readonly string Message;
 
             public ValidationIssue(IssueSeverity severity, string message) {
                 Severity = severity;
-                Message  = message;
+                Message = message;
             }
         }
         #endregion
@@ -67,7 +67,7 @@ namespace HDialogue.Editor {
 
         #region Public
         public static IReadOnlyList<ValidationIssue> Validate(string rawText) {
-            var issues    = new List<ValidationIssue>();
+            var issues = new List<ValidationIssue>();
             var openPairs = new Stack<string>();
 
             if (string.IsNullOrEmpty(rawText)) return issues;
@@ -102,12 +102,12 @@ namespace HDialogue.Editor {
             // Hex 컬러 단축 태그 → 검증 불필요
             if (first == '#' || (first == '/' && tagContent.Length > 1 && tagContent[1] == '#')) return;
 
-            bool   isClosing = first == '/';
-            string body      = isClosing ? tagContent.Substring(1) : tagContent;
+            bool isClosing = first == '/';
+            string body = isClosing ? tagContent.Substring(1) : tagContent;
 
-            int    eqIdx = body.IndexOf('=');
-            string name  = (eqIdx >= 0 ? body.Substring(0, eqIdx) : body).Trim().ToLowerInvariant();
-            string arg   = eqIdx >= 0 ? body.Substring(eqIdx + 1).Trim() : null;
+            int eqIdx = body.IndexOf('=');
+            string name = (eqIdx >= 0 ? body.Substring(0, eqIdx) : body).Trim().ToLowerInvariant();
+            string arg = eqIdx >= 0 ? body.Substring(eqIdx + 1).Trim() : null;
 
             if (isClosing) {
                 // </speed_end> 는 유효한 SpeedReset 닫기 형식
