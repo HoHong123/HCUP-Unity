@@ -29,26 +29,32 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using HInspector;
 
 namespace HDialogue {
     public sealed class DialogueTextController : MonoBehaviour {
         #region 변수
+        [HTitle("References")]
         [SerializeField]
         TMP_Text tmpText;
+
+        [HTitle("Effect")]
         [SerializeField]
         TextEffectHandler textEffectHandler;
+
+        [HTitle("Blip")]
         [SerializeField]
         DialogueBlipSfxAgent blipAgent;
 
-        TextDisplayState state                = TextDisplayState.Idle;
-        TextSpeedMode    speedMode            = TextSpeedMode.Normal;
-        float            inlineSpeedMultiplier = 1f;
-        bool             isSilent;
-        bool             isHoldAccelerate;
-        float            playStartTime;
+        TextDisplayState state = TextDisplayState.Idle;
+        TextSpeedMode speedMode = TextSpeedMode.Normal;
+        float inlineSpeedMultiplier = 1f;
+        bool isSilent;
+        bool isHoldAccelerate;
+        float playStartTime;
 
         IReadOnlyList<DialogueToken> currentTokens;
-        DialogueLine                 currentLine;
+        DialogueLine currentLine;
 
         CancellationTokenSource playCts;
         #endregion
@@ -62,9 +68,9 @@ namespace HDialogue {
         #endregion
 
         #region Properties
-        public TextDisplayState State     => state;
-        public bool             IsTyping  => state == TextDisplayState.Typing;
-        public bool             IsWaiting => state == TextDisplayState.Waiting;
+        public TextDisplayState State => state;
+        public bool IsTyping => state == TextDisplayState.Typing;
+        public bool IsWaiting => state == TextDisplayState.Waiting;
         #endregion
 
         #region Unity Life Cycle
@@ -78,13 +84,13 @@ namespace HDialogue {
             _CancelPlay();
             playCts = new CancellationTokenSource();
 
-            currentLine           = line;
-            currentTokens         = DialogueTagParser.Parse(line.RawText);
+            currentLine = line;
+            currentTokens = DialogueTagParser.Parse(line.RawText);
             textEffectHandler?.SetEffectRanges(_BuildEffectRanges(currentTokens));
             inlineSpeedMultiplier = 1f;
-            isSilent              = false;
+            isSilent = false;
             blipAgent?.ResetVoice(line.OverrideBlipToken);
-            playStartTime         = Time.unscaledTime;
+            playStartTime = Time.unscaledTime;
 
             _SetState(TextDisplayState.Typing);
             OnLineStart?.Invoke(line);
@@ -94,7 +100,7 @@ namespace HDialogue {
         public void Clear() {
             _CancelPlay();
             if (tmpText != null) {
-                tmpText.text                = string.Empty;
+                tmpText.text = string.Empty;
                 tmpText.maxVisibleCharacters = 0;
             }
             textEffectHandler?.ClearEffects();
@@ -141,7 +147,7 @@ namespace HDialogue {
             }
 
             if (tmpText != null) {
-                tmpText.text                = _BuildDisplayText(currentTokens);
+                tmpText.text = _BuildDisplayText(currentTokens);
                 tmpText.maxVisibleCharacters = 0;
             }
 
@@ -220,10 +226,10 @@ namespace HDialogue {
 
         private float _GetBaseInterval() {
             float baseInterval = speedMode switch {
-                TextSpeedMode.Slow    => TextSpeedConstants.BASE_INTERVAL_SLOW,
-                TextSpeedMode.Fast    => TextSpeedConstants.BASE_INTERVAL_FAST,
+                TextSpeedMode.Slow => TextSpeedConstants.BASE_INTERVAL_SLOW,
+                TextSpeedMode.Fast => TextSpeedConstants.BASE_INTERVAL_FAST,
                 TextSpeedMode.Instant => TextSpeedConstants.BASE_INTERVAL_INSTANT,
-                _                     => TextSpeedConstants.BASE_INTERVAL_NORMAL,
+                _ => TextSpeedConstants.BASE_INTERVAL_NORMAL,
             };
             // 스펙: BaseInterval × LineSpeedMultiplier ÷ InlineSpeedMultiplier
             return baseInterval * currentLine.SpeedMultiplier / inlineSpeedMultiplier;
@@ -232,9 +238,9 @@ namespace HDialogue {
         private static float _GetPunctuationDelay(char c) {
             return c switch {
                 '.' or '!' or '?' => TextSpeedConstants.PUNCT_DELAY_SENTENCE,
-                ','               => TextSpeedConstants.PUNCT_DELAY_COMMA,
-                '\n'              => TextSpeedConstants.PUNCT_DELAY_NEWLINE,
-                _                 => 0f,
+                ',' => TextSpeedConstants.PUNCT_DELAY_COMMA,
+                '\n' => TextSpeedConstants.PUNCT_DELAY_NEWLINE,
+                _ => 0f,
             };
         }
 
@@ -243,7 +249,7 @@ namespace HDialogue {
             for (int k = 0; k < tokens.Count; k++) {
                 DialogueToken t = tokens[k];
                 switch (t.Type) {
-                    case DialogueTokenType.Char:        sb.Append(t.Character); break;
+                    case DialogueTokenType.Char: sb.Append(t.Character); break;
                     case DialogueTokenType.PassThrough: sb.Append(t.StringArg); break;
                 }
             }
@@ -251,8 +257,8 @@ namespace HDialogue {
         }
 
         private static IReadOnlyList<TextEffectRange> _BuildEffectRanges(IReadOnlyList<DialogueToken> tokens) {
-            var ranges  = new List<TextEffectRange>();
-            var stack   = new Stack<(int startIdx, string effectName)>();
+            var ranges = new List<TextEffectRange>();
+            var stack = new Stack<(int startIdx, string effectName)>();
             int charIdx = 0;
 
             for (int k = 0; k < tokens.Count; k++) {
