@@ -17,24 +17,27 @@
 #endif
 
 using UnityEngine;
+using HInspector;
+using HDiagnosis.Logger;
 
 namespace HDialogue {
     public sealed class DialogueBlipSfxAgent : MonoBehaviour {
         #region 변수
+        [HTitle("Blip")]
         [SerializeField]
         string defaultBlipToken;
         [SerializeField]
         MonoBehaviour blipServiceSource;
 
         IBlipSfxService blipService;
-        string          currentBlipToken;
+        string currentBlipToken;
         #endregion
 
         #region Unity Life Cycle
         private void Awake() {
             blipService = blipServiceSource as IBlipSfxService;
             if (blipService == null && blipServiceSource != null)
-                Debug.LogError("[DialogueBlipSfxAgent] blipServiceSource does not implement IBlipSfxService.");
+                HLogger.Error("[DialogueBlipSfxAgent] blipServiceSource does not implement IBlipSfxService.");
             currentBlipToken = defaultBlipToken;
         }
         #endregion
@@ -61,6 +64,13 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.15 Debug.LogError → HLogger.Error 교체
+ *
+ * # 변경
+ * - using HDiagnosis.Logger 추가
+ * - Awake(): Debug.LogError → HLogger.Error (IBlipSfxService 캐스팅 실패 경고)
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.TextUI → HDialogue 패키지 이관
  *
