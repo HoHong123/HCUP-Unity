@@ -21,7 +21,7 @@ namespace HDialogue {
         #region Fields
         public string SpeakerKey;
         public string RawText;
-        public float  SpeedMultiplier;
+        public float SpeedMultiplier;
         public string OverrideBlipToken;
         #endregion
 
