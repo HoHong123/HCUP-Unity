@@ -29,21 +29,21 @@
 namespace HDialogue {
     public static class TextSpeedConstants {
         #region Base Interval (초 / 글자)
-        public const float BASE_INTERVAL_SLOW    = 0.08f;
-        public const float BASE_INTERVAL_NORMAL  = 0.04f;
-        public const float BASE_INTERVAL_FAST    = 0.015f;
+        public const float BASE_INTERVAL_SLOW = 0.08f;
+        public const float BASE_INTERVAL_NORMAL = 0.04f;
+        public const float BASE_INTERVAL_FAST = 0.015f;
         public const float BASE_INTERVAL_INSTANT = 0f;
         #endregion
 
         #region Punctuation Delay (초)
         public const float PUNCT_DELAY_SENTENCE = 0.25f;   // . ! ?
-        public const float PUNCT_DELAY_COMMA    = 0.12f;   // ,
-        public const float PUNCT_DELAY_NEWLINE  = 0.15f;   // \n
+        public const float PUNCT_DELAY_COMMA = 0.12f;   // ,
+        public const float PUNCT_DELAY_NEWLINE = 0.15f;   // \n
         #endregion
 
         #region Control
         public const float HOLD_SPEED_MULTIPLIER = 0.5f;   // 키 홀드 시 × 0.5 = 2배 빠름
-        public const float INPUT_GUARD_DURATION  = 0.05f;  // PlayLine 직후 50ms 입력 무시
+        public const float INPUT_GUARD_DURATION = 0.05f;  // PlayLine 직후 50ms 입력 무시
         #endregion
     }
 }
