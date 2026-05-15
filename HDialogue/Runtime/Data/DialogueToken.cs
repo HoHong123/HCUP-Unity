@@ -25,9 +25,9 @@ namespace HDialogue {
     public struct DialogueToken {
         #region Fields
         public DialogueTokenType Type;
-        public char Character;      // Char 타입에만 유효
-        public float NumericArg;    // Pause, SpeedSet 등에 사용
-        public string StringArg;    // Sfx, Event, Voice, EffectPush, PassThrough 등
+        public char Character; // Char 타입에만 유효
+        public float NumericArg; // Pause, SpeedSet 등에 사용
+        public string StringArg; // Sfx, Event, Voice, EffectPush, PassThrough 등
         #endregion
 
         #region Static Factory
