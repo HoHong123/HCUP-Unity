@@ -16,14 +16,14 @@
 
 namespace HDialogue {
     public readonly struct TextEffectRange {
-        public readonly int    StartCharIndex;
-        public readonly int    EndCharIndex;
+        public readonly int StartCharIndex;
+        public readonly int EndCharIndex;
         public readonly string EffectName;
 
         public TextEffectRange(int start, int end, string effectName) {
             StartCharIndex = start;
-            EndCharIndex   = end;
-            EffectName     = effectName;
+            EndCharIndex = end;
+            EffectName = effectName;
         }
     }
 }
