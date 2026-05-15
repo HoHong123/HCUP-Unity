@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
+using HDiagnosis.Logger;
 
 namespace HDialogue {
     public static class DialogueTagParser {
@@ -48,32 +49,32 @@ namespace HDialogue {
             if (string.IsNullOrEmpty(rawText))
                 return System.Array.Empty<DialogueToken>();
 
-            var tokens      = new List<DialogueToken>();
+            var tokens = new List<DialogueToken>();
             var openEffects = new Stack<string>();
-            int i           = 0;
 
-            while (i < rawText.Length) {
-                if (rawText[i] != '<') {
-                    tokens.Add(DialogueToken.Char(rawText[i]));
-                    i++;
+            int k = 0;
+            while (k < rawText.Length) {
+                if (rawText[k] != '<') {
+                    tokens.Add(DialogueToken.Char(rawText[k]));
+                    k++;
                     continue;
                 }
 
-                int closeIdx = rawText.IndexOf('>', i + 1);
+                int closeIdx = rawText.IndexOf('>', k + 1);
                 if (closeIdx < 0) {
-                    tokens.Add(DialogueToken.Char(rawText[i]));
-                    i++;
+                    tokens.Add(DialogueToken.Char(rawText[k]));
+                    k++;
                     continue;
                 }
 
-                string tagContent = rawText.Substring(i + 1, closeIdx - i - 1);
+                string tagContent = rawText.Substring(k + 1, closeIdx - k - 1);
                 _ParseTag(tagContent, tokens, openEffects);
-                i = closeIdx + 1;
+                k = closeIdx + 1;
             }
 
             while (openEffects.Count > 0) {
                 string unclosed = openEffects.Pop();
-                Debug.LogWarning($"[DialogueTagParser] Unclosed <{unclosed}> → auto EffectPop at line end.");
+                HLogger.Warning($"[DialogueTagParser] Unclosed <{unclosed}> → auto EffectPop at line end.");
                 tokens.Add(DialogueToken.EffectPop());
             }
 
@@ -92,12 +93,12 @@ namespace HDialogue {
                 return;
             }
 
-            bool   isClosing = first == '/';
-            string body      = isClosing ? tagContent.Substring(1) : tagContent;
+            bool isClosing = first == '/';
+            string body = isClosing ? tagContent.Substring(1) : tagContent;
 
-            int    eqIdx = body.IndexOf('=');
-            string name  = (eqIdx >= 0 ? body.Substring(0, eqIdx) : body).Trim().ToLowerInvariant();
-            string arg   = eqIdx >= 0 ? body.Substring(eqIdx + 1).Trim() : null;
+            int eqIdx = body.IndexOf('=');
+            string name = (eqIdx >= 0 ? body.Substring(0, eqIdx) : body).Trim().ToLowerInvariant();
+            string arg = eqIdx >= 0 ? body.Substring(eqIdx + 1).Trim() : null;
 
             // ── 커스텀 태그 (열기) ──
             if (!isClosing) {
@@ -160,7 +161,7 @@ namespace HDialogue {
             }
 
             // ── 알 수 없는 태그 → 경고 + PassThrough ──
-            Debug.LogWarning($"[DialogueTagParser] Unknown tag <{tagContent}> → PassThrough to TMP.");
+            HLogger.Warning($"[DialogueTagParser] Unknown tag <{tagContent}> → PassThrough to TMP.");
             tokens.Add(DialogueToken.PassThrough($"<{tagContent}>"));
         }
 
@@ -168,13 +169,13 @@ namespace HDialogue {
             if (!string.IsNullOrEmpty(str) &&
                 float.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
                 return result;
-            Debug.LogWarning($"[DialogueTagParser] <{tagName}> invalid float arg '{str}' → using default {defaultVal}.");
+            HLogger.Warning($"[DialogueTagParser] <{tagName}> invalid float arg '{str}' → using default {defaultVal}.");
             return defaultVal;
         }
 
         private static bool _RequireArg(string arg, string tagName) {
             if (!string.IsNullOrEmpty(arg)) return true;
-            Debug.LogWarning($"[DialogueTagParser] <{tagName}> missing required arg → token skipped.");
+            HLogger.Warning($"[DialogueTagParser] <{tagName}> missing required arg → token skipped.");
             return false;
         }
         #endregion
@@ -184,6 +185,13 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.15 Debug.LogWarning → HLogger.Warning 교체
+ *
+ * # 변경
+ * - using HDiagnosis.Logger 추가
+ * - Parse(), _ParseTag(), _ParseFloat(), _RequireArg() 내 Debug.LogWarning → HLogger.Warning (4곳)
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.TextUI → HDialogue 패키지 이관
  *
