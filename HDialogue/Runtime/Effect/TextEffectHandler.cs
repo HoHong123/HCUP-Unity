@@ -21,22 +21,26 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using HInspector;
 
 namespace HDialogue {
     public sealed class TextEffectHandler : MonoBehaviour {
+        #region Const
+        const float SHAKE_AMPLITUDE = 2f;
+        const float WAVE_AMPLITUDE = 3f;
+        const float WAVE_SPEED = 2f;
+        const float WAVE_CHAR_PHASE = 0.5f;
+        const float RAINBOW_SPEED = 0.5f;
+        const float RAINBOW_CHAR_PHASE = 0.1f;
+        #endregion
+
         #region 변수
+        [HTitle("References")]
         [SerializeField]
         TMP_Text tmpText;
 
-        readonly List<TextEffectRange> effectRanges = new List<TextEffectRange>();
+        readonly List<TextEffectRange> effectRanges = new();
         bool hasEffects;
-
-        const float SHAKE_AMPLITUDE    = 2f;
-        const float WAVE_AMPLITUDE     = 3f;
-        const float WAVE_SPEED         = 2f;
-        const float WAVE_CHAR_PHASE    = 0.5f;
-        const float RAINBOW_SPEED      = 0.5f;
-        const float RAINBOW_CHAR_PHASE = 0.1f;
         #endregion
 
         #region Unity Life Cycle
@@ -44,20 +48,20 @@ namespace HDialogue {
             if (!hasEffects || tmpText == null) return;
 
             tmpText.ForceMeshUpdate();
-            TMP_TextInfo textInfo   = tmpText.textInfo;
-            int          maxVisible = tmpText.maxVisibleCharacters;
+            TMP_TextInfo textInfo = tmpText.textInfo;
+            int maxVisible = tmpText.maxVisibleCharacters;
 
             bool vertexModified = false;
-            bool colorModified  = false;
+            bool colorModified = false;
 
             for (int k = 0; k < effectRanges.Count; k++) {
                 TextEffectRange range = effectRanges[k];
 
                 for (int i = range.StartCharIndex; i < range.EndCharIndex && i < textInfo.characterCount; i++) {
-                    if (i >= maxVisible) { break; }
+                    if (i >= maxVisible) break;
 
                     TMP_CharacterInfo charInfo = textInfo.characterInfo[i];
-                    if (!charInfo.isVisible) { continue; }
+                    if (!charInfo.isVisible) continue;
 
                     int meshIdx = charInfo.materialReferenceIndex;
                     int vertIdx = charInfo.vertexIndex;
@@ -83,7 +87,7 @@ namespace HDialogue {
 
             TMP_VertexDataUpdateFlags flags = TMP_VertexDataUpdateFlags.None;
             if (vertexModified) flags |= TMP_VertexDataUpdateFlags.Vertices;
-            if (colorModified)  flags |= TMP_VertexDataUpdateFlags.Colors32;
+            if (colorModified) flags |= TMP_VertexDataUpdateFlags.Colors32;
             tmpText.UpdateVertexData(flags);
         }
         #endregion
@@ -104,26 +108,26 @@ namespace HDialogue {
 
         #region Private — 효과 적용
         private static void _ApplyShake(TMP_TextInfo textInfo, int meshIdx, int vertIdx) {
-            Vector3[] verts  = textInfo.meshInfo[meshIdx].vertices;
-            var       offset = new Vector3(
+            Vector3[] verts = textInfo.meshInfo[meshIdx].vertices;
+            var offset = new Vector3(
                 Random.Range(-SHAKE_AMPLITUDE, SHAKE_AMPLITUDE),
                 Random.Range(-SHAKE_AMPLITUDE, SHAKE_AMPLITUDE),
                 0f
             );
-            verts[vertIdx]     += offset;
+            verts[vertIdx] += offset;
             verts[vertIdx + 1] += offset;
             verts[vertIdx + 2] += offset;
             verts[vertIdx + 3] += offset;
         }
 
         private static void _ApplyWave(TMP_TextInfo textInfo, int meshIdx, int vertIdx, int charIndex) {
-            Vector3[] verts  = textInfo.meshInfo[meshIdx].vertices;
-            var       offset = new Vector3(
+            Vector3[] verts = textInfo.meshInfo[meshIdx].vertices;
+            var offset = new Vector3(
                 0f,
                 Mathf.Sin(Time.time * WAVE_SPEED + charIndex * WAVE_CHAR_PHASE) * WAVE_AMPLITUDE,
                 0f
             );
-            verts[vertIdx]     += offset;
+            verts[vertIdx] += offset;
             verts[vertIdx + 1] += offset;
             verts[vertIdx + 2] += offset;
             verts[vertIdx + 3] += offset;
@@ -131,11 +135,11 @@ namespace HDialogue {
 
         private static void _ApplyRainbow(TMP_TextInfo textInfo, int meshIdx, int vertIdx, int charIndex) {
             Color32[] colors = textInfo.meshInfo[meshIdx].colors32;
-            Color32   c      = Color.HSVToRGB(
+            Color32 c = Color.HSVToRGB(
                 Mathf.Repeat(Time.time * RAINBOW_SPEED + charIndex * RAINBOW_CHAR_PHASE, 1f),
                 1f, 1f
             );
-            colors[vertIdx]     = c;
+            colors[vertIdx] = c;
             colors[vertIdx + 1] = c;
             colors[vertIdx + 2] = c;
             colors[vertIdx + 3] = c;
