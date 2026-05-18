@@ -20,6 +20,11 @@ using UnityEngine;
 namespace HDialogue {
     public sealed class AudioManagerBlipAdapter : MonoBehaviour, IBlipSfxService {
         #region Public
+        public void PlayBlip(AudioClips audioClips) {
+            if (AudioManager.Instance == null) return;
+            AudioManager.Instance.Play(audioClips);
+        }
+
         public void PlayBlip(string token) {
             if (string.IsNullOrEmpty(token)) return;
             if (AudioManager.Instance == null) return;
