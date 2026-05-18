@@ -48,7 +48,7 @@ namespace HDialogue.Editor {
             menuBar.Add(_BuildCreateMenu());
         }
 
-        ToolbarMenu _BuildCreateMenu() {
+        private ToolbarMenu _BuildCreateMenu() {
             ToolbarMenu createMenu = new ToolbarMenu { text = "Create" };
             _AppendDialogueNodeItems(createMenu.menu, _ => canvas.GetViewportCenterWorld());
             return createMenu;
@@ -56,7 +56,7 @@ namespace HDialogue.Editor {
         #endregion
 
         #region Context Menu Extension
-        void _WireDialogueContextMenu() {
+        private void _WireDialogueContextMenu() {
             canvas.AdditionalContextMenuActions = evt => {
                 if (currentCatalog == null) return;
                 _AppendDialogueNodeItems(evt.menu,
@@ -68,7 +68,7 @@ namespace HDialogue.Editor {
         #region Shared Node Creation Items
         // 우클릭 컨텍스트 메뉴와 메뉴바 Create 서브메뉴가 공유하는 항목 빌더.
         // getPosition: DropdownMenuAction → 그래프 좌표. 메뉴바는 뷰포트 중앙, 우클릭은 마우스 위치.
-        void _AppendDialogueNodeItems(DropdownMenu menu, Func<DropdownMenuAction, Vector2> getPosition) {
+        private void _AppendDialogueNodeItems(DropdownMenu menu, Func<DropdownMenuAction, Vector2> getPosition) {
             DropdownMenuAction.Status Status(DropdownMenuAction _) =>
                 currentCatalog != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled;
 
@@ -92,7 +92,7 @@ namespace HDialogue.Editor {
                 a => _CreateNodeAt<DialogueCinematicNode>(getPosition(a)), Status);
         }
 
-        void _CreateNodeAt<T>(Vector2 position) where T : BaseNode {
+        private void _CreateNodeAt<T>(Vector2 position) where T : BaseNode {
             if (currentCatalog == null) return;
             NodeCatalogAuthor.CreateNode<T>(currentCatalog, position);
         }
