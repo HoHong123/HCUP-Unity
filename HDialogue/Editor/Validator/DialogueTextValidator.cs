@@ -6,10 +6,12 @@
  * 특징 / 지원기능 ::
  * + Validate(rawText) : ValidationIssue 목록 반환 — Debug.Log 없음
  * + 검증 항목 : 짝 없는 태그(Error) / 필수 인자 누락(Warning) /
- *               잘못된 float 인자(Warning) / 알 수 없는 태그(Warning)
+ *               잘못된 float 인자(Warning) / 알 수 없는 태그(Warning) /
+ *               sfx 미구현 경고(Warning)
  *
  * 주의사항 ::
- * Runtime DialogueTagParser와 검증 로직이 일치해야 함 — 태그 추가 시 양쪽 동시 갱신.
+ * 모든 태그 집합 정의는 DialogueTagRegistry 단일 소스 참조.
+ * 새 커스텀 태그 추가 시 DialogueTagRegistry.cs 만 수정하면 됨.
  * 순수 정적 클래스. 상태 없음.
  * =========================================================
  */
@@ -18,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using HDialogue;
 
 namespace HDialogue.Editor {
     public static class DialogueTextValidator {
@@ -35,36 +38,6 @@ namespace HDialogue.Editor {
         }
         #endregion
 
-        #region 전역
-        static readonly HashSet<string> pairTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "shake", "wave", "rainbow", "silent"
-        };
-
-        static readonly HashSet<string> requiredArgTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "sfx", "event", "voice"
-        };
-
-        static readonly HashSet<string> floatArgTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "pause", "speed"
-        };
-
-        static readonly HashSet<string> allCustomTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "pause", "speed", "speed_end", "shake", "wave", "rainbow",
-            "sfx", "event", "silent", "voice"
-        };
-
-        static readonly HashSet<string> tmpTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "b", "i", "u", "s", "sup", "sub",
-            "size", "cspace", "mspace", "width",
-            "color", "alpha", "gradient", "mark",
-            "font", "style", "sprite", "link", "material",
-            "indent", "line-height", "line-indent", "margin",
-            "pos", "voffset", "rotate", "space",
-            "lowercase", "uppercase", "smallcaps",
-            "align", "nobr", "noparse", "page", "char"
-        };
-        #endregion
-
         #region Public
         public static IReadOnlyList<ValidationIssue> Validate(string rawText) {
             var issues = new List<ValidationIssue>();
@@ -72,16 +45,16 @@ namespace HDialogue.Editor {
 
             if (string.IsNullOrEmpty(rawText)) return issues;
 
-            int i = 0;
-            while (i < rawText.Length) {
-                if (rawText[i] != '<') { i++; continue; }
+            int k = 0;
+            while (k < rawText.Length) {
+                if (rawText[k] != '<') { k++; continue; }
 
-                int closeIdx = rawText.IndexOf('>', i + 1);
-                if (closeIdx < 0) { i++; continue; }
+                int closeIdx = rawText.IndexOf('>', k + 1);
+                if (closeIdx < 0) { k++; continue; }
 
-                string tagContent = rawText.Substring(i + 1, closeIdx - i - 1);
+                string tagContent = rawText.Substring(k + 1, closeIdx - k - 1);
                 _CheckTag(tagContent, issues, openPairs);
-                i = closeIdx + 1;
+                k = closeIdx + 1;
             }
 
             while (openPairs.Count > 0) {
@@ -113,26 +86,28 @@ namespace HDialogue.Editor {
                 // </speed_end> 는 유효한 SpeedReset 닫기 형식
                 if (name == "speed_end") return;
 
-                if (pairTags.Contains(name)) {
+                if (DialogueTagRegistry.PairTags.Contains(name)) {
                     if (openPairs.Count == 0 || !string.Equals(openPairs.Peek(), name, StringComparison.OrdinalIgnoreCase))
                         issues.Add(new ValidationIssue(IssueSeverity.Error, $"</{name}>: 대응하는 열기 태그 없음."));
                     else
                         openPairs.Pop();
-                } else if (!allCustomTags.Contains(name) && !tmpTags.Contains(name)) {
+                } else if (!DialogueTagRegistry.AllCustomTags.Contains(name) && !DialogueTagRegistry.TmpTags.Contains(name)) {
                     issues.Add(new ValidationIssue(IssueSeverity.Warning, $"</{name}>: 알 수 없는 닫기 태그 → TMP PassThrough."));
                 }
                 return;
             }
 
             // 열기 태그 — 필수 인자 체크
-            if (requiredArgTags.Contains(name)) {
+            if (DialogueTagRegistry.RequiredArgTags.Contains(name)) {
                 if (string.IsNullOrEmpty(arg))
                     issues.Add(new ValidationIssue(IssueSeverity.Warning, $"<{name}>: 필수 인자 없음 → 토큰 스킵됩니다."));
+                if (name == "sfx")
+                    issues.Add(new ValidationIssue(IssueSeverity.Warning, $"<sfx>: 미구현 태그 — 런타임 no-op. Phase 5+ 구현 예정."));
                 return;
             }
 
             // float 인자 체크
-            if (floatArgTags.Contains(name)) {
+            if (DialogueTagRegistry.FloatArgTags.Contains(name)) {
                 if (!string.IsNullOrEmpty(arg) &&
                     !float.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
                     issues.Add(new ValidationIssue(IssueSeverity.Warning, $"<{name}={arg}>: 잘못된 float 인자 → 기본값 사용."));
@@ -140,13 +115,13 @@ namespace HDialogue.Editor {
             }
 
             // 쌍 태그 — 열기 추적
-            if (pairTags.Contains(name)) {
+            if (DialogueTagRegistry.PairTags.Contains(name)) {
                 openPairs.Push(name);
                 return;
             }
 
             // 기타 알려진 커스텀·TMP 태그 → 정상
-            if (allCustomTags.Contains(name) || tmpTags.Contains(name)) return;
+            if (DialogueTagRegistry.AllCustomTags.Contains(name) || DialogueTagRegistry.TmpTags.Contains(name)) return;
 
             // 알 수 없는 태그
             issues.Add(new ValidationIssue(IssueSeverity.Warning, $"<{tagContent}>: 알 수 없는 태그 → TMP PassThrough."));
@@ -158,6 +133,44 @@ namespace HDialogue.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: sfx 태그 미구현 Warning 추가
+
+ * # 변경
+ * - _CheckTag() RequiredArgTags 분기 내에 sfx 전용 Warning 추가.
+ *   <sfx=...> 사용 시 인자 유무 무관하게 "미구현 — no-op" Warning 발행.
+ *
+ * # 이유
+ * - AgentReview Warning #9 (2026-05-17 19:13:03).
+ * - sfx는 DialogueTagRegistry에 정의된 태그이나 런타임에서 처리되지 않음.
+ *   에디터에서 사전 경고 없으면 기획자가 태그를 작성해도 효과가 없는 이유를 알 수 없음.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: DialogueTagRegistry 도입 — 로컬 태그 집합 전량 이관
+
+ * # 변경
+ * - pairTags / requiredArgTags / floatArgTags / allCustomTags 로컬 필드 전량 제거.
+ * - 모든 참조를 DialogueTagRegistry.PairTags / RequiredArgTags / FloatArgTags /
+ *   AllCustomTags / TmpTags 로 교체.
+ * - DialogueTagParser.TmpTags 참조 → DialogueTagRegistry.TmpTags 로 교체.
+ * - #region 전역 제거 (로컬 필드 없어짐).
+ *
+ * # 이유
+ * - 새 태그 추가 시 DialogueTagRegistry.cs 한 파일만 수정하면 됨.
+ *   "태그 추가 시 양쪽 동시 갱신" 주석 조건 해소.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: tmpTags → DialogueTagParser.TmpTags 참조로 교체
+ *
+ * # 변경
+ * - 로컬 `static readonly HashSet<string> tmpTags` 필드 제거.
+ * - `tmpTags.Contains(name)` → `DialogueTagParser.TmpTags.Contains(name)` (2곳).
+ * - `using HDialogue;` 추가.
+ *
+ * # 이유
+ * - TMP 태그 집합을 두 파일에 중복 정의 → DialogueTagParser가 단일 소스.
+ *   태그 추가 시 한 곳만 수정하면 됨.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.Editor.TextUI → HDialogue.Editor 패키지 이관
  *
@@ -173,10 +186,8 @@ namespace HDialogue.Editor {
  * - Debug.Log 없이 ValidationIssue 목록만 반환 → 에디터 윈도우에서 표시.
  *
  * # 설계 결정
- * - Parse() 재사용 대신 별도 검증 로직: Parse()는 Debug.Log를 뱉으므로 에디터 로그 오염.
+ * - Parse() 재사용 대신 별도 검증 로직: Parse()는 HLogger를 뱉으므로 에디터 로그 오염.
  * - ValidationIssue / IssueSeverity를 public 중첩 타입으로 선언 (컨벤션 예외: 3줄 데이터 타입).
- * - tmpTags / allCustomTags 등 DialogueTagParser의 private statics 복제 필요.
- *   태그 추가 시 두 파일 동시 갱신이 필수 — 헤더 주의사항에 명시.
  *
  * =============================================================================
  */
