@@ -302,6 +302,17 @@ namespace HDialogue {
             return uid;
         }
         #endregion
+
+        #region Editor — 인스펙터 테스트 버튼
+        [HButton("Test Play(Current Catalog)")]
+        private void _EditorTestPlayCurrentCatalog() {
+            if (!Application.isPlaying) {
+                HLogger.Warning("[DialogueManager] Play 모드에서만 실행 가능합니다.");
+                return;
+            }
+            PlayDefault();
+        }
+        #endregion
 #endif
     }
 }
@@ -314,6 +325,8 @@ namespace HDialogue {
  *
  * # 변경
  * - using HCollection 추가. HCUP.HDialogue.asmdef에 HCUP.HCollection 참조 추가.
+ * - [HButton("Test Play(Current Catalog)")] _EditorTestPlayCurrentCatalog 추가 (#if UNITY_EDITOR).
+ *   Play 모드 전용 — 아닐 경우 HLogger.Warning.
  * - [HTitle("Catalogs")] 필드 그룹 추가:
  *   defaultCatalog(DialogueCatalogSO) — 기본 단일 카탈로그.
  *   catalogMap(HDictionary<string, DialogueCatalogSO>) — 키 기반 다중 카탈로그.
