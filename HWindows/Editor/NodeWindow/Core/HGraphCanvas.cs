@@ -40,6 +40,9 @@ namespace HWindows.Editor.NodeWindow {
         #region Fields
         NodeCatalogSO currentCatalog;
         VisualElement emptyStateHint;
+        // 윈도우별 추가 우클릭 메뉴 항목. DialogueNodeWindow 등이 캔버스 인스턴스 생성 후 주입.
+        // static 이 아닌 인스턴스 필드 — 윈도우마다 독립적인 메뉴 항목 구성 보장.
+        public Action<ContextualMenuPopulateEvent> AdditionalContextMenuActions;
         readonly Dictionary<NodeUID, HGraphNode> nodeLookup = new();
         readonly Dictionary<(NodeUID Branch, NodeUID Leaf), HGraphEdge> edgeLookup = new();
         int lastCatalogHash;
@@ -50,6 +53,9 @@ namespace HWindows.Editor.NodeWindow {
         int _searchIndex = -1;
         // PurgeNullNodes 가 SaveAssets → ObjectChangeWatcher → _OnCatalogMutated 재진입 방지.
         bool _isPopulating;
+        // 도메인별 노드 시각 팩토리. RegisterNodeViewFactory 로 등록, _PopulateInternal 에서 조회.
+        // static: 도메인 리로드마다 InitializeOnLoadMethod 가 재등록 → 인스턴스 간 공유.
+        static readonly Dictionary<Type, Func<BaseNode, bool, HGraphNode>> _externalFactories = new();
         #endregion
 
         #region Constructor + Lifecycle
@@ -192,13 +198,8 @@ namespace HWindows.Editor.NodeWindow {
                 target = target.parent;
             }
 
-            // 빈 캔버스 우클릭 — 노드 생성 / Paste / 모두 선택.
-            evt.menu.AppendAction("허브 노드 생성 (Create Hub Node)",
-                action => {
-                    Vector2 pos = ToGraphPosition(action.eventInfo.localMousePosition);
-                    NodeCatalogAuthor.CreateHubNode(currentCatalog, pos);
-                },
-                DropdownMenuAction.Status.Normal);
+            // 빈 캔버스 우클릭 — 기능별 노드 생성(AdditionalContextMenuActions 경유) / Paste / 모두 선택.
+            AdditionalContextMenuActions?.Invoke(evt);
 
             evt.menu.AppendSeparator();
 
@@ -585,6 +586,14 @@ namespace HWindows.Editor.NodeWindow {
         }
         #endregion
 
+        #region Public - Node View Factory (Phase 5)
+        // 도메인 어셈블리(HDialogue.Editor 등)가 자신의 노드 타입과 시각 클래스를 등록.
+        // [InitializeOnLoadMethod] 로 도메인 리로드마다 재등록 필수.
+        public static void RegisterNodeViewFactory(Type nodeType, Func<BaseNode, bool, HGraphNode> factory) {
+            if (nodeType != null && factory != null) _externalFactories[nodeType] = factory;
+        }
+        #endregion
+
         #region Populate
         private void _Populate() {
             _PopulateInternal();
@@ -634,12 +643,17 @@ namespace HWindows.Editor.NodeWindow {
 #endif
 
                 bool isRoot = pair.Key == currentCatalog.RootUID;
-                // Phase 3: CatalogNode / HubNode 는 전용 시각 클래스로 생성.
-                HGraphNode view = data switch {
-                    CatalogNode catalogData => new HGraphCatalogNode(catalogData, isRoot),
-                    HubNode hubData        => new HGraphHubNode(hubData, isRoot),
-                    _                      => new HGraphNode(data, isRoot)
-                };
+                // Phase 3 + Phase 5: 도메인 등록 팩토리 우선. CatalogNode / HubNode 폴백.
+                HGraphNode view;
+                if (_externalFactories.TryGetValue(data.GetType(), out Func<BaseNode, bool, HGraphNode> extFactory)) {
+                    view = extFactory(data, isRoot);
+                } else {
+                    view = data switch {
+                        CatalogNode catalogData => new HGraphCatalogNode(catalogData, isRoot),
+                        HubNode hubData        => new HGraphHubNode(hubData, isRoot),
+                        _                      => new HGraphNode(data, isRoot)
+                    };
+                }
                 view.Catalog = currentCatalog;
                 view.SetPosition(new Rect(pos, Vector2.zero));
                 view.ApplyEditorState(isExpanded);
@@ -829,6 +843,13 @@ namespace HWindows.Editor.NodeWindow {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.15 "허브 노드 생성" 우클릭 메뉴 항목 제거
+ *
+ * # 변경
+ * - BuildContextualMenu 빈 캔버스 우클릭에서 "허브 노드 생성 (Create Hub Node)" AppendAction 블록 제거
+ * - HubNode 직접 생성 지원 중단 — AdditionalContextMenuActions 경유 기능별 파생 노드 생성으로 전환
+ *
  * =============================================================================
  * [LOG-20260512-2] PurgeNullNodes 호출 + _isPopulating 재진입 가드
  * [LOG-20260512-1] Show Grid 미적용 버그픽스
