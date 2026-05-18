@@ -20,28 +20,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using UnityEngine;
 using HDiagnosis.Logger;
 
 namespace HDialogue {
     public static class DialogueTagParser {
-        #region 전역 — TMP 표준 태그 집합
-        static readonly HashSet<string> tmpTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "b", "i", "u", "s", "sup", "sub",
-            "size", "cspace", "mspace", "width",
-            "color", "alpha", "gradient", "mark",
-            "font", "style", "sprite", "link", "material",
-            "indent", "line-height", "line-indent", "margin",
-            "pos", "voffset", "rotate", "space",
-            "lowercase", "uppercase", "smallcaps",
-            "align", "nobr", "noparse", "page", "char"
-        };
-        #endregion
-
-        #region 전역 — EffectPush/Pop 대상 커스텀 태그
-        static readonly HashSet<string> effectTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "shake", "wave", "rainbow"
-        };
+        #region 전역 — 태그 집합 (DialogueTagRegistry 포워딩)
+        public static HashSet<string> TmpTags => DialogueTagRegistry.TmpTags;
         #endregion
 
         #region Public
@@ -129,7 +113,7 @@ namespace HDialogue {
                         return;
                 }
 
-                if (effectTags.Contains(name)) {
+                if (DialogueTagRegistry.EffectTags.Contains(name)) {
                     openEffects.Push(name);
                     tokens.Add(DialogueToken.EffectPush(name));
                     return;
@@ -147,15 +131,19 @@ namespace HDialogue {
                         return;
                 }
 
-                if (effectTags.Contains(name)) {
-                    if (openEffects.Count > 0) openEffects.Pop();
+                if (DialogueTagRegistry.EffectTags.Contains(name)) {
+                    if (openEffects.Count > 0) {
+                        if (!string.Equals(openEffects.Peek(), name, StringComparison.OrdinalIgnoreCase))
+                            HLogger.Warning($"[DialogueTagParser] Effect mismatch: </{name}> closes <{openEffects.Peek()}>.");
+                        openEffects.Pop();
+                    }
                     tokens.Add(DialogueToken.EffectPop());
                     return;
                 }
             }
 
             // ── TMP 표준 태그 → PassThrough ──
-            if (tmpTags.Contains(name)) {
+            if (TmpTags.Contains(name)) {
                 tokens.Add(DialogueToken.PassThrough($"<{tagContent}>"));
                 return;
             }
@@ -185,6 +173,33 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: DialogueTagRegistry 도입 — 태그 집합 단일 소스 이관
+ *
+ * # 변경
+ * - TmpTags 필드 정의 제거 → DialogueTagRegistry.TmpTags 포워딩 프로퍼티로 교체.
+ * - effectTags 필드 제거 → DialogueTagRegistry.EffectTags 직접 참조.
+ * - 닫기 effect 태그 처리: `openEffects.Pop()` 단순 호출 → Peek 후 이름 불일치 시
+ *   HLogger.Warning 추가 (mismatch 감지).
+ * - using UnityEngine 제거 (참조 없음).
+ *
+ * # 이유
+ * - 커스텀 태그 집합이 parser/validator 양쪽에 분산 → DialogueTagRegistry 단일 소스.
+ *   새 태그 추가 시 DialogueTagRegistry.cs 한 파일만 수정하면 됨.
+ * - Validator는 </wave>가 <shake>를 닫는 mismatch를 Error로 잡는데,
+ *   parser는 경고 없이 Pop → 런타임과 에디터 판정 일치시킴.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: tmpTags → TmpTags (public) — DialogueTextValidator 중복 제거
+ *
+ * # 변경
+ * - `static readonly HashSet<string> tmpTags` → `public static readonly HashSet<string> TmpTags`
+ * - 내부 참조 `tmpTags.Contains` → `TmpTags.Contains`
+ *
+ * # 이유
+ * - DialogueTextValidator (Editor)가 동일 HashSet을 복제 정의. TmpTags를 public으로 노출해
+ *   Editor측이 직접 참조 → 태그 추가 시 한 곳(DialogueTagParser)만 수정하면 됨.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 Debug.LogWarning → HLogger.Warning 교체
  *
