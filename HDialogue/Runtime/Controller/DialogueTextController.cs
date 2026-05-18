@@ -140,8 +140,6 @@ namespace HDialogue {
             isHoldAccelerate = enabled;
         }
 
-        // DialogueDirector.OnAdvanceRequested 대기 해소 진입점.
-        // Waiting / Skipped 상태에서 사용자 Advance 신호를 전달할 때 호출.
         public void RequestAdvance() {
             OnAdvanceRequested?.Invoke();
         }
