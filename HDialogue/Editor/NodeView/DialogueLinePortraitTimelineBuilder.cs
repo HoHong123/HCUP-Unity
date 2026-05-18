@@ -5,7 +5,7 @@
  *
  * 특징 / 지원기능 ::
  * + Build(node, registry) — AssetDatabase → 부모 카탈로그 조회 → 로컬라이즈 텍스트 파싱 → PortraitEventInstruction 목록
- * + ResolveSprite(ins, registry) — Pose/Show 동사의 포즈 키 → Sprite 해결
+ * + ResolveSprite(ins, registry) — Pose/Show 동사의 포즈 키 → SpriteKey Addressables 로드 (WaitForCompletion, static 캐시)
  * + 로컬라이즈 텍스트 해시 캐시 — 동일 텍스트 재파싱 방지 (GC 최소화)
  *
  * 주의사항 ::
@@ -20,11 +20,15 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace HDialogue.Editor {
     public static class DialogueLinePortraitTimelineBuilder {
         #region Cache
-        static readonly Dictionary<int, IReadOnlyList<PortraitEventInstruction>> _cache = new();
+        static readonly Dictionary<int, IReadOnlyList<PortraitEventInstruction>> cache = new();
+        static readonly Dictionary<string, Sprite> spriteCache = new();
+        static readonly Dictionary<string, AsyncOperationHandle<Sprite>> addrHandles = new();
         #endregion
 
         #region Public
@@ -42,7 +46,7 @@ namespace HDialogue.Editor {
                 return Array.Empty<PortraitEventInstruction>();
 
             int hash = rawText.GetHashCode();
-            if (_cache.TryGetValue(hash, out IReadOnlyList<PortraitEventInstruction> cached))
+            if (cache.TryGetValue(hash, out IReadOnlyList<PortraitEventInstruction> cached))
                 return cached;
 
             IReadOnlyList<DialogueToken> tokens = DialogueTagParser.Parse(rawText);
@@ -58,7 +62,7 @@ namespace HDialogue.Editor {
             IReadOnlyList<PortraitEventInstruction> ro = result != null
                 ? (IReadOnlyList<PortraitEventInstruction>)result.AsReadOnly()
                 : Array.Empty<PortraitEventInstruction>();
-            _cache[hash] = ro;
+            cache[hash] = ro;
             return ro;
         }
 
@@ -68,7 +72,26 @@ namespace HDialogue.Editor {
             if (string.IsNullOrEmpty(ins.TargetCharacterKey) || ins.Args.Length == 0) return null;
             if (!registry.TryGet(ins.TargetCharacterKey, out CharacterPortraitSetSO set)) return null;
             if (!set.TryGetPose(ins.Args[0], out PortraitPose pose)) return null;
-            return pose.Sprite;
+            return _LoadSprite(pose.SpriteKey);
+        }
+        #endregion
+
+        #region Private
+        static Sprite _LoadSprite(string key) {
+            if (string.IsNullOrEmpty(key)) return null;
+            if (spriteCache.TryGetValue(key, out Sprite cached)) return cached;
+            try {
+                AsyncOperationHandle<Sprite> handle = Addressables.LoadAssetAsync<Sprite>(key);
+                Sprite sprite = handle.WaitForCompletion();
+                if (handle.Status == AsyncOperationStatus.Succeeded && sprite != null) {
+                    addrHandles[key] = handle;
+                    spriteCache[key] = sprite;
+                    return sprite;
+                }
+                Addressables.Release(handle);
+            } catch { }
+            spriteCache[key] = null;
+            return null;
         }
         #endregion
     }
@@ -77,6 +100,20 @@ namespace HDialogue.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: PortraitPose.Sprite → SpriteKey Addressables 로드
+ *
+ * # 변경
+ * - ResolveSprite(): `pose.Sprite` → `_LoadSprite(pose.SpriteKey)`.
+ * - _LoadSprite(key): Addressables.LoadAssetAsync<Sprite>.WaitForCompletion 동기 로드 추가.
+ * - spriteCache / addrHandles 정적 캐시 추가 (에디터 리페인트 중복 로드 방지).
+ * - using UnityEngine.AddressableAssets / ResourceManagement.AsyncOperations 추가.
+ *
+ * # 이유
+ * - PortraitPose.Sprite(직접 참조) → SpriteKey(Addressable 키) 전환에 따른 컴파일 에러 수정.
+ * - 에디터 전용 동기 로드(WaitForCompletion): 에디터 GUI 스레드에서 사용하므로 허용.
+ *   런타임은 CharacterPortraitController._LoadAndSetSpriteAsync(UniTask async) 경로 사용.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: RawText → LocalizationUID 로컬라이즈 텍스트 연동
  *
