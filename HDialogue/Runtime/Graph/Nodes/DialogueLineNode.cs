@@ -16,6 +16,7 @@
  */
 #endif
 
+using HAudio;
 using HInspector;
 using HWindows.NodeWindow;
 using UnityEngine;
@@ -31,7 +32,7 @@ namespace HDialogue {
         [SerializeField]
         float speedMultiplier = 1f;
         [SerializeField]
-        string overrideBlipToken;
+        AudioClips overrideBlipToken;
 
         [HTitle("Portrait")]
         [SerializeField]
@@ -50,7 +51,7 @@ namespace HDialogue {
         public string SpeakerKey => speakerKey;
         public string LocalizationUID => localizationUID;
         public float SpeedMultiplier => speedMultiplier;
-        public string OverrideBlipToken => overrideBlipToken;
+        public AudioClips OverrideBlipToken => overrideBlipToken;
 
         public string SpeakerPoseKey => speakerPoseKey;
         public StageSlot? SpeakerSlot => speakerSlotOverride ? speakerSlot : (StageSlot?)null;
