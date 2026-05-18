@@ -14,9 +14,12 @@
  */
 #endif
 
+using HAudio;
+
 namespace HDialogue {
     public interface IBlipSfxService {
         #region Public
+        void PlayBlip(AudioClips audioClips);
         void PlayBlip(string token);
         #endregion
     }
