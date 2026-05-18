@@ -26,7 +26,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace HWindows.Editor.NodeWindow {
-    public sealed class HGraphHubNode : HGraphNode {
+    public class HGraphHubNode : HGraphNode {
         #region Fields
         readonly List<Port> _outputPorts = new();
         VisualElement _outputPortColumn;
