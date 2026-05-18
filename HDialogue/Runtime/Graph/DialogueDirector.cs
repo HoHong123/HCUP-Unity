@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using HAudio;
 using HDiagnosis.Logger;
 using HInspector;
 using HUI.TextUI;
@@ -299,8 +300,6 @@ namespace HDialogue {
         }
 
         private async UniTask<string> _ProcessBranchNode(DialogueBranchNode node, CancellationToken ct) {
-            await UniTask.NextFrame(cancellationToken: ct);
-
             if (variables == null) {
                 HLogger.Warning($"[DialogueDirector] BranchNode '{node.Title}' — no IDialogueVariableContext. Boolean 'false' fallback.");
                 return "false";
@@ -419,8 +418,8 @@ namespace HDialogue {
         private DialogueLine _BuildLine(DialogueLineNode node) {
             string speakerKey = !string.IsNullOrEmpty(node.SpeakerKey) ? node.SpeakerKey : "";
             float speed = node.SpeedMultiplier > 0f ? node.SpeedMultiplier : 1f;
-            string blipToken = !string.IsNullOrEmpty(node.OverrideBlipToken) ? node.OverrideBlipToken : "";
             string rawText = HTextLocalizer.GetText?.Invoke(node.LocalizationUID) ?? node.LocalizationUID;
+            AudioClips blipToken = node.OverrideBlipToken;
 
             return new DialogueLine {
                 SpeakerKey = speakerKey,
