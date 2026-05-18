@@ -8,12 +8,14 @@
  * + Canvas / 컨트롤러 참조 보유. Awake에서 Bind · 이벤트 wiring 일괄 수행.
  * + PlayCatalog(catalog) / PlayDefault() / PlayByKey(key) / Stop() 공개 API.
  * + catalogMap(HDictionary<string, DialogueCatalogSO>) — 키로 카탈로그 선택 재생.
+ * + PlayCatalog 진입 시 catalog.Registry/Layout으로 stageDirector 재바인드 (null 시 씬 기본값 폴백).
  * + OnCatalogStart / OnCatalogExit 이벤트 — 외부 게임 코드 연결 전용.
  * + 에디터 전용 로컬리제이션 소스 토글 :
  *   Manager(기본) = HTextLocalizer.GetText 유지 (LocalizationManager 경유).
  *   PerCatalog    = catalog.editorLocalizationSO 직조회, miss 시 UID 리터럴.
  *
  * 주의사항 ::
+ * stageDirector는 Awake에서 씬 기본값으로 초기 바인드, PlayCatalog 시 카탈로그 전용값으로 재바인드.
  * PerCatalog 모드: HTextLocalizer.GetText를 PlayCatalog 진입 시 snapshot → OnCatalogExit/Stop 시 복원.
  * 플레이어 빌드는 항상 LocalizationManager 단일 경로 (에디터 전용 토글 컴파일 제외).
  * =========================================================
@@ -57,9 +59,9 @@ namespace HDialogue {
 
         [HTitle("Stage Data")]
         [SerializeField]
-        CharacterRegistrySO registry;
+        CharacterRegistrySO defaultRegistry;
         [SerializeField]
-        StageLayoutSO layout;
+        StageLayoutSO defaultLayout;
 
         [HTitle("Catalogs")]
         [SerializeField]
@@ -117,16 +119,17 @@ namespace HDialogue {
                 return;
             }
             currentCatalog = catalog;
-#if UNITY_EDITOR
-            _ApplyLocalizationOverride(catalog);
-#endif
+            _RebindStageDirector(catalog);
             director.PlayCatalog(catalog);
         }
 
         public void PlayDefault() {
             DialogueCatalogSO target = targetCatalog;
             if (target == null) {
-                foreach (DialogueCatalogSO cat in catalogMap.Values) { target = cat; break; }
+                foreach (DialogueCatalogSO cat in catalogMap.Values) {
+                    target = cat;
+                    break;
+                }
             }
             if (target == null) {
                 HLogger.Error("[DialogueManager] PlayDefault: targetCatalog is not assigned and catalogMap is empty.");
@@ -174,9 +177,16 @@ namespace HDialogue {
         }
 
         private void _Bind() {
-            if (stageDirector != null && registry != null && layout != null)
-                stageDirector.Bind(registry, layout, textController);
+            if (stageDirector != null && defaultRegistry != null && defaultLayout != null)
+                stageDirector.Bind(defaultRegistry, defaultLayout, textController);
             director.Bind(textController, variableContext);
+        }
+
+        private void _RebindStageDirector(DialogueCatalogSO catalog) {
+            if (stageDirector == null) return;
+            CharacterRegistrySO reg = catalog.Registry != null ? catalog.Registry : defaultRegistry;
+            StageLayoutSO lay = catalog.Layout != null ? catalog.Layout : defaultLayout;
+            stageDirector.Bind(reg, lay, textController);
         }
 
         private void _SubscribeUiEvents() {
@@ -244,6 +254,9 @@ namespace HDialogue {
 
         #region Private — 이벤트 핸들러 (Director)
         private void _OnDirectorCatalogStart(DialogueCatalogSO catalog) {
+#if UNITY_EDITOR
+            _ApplyLocalizationOverride(catalog);
+#endif
             OnCatalogStart?.Invoke(catalog);
         }
 
@@ -260,7 +273,6 @@ namespace HDialogue {
         private void _OnDirectorCatalogExit(DialogueCatalogSO catalog, string exitKey) {
 #if UNITY_EDITOR
             _RestoreLocalizationOverride();
-            Debug.Log($"[DEBUG] OnCatalogExit: {catalog?.name}/{exitKey}");
 #endif
             uiController.ShowSpeakerName(string.Empty);
             uiController.ShowAdvanceHint(false);
@@ -320,6 +332,33 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.18 (수정) :: PlayCatalog — 카탈로그 전용 stageDirector 재바인드
+ *
+ * # 추가
+ * - PlayCatalog: director.PlayCatalog 호출 전 _RebindStageDirector(catalog) 추가.
+ * - _RebindStageDirector: catalog.Registry/Layout null 시 매니저 기본값(registry/layout) 폴백.
+ *
+ * # 이유
+ * - 1 DialogueSO = 1 StageLayoutSO = 1 CharacterRegistrySO 규칙.
+ * - 씬에서 서로 다른 카탈로그 재생 시 각 카탈로그의 캐릭터/스테이지 셋으로 자동 전환.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.18 (수정) :: _ApplyLocalizationOverride — PlayCatalog → _OnDirectorCatalogStart 이동
+ *
+ * # 변경
+ * - PlayCatalog()에서 `_ApplyLocalizationOverride(catalog)` 호출 제거.
+ * - `_OnDirectorCatalogStart()`에 `#if UNITY_EDITOR` 블록으로 `_ApplyLocalizationOverride(catalog)` 추가.
+ *
+ * # 이유
+ * - 2회차 이상 PlayCatalog() 호출 시 override race condition:
+ *   PlayCatalog → _ApplyLocalizationOverride(설정) → director.PlayCatalog →
+ *   _CancelCurrentCatalog("Replaced") → OnCatalogExit("Replaced") → _RestoreLocalizationOverride(제거!)
+ *   → _PlayCatalogAsync → _BuildLine() — override 없이 실행 → UID 리터럴 출력.
+ * - _OnDirectorCatalogStart는 _CancelCurrentCatalog 이후, _PlayCatalogAsync.Forget() 직전에
+ *   동기 발화되므로 override가 텍스트 해석 전에 확실히 적용됨.
+ * - 첫 번째 플레이(state=Idle)도 동일 경로로 처리되어 동작 일관성 확보.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (수정) :: catalogMap + PlayDefault / PlayByKey API 추가
  *
