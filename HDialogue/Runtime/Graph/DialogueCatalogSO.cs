@@ -7,17 +7,19 @@
  * + NodeCatalogSO 상속 — 노드/엣지/루트 그래프 데이터 자동 보유
  * + catalogTag        - Cutscene이면 DialogueDirector가 자동 진행
  * + RootNode          - RootUID로 실제 노드 인스턴스 조회
+ * + registry / layout - 카탈로그 전용 무대 데이터; null이면 DialogueManager 씬 기본값 폴백
  * + [에디터 전용] editorLocalizationSO — LocalizationUID 미리보기용 LocalizationSO 참조
  *
  * 주의사항 ::
  * 노드/엣지 mutation은 NodeCatalogSO.Internal* 경유 (Editor asmdef 전용).
- * DefaultSpeakerKey / DefaultBlipToken: 라인 노드 자체에 설정. 카탈로그 레벨 폴백 없음.
  * editorLocalizationSO는 에디터 전용 (#if UNITY_EDITOR) — 빌드에 포함되지 않음.
+ * registry / layout null 허용 — null이면 DialogueManager 씬 기본값 폴백.
  * =========================================================
  */
 #endif
 
 using UnityEngine;
+using HInspector;
 using HWindows.NodeWindow;
 #if UNITY_EDITOR
 using HLocalization;
@@ -30,7 +32,14 @@ namespace HDialogue {
         [SerializeField]
         DialogueCatalogTag catalogTag = DialogueCatalogTag.Normal;
 
+        [HTitle("Stage")]
+        [SerializeField]
+        CharacterRegistrySO registry;
+        [SerializeField]
+        StageLayoutSO layout;
+
 #if UNITY_EDITOR
+        [HTitle("Localization (Editor Test Only)")]
         [SerializeField]
         LocalizationSO editorLocalizationSO;
 #endif
@@ -38,6 +47,8 @@ namespace HDialogue {
 
         #region Properties
         public DialogueCatalogTag CatalogTag => catalogTag;
+        public CharacterRegistrySO Registry => registry;
+        public StageLayoutSO Layout => layout;
 
         public BaseNode RootNode {
             get {
@@ -62,6 +73,19 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.18 (수정) :: registry / layout — 카탈로그 전용 무대 데이터 추가
+ *
+ * # 추가
+ * - CharacterRegistrySO registry, StageLayoutSO layout SerializeField 추가.
+ * - 공개 프로퍼티 Registry, Layout 추가.
+ * - [HTitle("Stage")] 그룹으로 묶음. using HInspector 추가.
+ *
+ * # 이유
+ * - 1 DialogueCatalogSO = 1 StageLayoutSO = 1 CharacterRegistrySO 규칙.
+ * - DialogueManager.PlayCatalog 진입 시 카탈로그의 registry/layout으로 stageDirector 재바인드.
+ * - null 허용 — null이면 DialogueManager 씬 기본값 폴백.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: defaultSpeakerKey / defaultBlipToken 제거 + 로컬리제이션 연동 재설계
  *
