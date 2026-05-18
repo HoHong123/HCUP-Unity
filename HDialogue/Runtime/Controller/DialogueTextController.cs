@@ -15,8 +15,9 @@
  * + DialogueBlipSfxAgent   : 글자별 블립 재생 / silent 억제 / voice 교체 (Phase 4)
  *
  * 주의사항 ::
- * EffectPush/Pop → TextEffectHandler 위임. Sfx는 Phase 5 이후 처리 (현재 no-op).
- * Instant 모드에서는 Pause / Event 토큰 발화 포함 모든 지연이 0.
+ * tmpText 필수 연결 — Awake Debug.Assert 로 검증.
+ * EffectPush/Pop → TextEffectHandler 위임. Sfx 미구현(no-op) — Validator 경고로 명시.
+ * Instant 모드에서는 Pause 지연이 0. Event 태그는 모드 무관 항상 발화.
  * PlayLine 직후 INPUT_GUARD_DURATION(50ms) 동안 SkipToEnd 무시.
  * =========================================================
  */
@@ -33,7 +34,7 @@ using HInspector;
 
 namespace HDialogue {
     public sealed class DialogueTextController : MonoBehaviour {
-        #region 변수
+        #region Fields
         [HTitle("References")]
         [SerializeField]
         TMP_Text tmpText;
@@ -74,6 +75,10 @@ namespace HDialogue {
         #endregion
 
         #region Unity Life Cycle
+        private void Awake() {
+            Debug.Assert(tmpText != null, "[DialogueTextController] tmpText is not assigned.");
+        }
+
         private void OnDestroy() {
             _CancelPlay();
         }
@@ -134,6 +139,25 @@ namespace HDialogue {
         public void SetHoldAccelerate(bool enabled) {
             isHoldAccelerate = enabled;
         }
+
+        // DialogueDirector.OnAdvanceRequested 대기 해소 진입점.
+        // Waiting / Skipped 상태에서 사용자 Advance 신호를 전달할 때 호출.
+        public void RequestAdvance() {
+            OnAdvanceRequested?.Invoke();
+        }
+
+#if UNITY_EDITOR
+        // INPUT_GUARD 없이 현재 라인을 즉시 완료 — 에디터 테스트 전용.
+        public void ForceSkipToEnd() {
+            if (state == TextDisplayState.Idle
+                || state == TextDisplayState.Waiting
+                || state == TextDisplayState.Skipped) return;
+            _CancelPlay();
+            if (tmpText != null) tmpText.maxVisibleCharacters = int.MaxValue;
+            _SetState(TextDisplayState.Skipped);
+            OnLineComplete?.Invoke();
+        }
+#endif
         #endregion
 
         #region Private — 타이프라이터
@@ -201,19 +225,21 @@ namespace HDialogue {
                     break;
 
                 case DialogueTokenType.Event:
-                    if (speedMode != TextSpeedMode.Instant)
-                        OnEventTagFired?.Invoke(t.StringArg);
+                    OnEventTagFired?.Invoke(t.StringArg);
                     break;
 
                 case DialogueTokenType.VoiceSet:
                     blipAgent?.SetVoice(t.StringArg);
                     break;
 
-                // Phase 5 이후 처리
+                // _BuildEffectRanges / _BuildDisplayText 에서 사전 처리됨
                 case DialogueTokenType.EffectPush:
                 case DialogueTokenType.EffectPop:
-                case DialogueTokenType.Sfx:
                 case DialogueTokenType.PassThrough:
+                    break;
+
+                // 미구현 — Phase 5+ 구현 예정. Validator에서 no-op 경고 발행.
+                case DialogueTokenType.Sfx:
                     break;
             }
         }
@@ -302,6 +328,39 @@ namespace HDialogue {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: Sfx 토큰 case 분리 — 미구현 의도 명확화
+ *
+ * # 변경
+ * - _ProcessTokenAsync: `EffectPush/EffectPop/Sfx/PassThrough` 합산 case 분리.
+ *   EffectPush/EffectPop/PassThrough: "_BuildEffectRanges/_BuildDisplayText에서 사전 처리됨" 주석.
+ *   Sfx: 별도 case + "미구현 — Phase 5+ 구현 예정. Validator에서 no-op 경고 발행" 주석.
+ *
+ * # 이유
+ * - AgentReview Warning #9 (2026-05-17 19:13:03).
+ * - 셋은 "다른 경로에서 이미 처리됨"이고 Sfx는 "아무 곳에서도 처리 안 됨" — 의미가 다름.
+ *   같은 case에 묶으면 "Sfx도 처리됐다"는 오독 가능성.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: tmpText 필수 Assert 추가
+ *
+ * # 변경
+ * - Awake 신설. Debug.Assert(tmpText != null, ...) 추가.
+ *
+ * # 이유
+ * - AgentReview Warning #6. tmpText null 시 PlayLine에서 NRE 직행. Awake Assert로 사전 차단.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: Instant 모드 Event 토큰 발화 복원
+ *
+ * # 변경
+ * - _ProcessTokenAsync Event case: `if (speedMode != Instant)` 조건 제거 → 항상 발화
+ *
+ * # 이유
+ * - Instant 모드(전체 스킵)에서 portrait.* 이벤트가 누락되어 스테이지가 마지막 라인
+ *   상태로 굳어버리는 버그. Pause는 시간 지연이므로 스킵이 맞고, Event는 액션이므로
+ *   모드 무관하게 발화해야 함.
+ *
+ * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.TextUI → HDialogue 패키지 이관
  *
  * # 변경
@@ -336,7 +395,7 @@ namespace HDialogue {
  * # 설계 결정
  * - displayText = Char + PassThrough 토큰만 : 커스텀 태그는 동작 전용, TMP에 노출 X.
  * - UniTask + CancellationToken : PlayLine 재호출 시 이전 재생 즉시 취소. OnDestroy 보장.
- * - Instant 모드 : Char 지연 0, Pause 0, Event 발화 X.
+ * - Instant 모드 : Char 지연 0, Pause 0, Event 항상 발화 (← 2026-05-17 수정, 아래 참조).
  *
  * =============================================================================
  */
