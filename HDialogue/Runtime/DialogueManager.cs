@@ -76,6 +76,7 @@ namespace HDialogue {
 #endif
 
         DialogueCatalogSO currentCatalog;
+        CharacterRegistrySO activeRegistry;
         readonly MemoryDialogueVariableContext variableContext = new MemoryDialogueVariableContext();
         #endregion
 
@@ -186,6 +187,7 @@ namespace HDialogue {
             if (stageDirector == null) return;
             CharacterRegistrySO reg = catalog.Registry != null ? catalog.Registry : defaultRegistry;
             StageLayoutSO lay = catalog.Layout != null ? catalog.Layout : defaultLayout;
+            activeRegistry = reg;
             stageDirector.Bind(reg, lay, textController);
         }
 
@@ -261,8 +263,14 @@ namespace HDialogue {
         }
 
         private void _OnDirectorLineEnter(DialogueLineNode node) {
-            string speakerKey = string.IsNullOrEmpty(node.SpeakerKey) ? string.Empty : node.SpeakerKey;
-            uiController.ShowSpeakerName(speakerKey);
+            string displayName = string.Empty;
+            if (!string.IsNullOrEmpty(node.SpeakerKey)
+                && activeRegistry != null
+                && activeRegistry.TryGet(node.SpeakerKey, out CharacterPortraitSetSO portraitSet)
+                && !string.IsNullOrEmpty(portraitSet.DisplayName)) {
+                displayName = portraitSet.DisplayName;
+            }
+            uiController.ShowSpeakerName(displayName);
             uiController.ShowAdvanceHint(false);
         }
 
@@ -332,6 +340,18 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: _OnDirectorLineEnter — SpeakerKey → DisplayName 조회
+ *
+ * # 변경
+ * - activeRegistry 필드 추가 — _RebindStageDirector 시점에 현재 활성 레지스트리 저장.
+ * - _OnDirectorLineEnter: speakerKey 직접 출력 → activeRegistry.TryGet → DisplayName 조회 후 출력.
+ *   레지스트리 미설정, 키 미등록, DisplayName 빈 문자열인 경우 빈 문자열 표시(기존 동작 유지).
+ *
+ * # 이유
+ * - SpeakerKey는 내부 식별자 (레지스트리 조회·블립 사운드 매핑용).
+ *   UI에 노출되는 이름은 CharacterPortraitSetSO.DisplayName 이어야 한다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (수정) :: PlayCatalog — 카탈로그 전용 stageDirector 재바인드
  *
