@@ -16,6 +16,7 @@
  * =========================================================
  */
 #endif
+using System;
 using HDiagnosis.Logger;
 using HWindows.Editor.NodeWindow.Authoring;
 using HWindows.Editor.NodeWindow.Settings;
@@ -24,21 +25,13 @@ using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
 
 namespace HWindows.Editor.NodeWindow {
-    public sealed class HGraphWindow : EditorWindow {
-        #region Menu
-        [MenuItem("Window/HWindows/Node Window/Graph Editor")]
-        public static void Open() {
-            HGraphWindow window = GetWindow<HGraphWindow>();
-            window.titleContent = new GUIContent("Graph Editor");
-            window.minSize = new Vector2(400, 300);
-        }
-        #endregion
-
+    public class HGraphWindow<TCatalog> : EditorWindow where TCatalog : NodeCatalogSO {
         #region Fields
-        NodeCatalogSO currentCatalog;
-        HGraphCanvas canvas;
+        protected TCatalog currentCatalog;
+        protected HGraphCanvas canvas;
         IMGUIContainer settingsPanel;
         ObjectField catalogField;
         Label viewportCenterLabel;
@@ -47,7 +40,7 @@ namespace HWindows.Editor.NodeWindow {
         #endregion
 
         #region Unity Lifecycle
-        private void CreateGUI() {
+        protected virtual void CreateGUI() {
             VisualElement root = rootVisualElement;
             root.style.flexDirection = FlexDirection.Column;
             root.Add(_BuildMenuBar());
@@ -83,8 +76,13 @@ namespace HWindows.Editor.NodeWindow {
             menuBar.style.alignItems = Align.Center;
             menuBar.Add(_BuildViewMenu());
             menuBar.Add(_BuildEditMenu());
+            _AppendExtraMenuBarItems(menuBar);
             return menuBar;
         }
+
+        // 서브클래스가 메뉴바 오른쪽에 항목을 추가하는 훅. 기본 구현은 no-op.
+        // _BuildMenuBar 내부에서 View/Edit 메뉴 추가 후 호출됨 — 가상 디스패치 보장.
+        protected virtual void _AppendExtraMenuBarItems(VisualElement menuBar) { }
 
         private ToolbarMenu _BuildViewMenu() {
             ToolbarMenu viewMenu = new ToolbarMenu { text = "View" };
@@ -137,14 +135,14 @@ namespace HWindows.Editor.NodeWindow {
 
         private ObjectField _CreateCatalogField() {
             catalogField = new ObjectField {
-                objectType = typeof(NodeCatalogSO),
+                objectType = typeof(TCatalog),
                 allowSceneObjects = false,
                 label = ""
             };
             catalogField.style.flexGrow = 1;
             catalogField.style.marginLeft = 8;
             catalogField.style.marginRight = 8;
-            catalogField.RegisterValueChangedCallback(evt => _BindCatalog(evt.newValue as NodeCatalogSO));
+            catalogField.RegisterValueChangedCallback(evt => _BindCatalog(evt.newValue as TCatalog));
             return catalogField;
         }
 
@@ -211,7 +209,7 @@ namespace HWindows.Editor.NodeWindow {
         private void _WireUpEvents() {
             canvas.viewTransformChanged = _ => _UpdateViewportCenterLabel();
             _RegisterDragDropCallbacks();
-            canvas.CatalogSwitchRequested += _BindCatalog;
+            canvas.CatalogSwitchRequested += catalog => _BindCatalog(catalog as TCatalog);
             NodeCatalogAuthor.CatalogMutated += _OnCatalogMutated;
         }
 
@@ -312,7 +310,7 @@ namespace HWindows.Editor.NodeWindow {
         private void _OnDragUpdated(DragUpdatedEvent evt) {
             if (DragAndDrop.objectReferences.Length == 0) return;
             Object obj = DragAndDrop.objectReferences[0];
-            if (obj is NodeCatalogSO) {
+            if (obj is TCatalog) {
                 DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
                 evt.StopPropagation();
             }
@@ -321,7 +319,7 @@ namespace HWindows.Editor.NodeWindow {
         private void _OnDragPerform(DragPerformEvent evt) {
             if (DragAndDrop.objectReferences.Length == 0) return;
             Object obj = DragAndDrop.objectReferences[0];
-            if (obj is NodeCatalogSO catalog) {
+            if (obj is TCatalog catalog) {
                 DragAndDrop.AcceptDrag();
                 if (currentCatalog == null) {
                     // 카탈로그 미바인드 — 바인드 (최초 로드 경로).
@@ -336,13 +334,13 @@ namespace HWindows.Editor.NodeWindow {
             }
             else {
                 HLogger.Warning(
-                    $"[HGraphWindow] Drop rejected: not a NodeCatalogSO (got {obj?.GetType().Name ?? "null"})");
+                    $"[HGraphWindow] Drop rejected: not a {typeof(TCatalog).Name} (got {obj?.GetType().Name ?? "null"})");
             }
         }
         #endregion
 
         #region Bind
-        private void _BindCatalog(NodeCatalogSO catalog) {
+        protected virtual void _BindCatalog(TCatalog catalog) {
             if (catalog == currentCatalog) return;
             currentCatalog = catalog;
             canvas.Bind(catalog);
@@ -356,6 +354,17 @@ namespace HWindows.Editor.NodeWindow {
 #if UNITY_EDITOR
 // =============================================================================
 // Dev Log
+// =============================================================================
+// @Jason - PKH 2026.05.15 Phase 7 — HGraphWindow 제너릭 베이스 전환
+//
+// # 변경
+// - 클래스 선언: HGraphWindow → HGraphWindow<TCatalog> where TCatalog : NodeCatalogSO
+// - currentCatalog / canvas private → protected (서브클래스 접근 허용)
+// - CreateGUI / _BindCatalog private → protected virtual
+// - _AppendExtraMenuBarItems(VisualElement) protected virtual 훅 신설 (_BuildMenuBar 내부 호출)
+// - objectType = typeof(TCatalog) 으로 ObjectField 타입 제한 자동화 (캐스팅 제거)
+// - Window/HWindows/Node Window/Graph Editor [MenuItem] 제거 — 베이스 창 직접 오픈 지원 중단
+//
 // =============================================================================
 // [LOG-20260511-3] Phase 5 — 메뉴바 신설 + Go To Root / Close All Toolbar 이관
 // [LOG-20260511-2] 툴바 순서 조정 — 검색 앞, 좌표값 뒤 + viewportCenterLabel 고정 너비
