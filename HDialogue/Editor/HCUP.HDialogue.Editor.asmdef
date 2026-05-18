@@ -2,6 +2,11 @@
     "name": "HCUP.HDialogue.Editor",
     "rootNamespace": "HDialogue.Editor",
     "references": [
+        "Unity.Addressables",
+        "Unity.Addressables.Editor",
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Addressables",
         "HCUP.HDialogue",
         "HCUP.HWindows.NodeWindow",
         "HCUP.HWindows.NodeWindow.Editor"
