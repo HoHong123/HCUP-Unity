@@ -90,6 +90,39 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             return node;
         }
 
+        // 위치 인식 오버로드 — 우클릭 컨텍스트 메뉴 등 명시 좌표가 있을 때 사용.
+        // 자동 배치(auto-layout) 대신 전달된 position 을 node.EditorPosition 에 직접 설정.
+        public static T CreateNode<T>(NodeCatalogSO catalog, Vector2 position, string title = null) where T : BaseNode {
+            if (catalog == null) {
+                HLogger.Error("[NodeCatalogAuthor] catalog is null");
+                return null;
+            }
+
+            NodeUID uid = NodeUID.New();
+            string finalTitle = string.IsNullOrWhiteSpace(title) ? $"Node_{uid.Value[..8]}" : title;
+
+            Undo.RecordObject(catalog, "Create Node");
+
+            T node = ScriptableObject.CreateInstance<T>();
+            node.name = finalTitle;
+            node.AssignIdentity(uid, finalTitle);
+
+            AssetDatabase.AddObjectToAsset(node, catalog);
+            Undo.RegisterCreatedObjectUndo(node, "Create Node");
+            catalog.InternalAddNode(node);
+
+            if (!catalog.HasRoot) catalog.InternalSetRoot(uid);
+
+#if UNITY_EDITOR
+            node.SetEditorPosition(position);
+#endif
+
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            _NotifyMutated(catalog);
+            return node;
+        }
+
         // Phase 3 — NodeCatalogSO 를 canvas 특정 위치에 CatalogNode 로 생성.
         // HGraphWindow 드래그드롭 (카탈로그 이미 바인드 상태) 전용 진입점.
         // 1:1 양방향: referenced 에도 catalog 를 참조하는 CatalogNode 자동 생성 (미존재 시).
@@ -136,7 +169,7 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             Undo.RegisterCreatedObjectUndo(node, "Create Catalog Node");
             catalog.InternalAddNode(node);
 
-            // CatalogNode는 루트 후보 제외 — 루트는 SimpleNode/HubNode가 담당.
+            // CatalogNode는 루트 후보 제외.
 
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
