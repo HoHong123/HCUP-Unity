@@ -1,0 +1,84 @@
+/* =========================================================
+ * HDialogueNode.uss — HCUP-2.3.0 Phase 5
+ * 대화 노드 타입별 테두리 색 + 미리보기 바디 스타일
+ * ========================================================= */
+
+/* ── 노드 타입 테두리 색 7종 ── */
+.hdialogue-entry-node   { border-color: #6B6B6B; }
+.hdialogue-exit-node    { border-color: #4B4B4B; }
+.hdialogue-line-node    { border-color: #3B7AC8; }
+.hdialogue-choice-node  { border-color: #C8A820; }
+.hdialogue-branch-node  { border-color: #8B3BC8; }
+.hdialogue-event-node   { border-color: #3BA83B; }
+.hdialogue-variable-node { border-color: #2B9B6B; }
+.hdialogue-wait-node    { border-color: #C87820; }
+
+/* ── 선택 시 테두리 색 유지 (hgraph-node--selected 와 결합) ── */
+.hdialogue-line-node.hgraph-node--selected     { border-color: #5A9AE8; }
+.hdialogue-choice-node.hgraph-node--selected   { border-color: #E8C840; }
+.hdialogue-branch-node.hgraph-node--selected   { border-color: #AB5BE8; }
+.hdialogue-event-node.hgraph-node--selected    { border-color: #5BC85B; }
+.hdialogue-variable-node.hgraph-node--selected { border-color: #4BBB8B; }
+.hdialogue-wait-node.hgraph-node--selected     { border-color: #E89840; }
+
+/* ── 미리보기 바디 공통 스타일 ── */
+.hdialogue-speaker-label {
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: #DEDEDE;
+}
+
+.hdialogue-facing-label {
+    font-size: 12px;
+    color: #B8B8B8;
+    margin-left: 4px;
+}
+
+.hdialogue-text-preview {
+    font-size: 11px;
+    color: #AAAAAA;
+    white-space: normal;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.hdialogue-meta-row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-top: 2px;
+}
+
+.hdialogue-meta-label {
+    font-size: 10px;
+    color: #909090;
+    margin-right: 8px;
+}
+
+/* ── 포트레이트 이벤트 타임라인 스트립 ── */
+.hdialogue-portrait-strip {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    padding-bottom: 2px;
+}
+
+.hdialogue-portrait-thumb {
+    width: 36px;
+    height: 36px;
+    border-radius: 3px;
+    margin-right: 4px;
+    background-color: #1A1A1A;
+    border-width: 1px;
+    border-color: #555555;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.hdialogue-portrait-verb {
+    font-size: 9px;
+    color: #888888;
+    -unity-text-align: middle-center;
+}
