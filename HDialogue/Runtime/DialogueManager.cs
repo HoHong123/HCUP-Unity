@@ -6,14 +6,14 @@
  * 특징 / 지원기능 ::
  * + HCore.SingletonBehaviour 기반 씬 종속 싱글톤 (dontDestroyOnLoad = false 기본)
  * + Canvas / 컨트롤러 참조 보유. Awake에서 Bind · 이벤트 wiring 일괄 수행.
- * + PlayCatalog(catalog) / Stop() 공개 API — Director 위임.
+ * + PlayCatalog(catalog) / PlayDefault() / PlayByKey(key) / Stop() 공개 API.
+ * + catalogMap(HDictionary<string, DialogueCatalogSO>) — 키로 카탈로그 선택 재생.
  * + OnCatalogStart / OnCatalogExit 이벤트 — 외부 게임 코드 연결 전용.
  * + 에디터 전용 로컬리제이션 소스 토글 :
  *   Manager(기본) = HTextLocalizer.GetText 유지 (LocalizationManager 경유).
  *   PerCatalog    = catalog.editorLocalizationSO 직조회, miss 시 UID 리터럴.
  *
  * 주의사항 ::
- * DialogueTestSceneManager와 동시 활성화 시 이벤트 이중 발화. 둘 중 하나만 활성화.
  * PerCatalog 모드: HTextLocalizer.GetText를 PlayCatalog 진입 시 snapshot → OnCatalogExit/Stop 시 복원.
  * 플레이어 빌드는 항상 LocalizationManager 단일 경로 (에디터 전용 토글 컴파일 제외).
  * =========================================================
@@ -22,6 +22,7 @@
 
 using System;
 using System.Collections.Generic;
+using HCollection;
 using HDiagnosis.Logger;
 using HInspector;
 using HUI.TextUI;
@@ -59,6 +60,12 @@ namespace HDialogue {
         CharacterRegistrySO registry;
         [SerializeField]
         StageLayoutSO layout;
+
+        [HTitle("Catalogs")]
+        [SerializeField]
+        DialogueCatalogSO defaultCatalog;
+        [SerializeField]
+        HDictionary<string, DialogueCatalogSO> catalogMap = new();
 
 #if UNITY_EDITOR
         [HTitle("Localization (Editor Only)")]
@@ -114,6 +121,27 @@ namespace HDialogue {
             _ApplyLocalizationOverride(catalog);
 #endif
             director.PlayCatalog(catalog);
+        }
+
+        public void PlayDefault() {
+            if (defaultCatalog == null) {
+                HLogger.Error("[DialogueManager] PlayDefault: defaultCatalog is not assigned.");
+                return;
+            }
+            PlayCatalog(defaultCatalog);
+        }
+
+        public bool PlayByKey(string key) {
+            if (string.IsNullOrEmpty(key)) {
+                HLogger.Error("[DialogueManager] PlayByKey: key is null or empty.");
+                return false;
+            }
+            if (!catalogMap.TryGetValue(key, out DialogueCatalogSO catalog) || catalog == null) {
+                HLogger.Error($"[DialogueManager] PlayByKey: key '{key}' not found in catalogMap.");
+                return false;
+            }
+            PlayCatalog(catalog);
+            return true;
         }
 
         public void Stop() {
@@ -277,6 +305,22 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.18 (수정) :: catalogMap + PlayDefault / PlayByKey API 추가
+ *
+ * # 변경
+ * - using HCollection 추가. HCUP.HDialogue.asmdef에 HCUP.HCollection 참조 추가.
+ * - [HTitle("Catalogs")] 필드 그룹 추가:
+ *   defaultCatalog(DialogueCatalogSO) — 기본 단일 카탈로그.
+ *   catalogMap(HDictionary<string, DialogueCatalogSO>) — 키 기반 다중 카탈로그.
+ * - PlayDefault(): defaultCatalog를 PlayCatalog로 위임.
+ * - PlayByKey(string key) → bool: catalogMap 조회 후 PlayCatalog 위임. 미존재 키 false 반환.
+ * - 헤더 주의사항에서 DialogueTestSceneManager 언급 제거.
+ *
+ * # 이유
+ * - 외부 게임 코드에서 카탈로그 SO 참조 없이 키 문자열만으로 대화 재생 가능.
+ * - Inspector에서 사용할 카탈로그 세트를 HDictionary로 시각적으로 관리.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (수정) :: _OnDirectorCatalogExit — UNITY_EDITOR 로그 추가
  *
