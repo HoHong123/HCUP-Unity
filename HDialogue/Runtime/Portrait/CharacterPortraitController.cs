@@ -5,14 +5,16 @@
  *
  * 특징 / 지원기능 ::
  * + Bind(set)             - 캐릭터 포트레이트 집합 연결
+ * + BindProvider(p)       - IAssetProvider<string, Sprite> 주입 (SpriteKey 로드 전제)
  * + SetSlot(config)        - RectTransform 슬롯 이동 + 정렬 순서
- * + SetPose(key, t)       - 스프라이트 교체 또는 Animator.Play
+ * + SetPose(key, t)       - SpriteKey Addressable 비동기 로드 후 교체 또는 Animator.Play(ClipKey)
  * + SetFacing(dir)         - localScale.x 부호 반전으로 좌우 플립
  * + SetHighlight(bool)    - 화자/비화자 틴트(RGB)·스케일 트랜지션
  * + Show / Hide           - Fade/SlideIn 등 트랜지션 표시·숨김
  * + OnTransitionComplete  - 트랜지션 완료 시 발행
  *
  * 주의사항 ::
+ * BindProvider 미주입 시 Static 포즈 스프라이트 표시 안 됨 (spriteProvider == null 무시).
  * image 필수 연결 — Awake Debug.Assert 로 검증.
  * 동시 트랜지션: Appearance(alpha+pose) / Highlight(RGB tint+scale) / Motion 채널 독립 관리.
  * 같은 채널 내 신규 호출은 기존 취소 → 새 트랜지션 시작. 다른 채널은 간섭 없음.
@@ -20,7 +22,7 @@
  *   Motion 취소/종료 시 finally에서 motionOffset = 0 복구 — SetSlot/SetPose와 충돌 없음.
  * Show: gameObject.SetActive(true) — 비활성화된 풀 컨트롤러 재등장 대응.
  * Hide: 완료 시 gameObject.SetActive(false) — IsVisible=false와 동시 설정.
- * CharacterStageDirector 가 풀/인스턴스화 후 Bind + SetSlot 순서 보장 필요.
+ * CharacterStageDirector 가 풀/인스턴스화 후 Bind + BindProvider + SetSlot 순서 보장 필요.
  * =========================================================
  */
 #endif
@@ -31,6 +33,8 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using HDiagnosis.Logger;
 using HInspector;
+using HUtil.AssetHandler.Data;
+using HUtil.AssetHandler.Provider;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -55,6 +59,7 @@ namespace HDialogue {
         [SerializeField]
         Animator animator;
 
+        IAssetProvider<string, Sprite> spriteProvider;
         CharacterPortraitSetSO portraitSet;
         SlotConfig currentSlot;
         PortraitHighlightStyle highlightStyle;
@@ -73,7 +78,7 @@ namespace HDialogue {
         public string CurrentPoseKey { get; private set; }
         public FacingDirection CurrentFacing => currentFacing;
         public bool IsVisible { get; private set; }
-        public bool IsTransitioning => ctsByChannel.ContainsKey(TransitionChannel.Appearance);
+        public bool IsTransitioning => ctsByChannel.Count > 0;
         #endregion
 
         #region Events
@@ -82,7 +87,7 @@ namespace HDialogue {
 
         #region Unity Lifecycle
         private void Awake() {
-            Debug.Assert(image != null, "[CharacterPortraitController] image is not assigned.");
+            if (image == null) HLogger.Error("[CharacterPortraitController] image is not assigned.");
             _SetAlpha(0f);
             if (image != null) image.enabled = false;
             IsVisible = false;
@@ -94,6 +99,10 @@ namespace HDialogue {
         #endregion
 
         #region Public API
+        public void BindProvider(IAssetProvider<string, Sprite> provider) {
+            spriteProvider = provider;
+        }
+
         public void Bind(CharacterPortraitSetSO set, PortraitHighlightStyle style) {
             portraitSet = set;
             highlightStyle = style;
@@ -319,15 +328,23 @@ namespace HDialogue {
         private void _ApplyPoseImmediate(PortraitPose pose) {
             if (pose.Type == PortraitPoseType.Static) {
                 if (animator != null) animator.enabled = false;
-                if (image != null) image.sprite = pose.Sprite;
-            } else if (pose.Type == PortraitPoseType.Animated && pose.Clip != null) {
+                _LoadAndSetSpriteAsync(pose.SpriteKey, pose.Key, destroyCancellationToken).Forget();
+            } else if (pose.Type == PortraitPoseType.Animated && !string.IsNullOrEmpty(pose.ClipKey)) {
                 if (animator != null) {
                     animator.enabled = true;
-                    animator.Play(pose.Clip.name);
+                    animator.Play(pose.ClipKey);
                 }
             }
             currentPoseOffset = pose.PoseOffset;
             _ApplyAnchoredPosition();
+        }
+
+        private async UniTaskVoid _LoadAndSetSpriteAsync(string key, string poseKey, CancellationToken ct) {
+            if (spriteProvider == null || string.IsNullOrEmpty(key)) return;
+            Sprite sprite = await spriteProvider.GetAsync(key, AssetLoadMode.Addressable, AssetFetchMode.CacheFirst);
+            if (ct.IsCancellationRequested || image == null) return;
+            if (CurrentPoseKey != poseKey) return;
+            image.sprite = sprite;
         }
 
         private void _ApplyScale() {
@@ -407,6 +424,20 @@ namespace HDialogue {
  *
  * # 이유
  * - AgentReview Warning #6. image null 시 _SetAlpha → NRE. Awake Assert로 사전 차단.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: PortraitPose.Sprite/Clip → SpriteKey/ClipKey Addressable 전환
+ *
+ * # 변경
+ * - IAssetProvider<string, Sprite> spriteProvider 필드 추가
+ * - BindProvider(IAssetProvider<string, Sprite>) public API 추가
+ * - _ApplyPoseImmediate: image.sprite = pose.Sprite → _LoadAndSetSpriteAsync(pose.SpriteKey) 비동기 로드
+ * - _ApplyPoseImmediate: pose.Clip != null → !IsNullOrEmpty(pose.ClipKey), Clip.name → ClipKey
+ * - _LoadAndSetSpriteAsync 추가: CacheFirst 비동기 로드 후 CurrentPoseKey 일치 검증 후 적용
+ *
+ * # 이유
+ * - PortraitPose.SpriteKey(Addressable 키)로 전환함에 따라 Controller 로딩 경로 갱신
+ * - _LoadAndSetSpriteAsync poseKey 검증: 빠른 포즈 전환 시 늦게 도착한 응답이 현재 포즈를 덮는 race 차단
  *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (수정) :: Motion finally ABA 수정 — token 소유권 확인 후 motionOffset 리셋
