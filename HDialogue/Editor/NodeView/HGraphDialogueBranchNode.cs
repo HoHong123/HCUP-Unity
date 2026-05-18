@@ -40,7 +40,7 @@ namespace HDialogue.Editor {
             bodyArea.Insert(0, row);
         }
 
-        void _AddDialogueStyleSheet() {
+        private void _AddDialogueStyleSheet() {
             StyleSheet sheet = DialogueStyleSheetLoader.Get();
             if (sheet != null) styleSheets.Add(sheet);
         }

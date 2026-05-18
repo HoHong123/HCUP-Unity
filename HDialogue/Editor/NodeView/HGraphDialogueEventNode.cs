@@ -31,7 +31,7 @@ namespace HDialogue.Editor {
             bodyArea.Add(label);
         }
 
-        void _AddDialogueStyleSheet() {
+        private void _AddDialogueStyleSheet() {
             StyleSheet sheet = DialogueStyleSheetLoader.Get();
             if (sheet != null) styleSheets.Add(sheet);
         }

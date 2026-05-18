@@ -23,7 +23,7 @@ namespace HDialogue.Editor {
             bodyArea.Clear();
         }
 
-        void _AddDialogueStyleSheet() {
+        private void _AddDialogueStyleSheet() {
             UnityEngine.UIElements.StyleSheet sheet = DialogueStyleSheetLoader.Get();
             if (sheet != null) styleSheets.Add(sheet);
         }

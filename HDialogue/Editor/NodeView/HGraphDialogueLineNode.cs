@@ -27,7 +27,7 @@ namespace HDialogue.Editor {
             DialogueLineNodePreviewDrawer.Build(data, bodyArea);
         }
 
-        void _AddDialogueStyleSheet() {
+        private void _AddDialogueStyleSheet() {
             StyleSheet sheet = DialogueStyleSheetLoader.Get();
             if (sheet != null) styleSheets.Add(sheet);
         }
