@@ -22,6 +22,7 @@ namespace HDialogue {
         #region Public
         public void PlayBlip(string token) {
             if (string.IsNullOrEmpty(token)) return;
+            if (AudioManager.Instance == null) return;
             AudioManager.Instance.Play(token);
         }
         #endregion
@@ -31,6 +32,15 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.17 (수정) :: PlayBlip — AudioManager.Instance null guard 추가
+ *
+ * # 변경
+ * - `if (AudioManager.Instance == null) return;` 추가.
+ *
+ * # 이유
+ * - 씬 전환 중이거나 싱글톤 미초기화 시 NullReferenceException 방지.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 AudioManagerBlipAdapter HDialogue 패키지 이관
  *
