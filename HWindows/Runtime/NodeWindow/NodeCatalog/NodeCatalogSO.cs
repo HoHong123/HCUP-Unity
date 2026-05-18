@@ -9,7 +9,7 @@ namespace HWindows.NodeWindow {
     public class NodeCatalogSO : ScriptableObject, ISerializationCallbackReceiver {
         #region Fields
         [HTitle("Description")]
-        [SerializeField, TextArea]
+        [SerializeField, TextArea, HHideLabel]
         string editorDescription;
         
         [HTitle("Nodes")]
