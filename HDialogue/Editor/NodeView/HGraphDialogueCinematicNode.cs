@@ -7,6 +7,7 @@
  * + 지시 목록 요약 표시: "Verb Target [arg]" 포맷 라벨
  * + 지시 0개이면 "(no instructions)" 표시
  * + waitForTransition == true 이면 "wait transition" 라벨 추가
+ * + autoAdvance == false 이면 "wait next" 라벨 추가
  *
  * 주의사항 ::
  * targetCharacterKey 빈 문자열이면 "?" 로 표시.
@@ -45,6 +46,11 @@ namespace HDialogue.Editor {
                 waitLabel.AddToClassList("hdialogue-meta-label");
                 bodyArea.Add(waitLabel);
             }
+            if (data.WaitForInput) {
+                var waitNextLabel = new Label("wait next");
+                waitNextLabel.AddToClassList("hdialogue-meta-label");
+                bodyArea.Add(waitNextLabel);
+            }
         }
 
         private void _AddDialogueStyleSheet() {
@@ -57,6 +63,16 @@ namespace HDialogue.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: WaitForInput true 시 "wait next" 라벨 추가
+ *
+ * # 변경
+ * - `if (data.WaitForInput)` 블록 추가 — "wait next" 라벨 표시.
+ *
+ * # 이유
+ * - DialogueCinematicNode.autoAdvance 필드 추가에 따른 그래프 뷰 시각화 반영.
+ * - "wait transition"과 동일 패턴: 기본값과 다른 상태(false)만 표시.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.16 HGraphDialogueCinematicNode 신규 생성
  *

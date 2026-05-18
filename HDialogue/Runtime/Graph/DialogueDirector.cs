@@ -361,6 +361,18 @@ namespace HDialogue {
                 else
                     await UniTask.NextFrame(cancellationToken: ct);
             }
+            if (node.WaitForInput) {
+                if (textController != null) {
+                    var advanceTcs = new UniTaskCompletionSource();
+                    Action onAdvance = () => advanceTcs.TrySetResult();
+                    textController.OnAdvanceRequested += onAdvance;
+                    try {
+                        await advanceTcs.Task.AttachExternalCancellation(ct);
+                    } finally {
+                        textController.OnAdvanceRequested -= onAdvance;
+                    }
+                }
+            }
         }
 
         private async UniTask _ProcessVariableNode(DialogueVariableNode node, CancellationToken ct) {
@@ -476,6 +488,20 @@ namespace HDialogue {
  * # 이유
  * - DialogueCatalogSO에서 defaultSpeakerKey / defaultBlipToken 제거에 따른 연쇄 수정.
  * - 라인 텍스트는 로컬리제이션 UID로 관리, 런타임에 HTextLocalizer 경유 해석.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: _ProcessCinematicNode — WaitForInput true 시 Next 대기 분기 추가
+ *
+ * # 변경
+ * - `if (node.WaitForInput)` 블록 추가.
+ *   WaitForTransition 대기 완료 후 textController.OnAdvanceRequested를 TCS로 구독, Next 명령까지 대기.
+ *
+ * # 이유
+ * - CinematicNode 트랜지션 완료 후 자동 진행 / 사용자 입력 대기를 노드별로 선택 가능하게.
+ * - _ProcessLineNode / WaitNode(UserInput) 와 동일한 TCS 패턴 재사용.
+ *
+ * # 주의
+ * - textController null이면 Next 대기 없이 통과 (기존 null-safe 정책 유지).
  *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (수정) :: PlayCatalog 신규 요청 유효성 검증을 취소보다 먼저 수행
