@@ -56,7 +56,7 @@ namespace HDialogue {
         public override string ClipboardMagic => "HGRAPH_DIALOGUE_CHOICE_NODE_V1";
 
 #if UNITY_EDITOR
-        void OnValidate() {
+        private void OnValidate() {
             if (choices.Count != PortCount) {
                 HLogger.Warning(
                     $"[DialogueChoiceNode] '{Title}' — choices.Count({choices.Count}) != PortCount({PortCount}). " +
