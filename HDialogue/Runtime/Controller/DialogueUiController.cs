@@ -62,8 +62,8 @@ namespace HDialogue {
 
         #region Unity Life Cycle
         private void Awake() {
-            playBtn?.onClick.AddListener(    () => OnPlay?.Invoke());
-            skipBtn?.onClick.AddListener(    () => OnSkip?.Invoke());
+            playBtn?.onClick.AddListener(() => OnPlay?.Invoke());
+            skipBtn?.onClick.AddListener(() => OnSkip?.Invoke());
             nextLineBtn?.onClick.AddListener(() => OnAdvance?.Invoke());
 
             if (choicePanel != null) choicePanel.SetActive(false);
