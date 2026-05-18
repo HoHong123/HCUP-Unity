@@ -56,7 +56,7 @@ namespace HDialogue.Editor {
             EditorGUILayout.EndScrollView();
         }
 
-        void _DrawSummary(DialogueValidationReport r) {
+        private void _DrawSummary(DialogueValidationReport r) {
             bool pass = r.IsValid;
             Color c = pass ? PASS_COLOR : ERROR_COLOR;
             string label = pass
