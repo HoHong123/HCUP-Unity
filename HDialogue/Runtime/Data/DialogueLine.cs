@@ -22,7 +22,7 @@ namespace HDialogue {
         public string SpeakerKey;
         public string RawText;
         public float SpeedMultiplier;
-        public string OverrideBlipToken;
+        public HAudio.AudioClips OverrideBlipToken;
         #endregion
 
         #region Static Factory
