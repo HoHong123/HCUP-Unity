@@ -2,15 +2,17 @@
     "name": "HCUP.HDialogue",
     "rootNamespace": "HDialogue",
     "references": [
-        "UniTask",
         "Unity.TextMeshPro",
+        "UniTask",
         "UniTask.TextMeshPro",
         "HCUP.HUtil",
         "HCUP.HUI",
         "HCUP.HAudio",
         "HCUP.HCore",
         "HCUP.HInspector",
-        "HCUP.HDiagnosis"
+        "HCUP.HDiagnosis",
+        "HCUP.HWindows.NodeWindow",
+        "HCUP.HLocalization"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
