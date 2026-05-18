@@ -12,7 +12,8 @@
  * 주의사항 ::
  * controllerPrefab / registry / layout 필수 연결 — Awake Debug.Assert 로 검증.
  * leftSlotRoot / rightSlotRoot : 씬의 정확한 위치에 배치할 것. 미연결 시 this.transform 사용.
- * OnDestroy에서 OnEventTagFired 구독 해제.
+ * spriteProvider: Awake에서 Addressable 기본 구성으로 생성. OnDestroy에서 ReleaseAll.
+ * OnDestroy에서 OnEventTagFired 구독 해제 + spriteProvider.ReleaseAll.
  * =========================================================
  */
 #endif
@@ -23,6 +24,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using HDiagnosis.Logger;
 using HInspector;
+using HUtil.AssetHandler.Provider;
 using UnityEngine;
 
 namespace HDialogue {
@@ -45,6 +47,7 @@ namespace HDialogue {
         StageLayoutSO layout;
 
         DialogueTextController textController;
+        IAssetProvider<string, Sprite> spriteProvider;
 
         readonly Dictionary<string, CharacterPortraitController> controllers = new();
         readonly Dictionary<string, StageSlot> characterToSlot = new();
@@ -61,15 +64,17 @@ namespace HDialogue {
 
         #region Unity Life Cycle
         private void Awake() {
-            Debug.Assert(controllerPrefab != null, "[CharacterStageDirector] controllerPrefab is not assigned.");
-            Debug.Assert(registry != null, "[CharacterStageDirector] registry is not assigned.");
-            Debug.Assert(layout != null, "[CharacterStageDirector] layout is not assigned.");
+            if (controllerPrefab == null) HLogger.Error("[CharacterStageDirector] controllerPrefab is not assigned.");
+            if (registry == null) HLogger.Error("[CharacterStageDirector] registry is not assigned.");
+            if (layout == null) HLogger.Error("[CharacterStageDirector] layout is not assigned.");
+            spriteProvider = AssetProviderFactory.CreateAddressable<Sprite>();
         }
 
         private void OnDestroy() {
             if (textController != null && onEventTagFiredHandler != null) {
                 textController.OnEventTagFired -= onEventTagFiredHandler;
             }
+            spriteProvider?.ReleaseAll();
         }
         #endregion
 
@@ -295,6 +300,7 @@ namespace HDialogue {
                 controllers[characterKey] = ctrl;
                 PortraitHighlightStyle style = layout != null ? layout.HighlightStyle : PortraitHighlightStyle.Default;
                 ctrl.Bind(set, style);
+                ctrl.BindProvider(spriteProvider);
             } else {
                 ctrl.gameObject.SetActive(true);
             }
@@ -330,6 +336,19 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: Addressable spriteProvider 생성 + Controller 주입
+ *
+ * # 변경
+ * - IAssetProvider<string, Sprite> spriteProvider 필드 추가
+ * - Awake: AssetProviderFactory.CreateAddressable<Sprite>() 로 spriteProvider 생성
+ * - OnDestroy: spriteProvider?.ReleaseAll() 추가 — Addressable 핸들 일괄 해제
+ * - _GetOrCreateController: 신규 컨트롤러 생성 시 ctrl.BindProvider(spriteProvider) 호출
+ *
+ * # 이유
+ * - PortraitPose.SpriteKey 전환으로 Controller가 IAssetProvider 의존성 필요
+ * - Provider 수명: Awake 생성 + OnDestroy 해제로 StageDirector 수명과 일치
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: HideCharacter — SetActive 비활성화를 Controller에 위임
  *
