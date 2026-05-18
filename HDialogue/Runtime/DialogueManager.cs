@@ -7,7 +7,9 @@
  * + HCore.SingletonBehaviour 기반 씬 종속 싱글톤 (dontDestroyOnLoad = false 기본)
  * + Canvas / 컨트롤러 참조 보유. Awake에서 Bind · 이벤트 wiring 일괄 수행.
  * + PlayCatalog(catalog) / PlayDefault() / PlayByKey(key) / Stop() 공개 API.
+ * + targetCatalog — Inspector에서 지정한 출력 대상 카탈로그.
  * + catalogMap(HDictionary<string, DialogueCatalogSO>) — 키로 카탈로그 선택 재생.
+ * + PlayDefault(): targetCatalog 우선, null이면 catalogMap 첫 번째 값 사용.
  * + OnCatalogStart / OnCatalogExit 이벤트 — 외부 게임 코드 연결 전용.
  * + 에디터 전용 로컬리제이션 소스 토글 :
  *   Manager(기본) = HTextLocalizer.GetText 유지 (LocalizationManager 경유).
@@ -63,7 +65,7 @@ namespace HDialogue {
 
         [HTitle("Catalogs")]
         [SerializeField]
-        DialogueCatalogSO defaultCatalog;
+        DialogueCatalogSO targetCatalog;
         [SerializeField]
         HDictionary<string, DialogueCatalogSO> catalogMap = new();
 
@@ -124,11 +126,15 @@ namespace HDialogue {
         }
 
         public void PlayDefault() {
-            if (defaultCatalog == null) {
-                HLogger.Error("[DialogueManager] PlayDefault: defaultCatalog is not assigned.");
+            DialogueCatalogSO target = targetCatalog;
+            if (target == null) {
+                foreach (DialogueCatalogSO cat in catalogMap.Values) { target = cat; break; }
+            }
+            if (target == null) {
+                HLogger.Error("[DialogueManager] PlayDefault: targetCatalog is not assigned and catalogMap is empty.");
                 return;
             }
-            PlayCatalog(defaultCatalog);
+            PlayCatalog(target);
         }
 
         public bool PlayByKey(string key) {
@@ -311,9 +317,10 @@ namespace HDialogue {
  * # 변경
  * - using HCollection 추가. HCUP.HDialogue.asmdef에 HCUP.HCollection 참조 추가.
  * - [HTitle("Catalogs")] 필드 그룹 추가:
- *   defaultCatalog(DialogueCatalogSO) — 기본 단일 카탈로그.
+ *   targetCatalog(DialogueCatalogSO) — Inspector에서 지정한 출력 대상 카탈로그.
  *   catalogMap(HDictionary<string, DialogueCatalogSO>) — 키 기반 다중 카탈로그.
- * - PlayDefault(): defaultCatalog를 PlayCatalog로 위임.
+ * - PlayDefault(): targetCatalog 우선, null이면 catalogMap.Values 첫 번째 값 폴백.
+ *   양쪽 모두 null/empty면 HLogger.Error.
  * - PlayByKey(string key) → bool: catalogMap 조회 후 PlayCatalog 위임. 미존재 키 false 반환.
  * - 헤더 주의사항에서 DialogueTestSceneManager 언급 제거.
  *
