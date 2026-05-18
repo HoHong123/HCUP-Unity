@@ -5,12 +5,13 @@
  *
  * 특징 / 지원기능 ::
  * + Key        - 포즈 식별자 ("neutral" / "happy" 등)
- * + Sprite     - Static 포즈 스프라이트 (Animated이면 null 가능)
- * + Clip       - Animated 포즈 AnimationClip (Static이면 null 가능)
+ * + SpriteKey  - Static 포즈 Addressable 키 ([HSpritePreview] 미리보기 지원)
+ * + ClipKey    - Animated 포즈 Animator.Play 인자 (Animator에 등록된 클립명과 일치해야 함)
  * + Type       - 렌더링 방식 (Static / Animated / Sequence)
  * + PoseOffset - 슬롯 기준 위치 보정값 (Vector2)
  *
  * 주의사항 ::
+ * SpriteKey는 Addressable 키 — 직접 Sprite 참조 없음. SO 저장 용량 최소화.
  * SerializeField 가 있는 struct — Inspector 인라인 편집 대상.
  * =========================================================
  */
@@ -27,8 +28,9 @@ namespace HDialogue {
         public string Key;
 
         [HTitle("Renderer")]
-        public Sprite Sprite;
-        public AnimationClip Clip;
+        [HSpritePreview]
+        public string SpriteKey;
+        public string ClipKey;
         public PortraitPoseType Type;
 
         [HTitle("Layout")]
@@ -39,6 +41,18 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: Sprite/AnimationClip → SpriteKey/ClipKey Addressable 키 전환
+ *
+ * # 변경
+ * - public Sprite Sprite → [HSpritePreview] public string SpriteKey (Addressable 키)
+ * - public AnimationClip Clip → public string ClipKey (Animator.Play 직접 인자)
+ *
+ * # 이유
+ * - SO 저장 데이터 최소화: 스프라이트 에셋 직접 참조 제거, 키만 직렬화
+ * - [HSpritePreview]: Inspector에서 Addressable 키로 스프라이트 미리보기 지원
+ * - ClipKey: Animator 클립명이 곧 키 — AnimationClip 에셋 직접 참조 불필요
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: HInspector HTitle 그룹 추가 (Identity / Renderer / Layout)
  *
