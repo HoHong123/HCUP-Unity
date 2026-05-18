@@ -19,18 +19,19 @@
 using UnityEngine;
 using HInspector;
 using HDiagnosis.Logger;
+using HAudio;
 
 namespace HDialogue {
     public sealed class DialogueBlipSfxAgent : MonoBehaviour {
         #region 변수
         [HTitle("Blip")]
         [SerializeField]
-        string defaultBlipToken;
+        AudioClips defaultBlipToken;
         [SerializeField]
         MonoBehaviour blipServiceSource;
 
         IBlipSfxService blipService;
-        string currentBlipToken;
+        AudioClips currentBlipToken;
         #endregion
 
         #region Unity Life Cycle
@@ -43,18 +44,24 @@ namespace HDialogue {
         #endregion
 
         #region Public
-        public void ResetVoice(string lineOverrideToken) {
-            currentBlipToken = !string.IsNullOrEmpty(lineOverrideToken)
-                ? lineOverrideToken
-                : defaultBlipToken;
+        public void ResetVoice(AudioClips lineOverrideToken) {
+            SetVoice(lineOverrideToken);
+        }
+
+        public void SetVoice(AudioClips token) {
+            currentBlipToken = token;
         }
 
         public void SetVoice(string token) {
-            if (!string.IsNullOrEmpty(token)) currentBlipToken = token;
+            if (System.Enum.TryParse(token, out AudioClips parsedToken)) {
+                currentBlipToken = parsedToken;
+            }
+            else {
+                HLogger.Error($"[DialogueBlipSfxAgent] Failed to parse token '{token}' to AudioClips enum.");
+            }
         }
 
         public void PlayBlip() {
-            if (string.IsNullOrEmpty(currentBlipToken)) return;
             blipService?.PlayBlip(currentBlipToken);
         }
         #endregion
