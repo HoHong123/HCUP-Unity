@@ -15,18 +15,18 @@ namespace HWindows.Editor.NodeWindow {
         // Phase 3 — CatalogNode 전용 헤더 색 (청록). 일반 노드(파란)·루트(노란)와 시각 구분.
         public static readonly Color CatalogNodeHeaderColor = new Color(0.15f, 0.52f, 0.48f);
         // Phase 5 — 도메인 노드 타입별 헤더 색. RegisterHeaderColor 로 외부 어셈블리가 등록.
-        static readonly Dictionary<Type, Color> _domainHeaderColors = new();
+        static readonly Dictionary<Type, Color> domainHeaderColors = new();
         #endregion
 
         #region Public
         // 도메인 노드 타입에 헤더 색 등록. [InitializeOnLoadMethod] 에서 호출.
         public static void RegisterHeaderColor(Type nodeType, Color color) {
-            if (nodeType != null) _domainHeaderColors[nodeType] = color;
+            if (nodeType != null) domainHeaderColors[nodeType] = color;
         }
 
         // 노드 타입별 헤더 색 조회. 도메인 등록 색 우선, 루트 색은 HGraphNode 가 별도 처리.
         public static Color GetHeaderColorFor(Type nodeType) {
-            if (_domainHeaderColors.TryGetValue(nodeType, out Color c)) return c;
+            if (domainHeaderColors.TryGetValue(nodeType, out Color c)) return c;
             if (nodeType == typeof(CatalogNode)) return CatalogNodeHeaderColor;
             return DefaultHeaderColor;
         }
