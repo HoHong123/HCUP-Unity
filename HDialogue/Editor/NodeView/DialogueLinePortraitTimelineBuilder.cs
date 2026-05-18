@@ -77,7 +77,7 @@ namespace HDialogue.Editor {
         #endregion
 
         #region Private
-        static Sprite _LoadSprite(string key) {
+        private static Sprite _LoadSprite(string key) {
             if (string.IsNullOrEmpty(key)) return null;
             if (spriteCache.TryGetValue(key, out Sprite cached)) return cached;
             try {
