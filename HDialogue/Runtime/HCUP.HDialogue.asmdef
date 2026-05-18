@@ -12,6 +12,7 @@
         "HCUP.HInspector",
         "HCUP.HDiagnosis",
         "HCUP.HWindows.NodeWindow",
+        "HCUP.HCollection",
         "HCUP.HLocalization"
     ],
     "includePlatforms": [],
