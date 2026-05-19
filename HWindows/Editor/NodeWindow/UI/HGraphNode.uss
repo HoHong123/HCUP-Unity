@@ -120,6 +120,16 @@
     border-right-width: 3px;
 }
 
+/* HCUP-2.7.0 Phase 2 - Choice 시뮬레이션 도달 가능 노드 (청록 3px 외곽선) */
+/* 선언 순서 의도: active(녹) 뒤에 위치 → 동시 적용 시 active 가 시각 우선 */
+.hgraph-node--trace {
+    border-color: #26C6DA;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-left-width: 3px;
+    border-right-width: 3px;
+}
+
 /* Phase 2 - portRow: mainContainer 직속 → GraphView collapse 관리 밖 항상 표시 */
 .hgraph-node-port-row {
     flex-direction: row;
