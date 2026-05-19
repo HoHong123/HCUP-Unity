@@ -9,6 +9,7 @@
  * + 우클릭 컨텍스트 메뉴: 마우스 위치의 그래프 좌표에 동일 9종 생성.
  * + HGraphCanvas.AdditionalContextMenuActions 에 주입 — 베이스 창 미영향.
  * + Play 모드 경로 하이라이트 — OnLineEnter → 실행 중인 LineNode 녹색 강조.
+ * + Trace 토글 — 선택 노드에서 도달 가능한 노드를 청록으로 강조 (HCUP-2.7.0 Phase 2).
  *
  * 주의사항 ::
  * AdditionalContextMenuActions 는 인스턴스 레벨. 이 창의 캔버스에만 적용됨.
