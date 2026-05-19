@@ -3,6 +3,7 @@
     "rootNamespace": "HDialogue",
     "references": [
         "Unity.TextMeshPro",
+        "Unity.InputSystem",
         "UniTask",
         "UniTask.TextMeshPro",
         "HCUP.HUtil",
