@@ -8,10 +8,12 @@
  * + 메뉴바 [Create ▾]: 9종 다이얼로그 노드를 뷰포트 중앙에 생성.
  * + 우클릭 컨텍스트 메뉴: 마우스 위치의 그래프 좌표에 동일 9종 생성.
  * + HGraphCanvas.AdditionalContextMenuActions 에 주입 — 베이스 창 미영향.
+ * + Play 모드 경로 하이라이트 — OnLineEnter → 실행 중인 LineNode 녹색 강조.
  *
  * 주의사항 ::
  * AdditionalContextMenuActions 는 인스턴스 레벨. 이 창의 캔버스에만 적용됨.
  * CreateGUI 에서 base.CreateGUI() 호출 후 canvas 가 초기화되므로 순서 엄수.
+ * Play 모드 진입 전 NodeWindow 가 열려 있어야 하이라이트 활성화됨.
  * =========================================================
  */
 #endif
@@ -27,6 +29,10 @@ using HWindows.NodeWindow;
 
 namespace HDialogue.Editor {
     public sealed class DialogueNodeWindow : HGraphWindow<DialogueCatalogSO> {
+        #region Fields
+        DialogueDirector trackedDirector;
+        #endregion
+
         #region Menu
         [MenuItem("HCUP/Dialogue/Open Node Window", false, 10)]
         public static void OpenDialogueWindow() {
@@ -37,6 +43,15 @@ namespace HDialogue.Editor {
         #endregion
 
         #region Lifecycle
+        private void OnEnable() {
+            EditorApplication.playModeStateChanged += _OnPlayModeChanged;
+        }
+
+        private void OnDisable() {
+            EditorApplication.playModeStateChanged -= _OnPlayModeChanged;
+            _UntrackDirector();
+        }
+
         protected override void CreateGUI() {
             base.CreateGUI();
             _WireDialogueContextMenu();
@@ -62,6 +77,32 @@ namespace HDialogue.Editor {
                 _AppendDialogueNodeItems(evt.menu,
                     action => canvas.ToGraphPosition(action.eventInfo.localMousePosition));
             };
+        }
+        #endregion
+
+        #region Play Mode Bridge (HCUP-2.7.0 Phase 1)
+        private void _OnPlayModeChanged(PlayModeStateChange state) {
+            if (state == PlayModeStateChange.EnteredPlayMode) _TrackDirector();
+            else if (state == PlayModeStateChange.ExitingPlayMode) _UntrackDirector();
+        }
+
+        private void _TrackDirector() {
+            DialogueDirector[] found = FindObjectsByType<DialogueDirector>(
+                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            if (found.Length == 0) return;
+            trackedDirector = found[0];
+            trackedDirector.OnLineEnter += _OnLineEnter;
+        }
+
+        private void _UntrackDirector() {
+            if (trackedDirector == null) return;
+            trackedDirector.OnLineEnter -= _OnLineEnter;
+            trackedDirector = null;
+            canvas?.ClearActiveHighlight();
+        }
+
+        private void _OnLineEnter(DialogueLineNode node) {
+            canvas?.HighlightActiveNode(node.UID);
         }
         #endregion
 
@@ -103,6 +144,23 @@ namespace HDialogue.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.20 HCUP-2.7.0 Phase 1 — Play 모드 경로 하이라이트
+ *
+ * # 변경
+ * - `DialogueDirector trackedDirector` 필드 추가.
+ * - `OnEnable`: `EditorApplication.playModeStateChanged += _OnPlayModeChanged` 구독.
+ * - `OnDisable`: 구독 해제 + `_UntrackDirector()`.
+ * - `_OnPlayModeChanged`: EnteredPlayMode → `_TrackDirector`, ExitingPlayMode → `_UntrackDirector`.
+ * - `_TrackDirector`: `FindObjectsByType<DialogueDirector>` → `OnLineEnter` 구독.
+ * - `_UntrackDirector`: `OnLineEnter` 해제 + `canvas.ClearActiveHighlight()`.
+ * - `_OnLineEnter`: `canvas.HighlightActiveNode(node.UID)` 위임.
+ *
+ * # 이유
+ * - Play 모드에서 실행 중인 LineNode를 NodeWindow에 녹색 외곽선으로 실시간 표시.
+ * - `ExitingPlayMode` 시 해제 — 이 시점에 Director는 아직 살아 있어 안전한 -= 가능.
+ *   `ExitedPlayMode` 이후는 오브젝트 파괴 완료 시점 → null 역참조 위험.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.16 DialogueCinematicNode 메뉴 항목 추가
  *
