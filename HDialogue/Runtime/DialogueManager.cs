@@ -273,8 +273,8 @@ namespace HDialogue {
             textController.RequestAdvance();
         }
 
-        private void _OnUiAutoToggle() {
-            director.AutoAdvanceDelay = director.AutoAdvanceDelay >= 0f ? -1f : autoModeDelay;
+        private void _OnUiAutoToggle(bool isOn) {
+            director.AutoAdvanceDelay = isOn ? autoModeDelay : -1f;
         }
 
         private void _OnUiAdvance() {
@@ -300,7 +300,11 @@ namespace HDialogue {
         #region Private — 이벤트 핸들러 (Input)
         private void _OnInputAdvance() => _OnUiAdvance();
         private void _OnInputSkip() => _OnUiSkip();
-        private void _OnInputAutoToggle() => _OnUiAutoToggle();
+        private void _OnInputAutoToggle() {
+            bool newIsOn = director.AutoAdvanceDelay < 0f;
+            director.AutoAdvanceDelay = newIsOn ? autoModeDelay : -1f;
+            uiController.SetAutoToggle(newIsOn);
+        }
         #endregion
 
         #region Private — 이벤트 핸들러 (Director)
@@ -389,6 +393,18 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: _OnUiAutoToggle bool 파라미터 + _OnInputAutoToggle 로직 갱신
+ *
+ * # 변경
+ * - `_OnUiAutoToggle()` → `_OnUiAutoToggle(bool isOn)`: `isOn ? autoModeDelay : -1f` 직접 설정.
+ * - `_OnInputAutoToggle()`: 위임 제거. `director.AutoAdvanceDelay < 0f` 로 현재 off 판단 → toggle → `uiController.SetAutoToggle(newIsOn)` 호출.
+ *
+ * # 이유
+ * - DialogueUiController.OnAutoToggle 시그니처가 Action → Action<bool> 로 변경됨에 따른 동기화.
+ * - 키보드 입력으로 Auto 토글 시 UI Toggle도 함께 갱신해야 시각 상태 일관성 유지.
+ * - SetAutoToggle(SetIsOnWithoutNotify) 사용: Toggle.isOn 설정이 onValueChanged를 다시 발화하지 않도록 방지.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: inputController SerializeField + Input 이벤트 구독 연결 추가
  *
