@@ -56,6 +56,9 @@ namespace HDialogue {
         readonly HashSet<string> validChoiceKeys = new();
 
         bool hasWarnedNullController;
+
+        float autoAdvanceOverride = -1f;
+        bool isSkipping;
         #endregion
 
         #region Events
@@ -70,6 +73,14 @@ namespace HDialogue {
         public DialogueDirectorState State => state;
         public DialogueCatalogSO CurrentCatalog => currentCatalog;
         public BaseNode CurrentNode => currentNode;
+        public float AutoAdvanceDelay {
+            get => autoAdvanceOverride;
+            set => autoAdvanceOverride = value;
+        }
+        public bool IsSkipping {
+            get => isSkipping;
+            set => isSkipping = value;
+        }
         #endregion
 
         #region Unity Life Cycle
@@ -107,6 +118,7 @@ namespace HDialogue {
 
             _CancelCurrentCatalog("Replaced");
             cts = new CancellationTokenSource();
+            isSkipping = false;
 
             currentCatalog = catalog;
             currentNode = startNode;
@@ -246,6 +258,8 @@ namespace HDialogue {
             state = DialogueDirectorState.PlayingLine;
             textController.PlayLine(line);
 
+            if (isSkipping) textController.ForceSkipToEnd();
+
             state = DialogueDirectorState.WaitingForLineEnd;
             try {
                 await lineCompleteTcs.Task.AttachExternalCancellation(ct);
@@ -253,8 +267,12 @@ namespace HDialogue {
                 textController.OnLineComplete -= onLineComplete;
             }
 
-            if (currentCatalog.CatalogTag == DialogueCatalogTag.Cutscene) {
-                await UniTask.WaitForSeconds(autoAdvanceDelay, ignoreTimeScale: true, cancellationToken: ct);
+            if (isSkipping) return;
+
+            bool isCutscene = currentCatalog.CatalogTag == DialogueCatalogTag.Cutscene;
+            if (autoAdvanceOverride >= 0f || isCutscene) {
+                float delay = autoAdvanceOverride >= 0f ? autoAdvanceOverride : autoAdvanceDelay;
+                await UniTask.WaitForSeconds(delay, ignoreTimeScale: true, cancellationToken: ct);
             } else {
                 var advanceTcs = new UniTaskCompletionSource();
                 Action onAdvance = () => advanceTcs.TrySetResult();
@@ -431,7 +449,7 @@ namespace HDialogue {
             string speakerKey = !string.IsNullOrEmpty(node.SpeakerKey) ? node.SpeakerKey : "";
             float speed = node.SpeedMultiplier > 0f ? node.SpeedMultiplier : 1f;
             string rawText = HTextLocalizer.GetText?.Invoke(node.LocalizationUID) ?? node.LocalizationUID;
-            AudioClips blipToken = node.OverrideBlipToken;
+            string blipToken = node.OverrideBlipToken;
 
             return new DialogueLine {
                 SpeakerKey = speakerKey,
@@ -474,6 +492,31 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: Auto/Skip 모드 — autoAdvanceOverride + isSkipping 추가
+ *
+ * # 변경
+ * - `float autoAdvanceOverride = -1f` / `bool isSkipping` 필드 추가.
+ * - `AutoAdvanceDelay { get; set; }` / `IsSkipping { get; set; }` 공개 프로퍼티 추가.
+ * - `PlayCatalog`: `_CancelCurrentCatalog` 직후 `isSkipping = false` 리셋 (새 카탈로그마다 초기화).
+ * - `_ProcessLineNode`: PlayLine 직후 `if (isSkipping) ForceSkipToEnd()`. 라인 완료 후
+ *   `if (isSkipping) return` 으로 Advance 대기 전체 스킵.
+ *   Advance 분기: `autoAdvanceOverride >= 0` 또는 Cutscene이면 delay 자동 진행, 아니면 기존 TCS 대기.
+ *
+ * # 이유
+ * - HCUP-2.4.0 Phase 2 — Auto/Skip 모드 구현.
+ * - autoAdvanceOverride(-1=비활성): 런타임 플레이어 설정으로 전체 대화 자동 진행 제어.
+ * - isSkipping: 카탈로그 단위 즉시 스킵. PlayCatalog 진입 시 리셋 (Stop→새카탈로그 케이스 포함).
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: _BuildLine blipToken — AudioClips 시도 후 string 토큰 롤백
+ *
+ * # 변경
+ * - _BuildLine: `AudioClips blipToken = node.OverrideBlipToken` → `string blipToken = node.OverrideBlipToken`.
+ *
+ * # 이유
+ * - AudioClips enum은 레거시 SoundManager 전용; 새 AudioManager는 string 토큰만 수락.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: _BuildLine — DefaultSpeakerKey/BlipToken 카탈로그 폴백 제거 + 로컬리제이션 연동
  *
