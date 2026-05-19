@@ -6,7 +6,7 @@
  * 특징 / 지원기능 ::
  * + Validate(DialogueCatalogSO) : DialogueValidationReport 반환
  * + 강제 규칙 10종 (E001~E010) : EntryNode 수/RootNode 일치/출구 엣지/ChoiceNode/BranchNode/FallbackKey/IntRange/Switch
- * + 경고 규칙 4종 (W001~W004) : 도달 불가 노드/무한루프/빈 라인/미설정 선택지 프롬프트
+ * + 경고 규칙 7종 (W001~W007) : 도달 불가 노드/무한루프/빈 라인/미설정 선택지 프롬프트/portrait.*미지동사/Cinematic빈목록/Cinematic빈타겟
  *
  * 주의사항 ::
  * 순수 정적 클래스. 상태 없음. UnityEditor.EditorWindow에서 호출 예정.
@@ -15,6 +15,7 @@
  */
 #endif
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HWindows.NodeWindow;
@@ -38,6 +39,9 @@ namespace HDialogue.Editor {
         const string WARN_INFINITE_LOOP = "W002";
         const string WARN_EMPTY_LINE = "W003";
         const string WARN_CHOICE_NO_PROMPT = "W004";
+        const string WARN_PORTRAIT_UNKNOWN_VERB = "W005";
+        const string WARN_CINEMATIC_EMPTY_INSTRUCTIONS = "W006";
+        const string WARN_CINEMATIC_EMPTY_TARGET = "W007";
         #endregion
 
         public static DialogueValidationReport Validate(DialogueCatalogSO catalog) {
@@ -245,6 +249,8 @@ namespace HDialogue.Editor {
             _CheckCyclesWithoutWait(catalog, warnings);
             _CheckEmptyLineText(catalog, warnings);
             _CheckChoiceNoPrompt(catalog, warnings);
+            _CheckPortraitEventVerbs(catalog, warnings);
+            _CheckCinematicInstructions(catalog, warnings);
         }
 
         static void _CheckUnreachableNodes(DialogueCatalogSO catalog, DialogueEntryNode entryNode,
@@ -336,6 +342,66 @@ namespace HDialogue.Editor {
                 ));
             }
         }
+
+        static void _CheckPortraitEventVerbs(DialogueCatalogSO catalog, List<DialogueValidationIssue> warnings) {
+            const string PORTRAIT_PREFIX = "portrait.";
+            foreach (DialogueLineNode line in catalog.Nodes.Values.OfType<DialogueLineNode>()) {
+                if (string.IsNullOrEmpty(line.LocalizationUID)) continue;
+                if (!catalog.EditorTryGetLocalizedText(line.LocalizationUID, out string text)) continue;
+                foreach (string eventKey in _ExtractEventKeys(text)) {
+                    if (!eventKey.StartsWith(PORTRAIT_PREFIX, StringComparison.Ordinal)) continue;
+                    if (_IsKnownPortraitVerb(eventKey, PORTRAIT_PREFIX.Length)) continue;
+                    warnings.Add(new DialogueValidationIssue(
+                        line.UID, WARN_PORTRAIT_UNKNOWN_VERB,
+                        $"LineNode '{line.Title}': unknown portrait verb in '<event={eventKey}>'."
+                    ));
+                }
+            }
+        }
+
+        static void _CheckCinematicInstructions(DialogueCatalogSO catalog, List<DialogueValidationIssue> warnings) {
+            foreach (DialogueCinematicNode cinematic in catalog.Nodes.Values.OfType<DialogueCinematicNode>()) {
+                if (cinematic.Instructions.Count == 0) {
+                    warnings.Add(new DialogueValidationIssue(
+                        cinematic.UID, WARN_CINEMATIC_EMPTY_INSTRUCTIONS,
+                        $"CinematicNode '{cinematic.Title}' has no instructions."
+                    ));
+                    continue;
+                }
+                for (int k = 0; k < cinematic.Instructions.Count; k++) {
+                    CinematicInstruction ins = cinematic.Instructions[k];
+                    if (!string.IsNullOrEmpty(ins.TargetCharacterKey)) continue;
+                    warnings.Add(new DialogueValidationIssue(
+                        cinematic.UID, WARN_CINEMATIC_EMPTY_TARGET,
+                        $"CinematicNode '{cinematic.Title}' instructions[{k}] ({ins.Verb}): empty targetCharacterKey."
+                    ));
+                }
+            }
+        }
+
+        static bool _IsKnownPortraitVerb(string eventKey, int prefixLen) {
+            string body = eventKey.Substring(prefixLen);
+            int end = body.Length;
+            int atIdx = body.IndexOf('@');
+            int colonIdx = body.IndexOf(':');
+            if (atIdx >= 0 && atIdx < end) end = atIdx;
+            if (colonIdx >= 0 && colonIdx < end) end = colonIdx;
+            return Enum.TryParse<PortraitVerb>(body.Substring(0, end), ignoreCase: true, out _);
+        }
+
+        static IEnumerable<string> _ExtractEventKeys(string text) {
+            const string OPEN = "<event=";
+            int start = 0;
+            while (start < text.Length) {
+                int idx = text.IndexOf(OPEN, start, StringComparison.Ordinal);
+                if (idx < 0) break;
+                int contentStart = idx + OPEN.Length;
+                int closeIdx = text.IndexOf('>', contentStart);
+                if (closeIdx < 0) break;
+                yield return text.Substring(contentStart, closeIdx - contentStart);
+                start = closeIdx + 1;
+            }
+        }
         #endregion
     }
 }
@@ -343,6 +409,26 @@ namespace HDialogue.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: W005~W007 — portrait.* 미지 동사 / CinematicNode 빈 목록·빈 타겟 검증 추가
+ *
+ * # 변경
+ * - using System 추가 (Enum.TryParse<PortraitVerb> 사용).
+ * - W005 _CheckPortraitEventVerbs: LineNode 로컬라이즈 텍스트에서 <event=portrait.*> 추출.
+ *   _ExtractEventKeys(string text): "<event=" ~ ">" 단순 스캔, yield return.
+ *   _IsKnownPortraitVerb: @ / : 이전까지 동사 파트 추출 후 Enum.TryParse<PortraitVerb>.
+ * - W006 _CheckCinematicInstructions: instructions.Count == 0 → Warning.
+ * - W007 _CheckCinematicInstructions(겸용): 각 instruction targetCharacterKey 빈 문자열 → Warning.
+ *   (W006·W007 동일 이터레이터 내 처리 — _CheckCinematicInstructions 단일 메서드)
+ * - 헤더 경고 규칙 4종 → 7종 업데이트.
+ *
+ * # 이유
+ * - HCUP-2.4.0 Phase 3-B.
+ * - W005: PortraitEventParser.TryParse 대신 인라인 Enum.TryParse — TryParse 호출 시
+ *   HLogger.Warning side-effect가 에디터 콘솔을 오염시키므로 검증기에서 재사용 금지.
+ * - W006/W007: CinematicNode 노드 뷰에서 이미 "?" 표시로 경고하지만 Validator로
+ *   공식 Warning 코드 부여해 DialogueCatalogValidatorWindow에서 일괄 확인 가능.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: _CheckEmptyLineText — RawText → LocalizationUID
  *
