@@ -61,6 +61,17 @@ namespace HDialogue.Editor {
         #region Menu Bar Extension
         protected override void _AppendExtraMenuBarItems(VisualElement menuBar) {
             menuBar.Add(_BuildCreateMenu());
+            menuBar.Add(_BuildTraceToggle());
+        }
+
+        private ToolbarToggle _BuildTraceToggle() {
+            ToolbarToggle toggle = new ToolbarToggle { text = "Trace" };
+            toggle.tooltip = "선택 노드에서 도달 가능한 모든 노드를 청록으로 표시 (선택 없으면 Root 기준)";
+            toggle.RegisterValueChangedCallback(evt => {
+                if (canvas == null) return;
+                canvas.SetTraceMode(evt.newValue);
+            });
+            return toggle;
         }
 
         private ToolbarMenu _BuildCreateMenu() {
