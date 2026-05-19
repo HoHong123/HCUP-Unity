@@ -6,6 +6,7 @@
  * 특징 / 지원기능 ::
  * + HCore.SingletonBehaviour 기반 씬 종속 싱글톤 (dontDestroyOnLoad = false 기본)
  * + Canvas / 컨트롤러 참조 보유. Awake에서 Bind · 이벤트 wiring 일괄 수행.
+ * + audioController(선택) — Awake Bind(director)로 BGM·sfx.* SFX 이벤트 자동 처리.
  * + PlayCatalog(catalog) / PlayDefault() / PlayByKey(key) / Stop() 공개 API.
  * + catalogMap(HDictionary<string, DialogueCatalogSO>) — 키로 카탈로그 선택 재생.
  * + PlayCatalog 진입 시 catalog.Registry/Layout으로 stageDirector 재바인드 (null 시 씬 기본값 폴백).
@@ -56,6 +57,8 @@ namespace HDialogue {
         DialogueTextController textController;
         [SerializeField]
         DialogueUiController uiController;
+        [SerializeField]
+        DialogueAudioController audioController;
 
         [HTitle("Stage Data")]
         [SerializeField]
@@ -68,6 +71,10 @@ namespace HDialogue {
         DialogueCatalogSO targetCatalog;
         [SerializeField]
         HDictionary<string, DialogueCatalogSO> catalogMap = new();
+
+        [HTitle("Auto Mode")]
+        [SerializeField]
+        float autoModeDelay = 1.5f;
 
 #if UNITY_EDITOR
         [HTitle("Localization (Editor Only)")]
@@ -91,6 +98,14 @@ namespace HDialogue {
         public DialogueTextController TextController => textController;
         public CharacterStageDirector StageDirector => stageDirector;
         public DialogueUiController UiController => uiController;
+        public bool IsSkipping {
+            get => director.IsSkipping;
+            set => director.IsSkipping = value;
+        }
+        public float AutoAdvanceDelay {
+            get => director.AutoAdvanceDelay;
+            set => director.AutoAdvanceDelay = value;
+        }
         #endregion
 
         #region Unity Life Cycle
@@ -181,6 +196,7 @@ namespace HDialogue {
             if (stageDirector != null && defaultRegistry != null && defaultLayout != null)
                 stageDirector.Bind(defaultRegistry, defaultLayout, textController);
             director.Bind(textController, variableContext);
+            audioController?.Bind(director);
         }
 
         private void _RebindStageDirector(DialogueCatalogSO catalog) {
@@ -194,6 +210,7 @@ namespace HDialogue {
         private void _SubscribeUiEvents() {
             uiController.OnPlay += _OnUiPlay;
             uiController.OnSkip += _OnUiSkip;
+            uiController.OnAutoToggle += _OnUiAutoToggle;
             uiController.OnAdvance += _OnUiAdvance;
             uiController.OnSelectChoice += _OnUiSelectChoice;
         }
@@ -202,6 +219,7 @@ namespace HDialogue {
             if (uiController == null) return;
             uiController.OnPlay -= _OnUiPlay;
             uiController.OnSkip -= _OnUiSkip;
+            uiController.OnAutoToggle -= _OnUiAutoToggle;
             uiController.OnAdvance -= _OnUiAdvance;
             uiController.OnSelectChoice -= _OnUiSelectChoice;
         }
@@ -231,7 +249,13 @@ namespace HDialogue {
         }
 
         private void _OnUiSkip() {
+            director.IsSkipping = true;
             textController.SkipToEnd();
+            textController.RequestAdvance();
+        }
+
+        private void _OnUiAutoToggle() {
+            director.AutoAdvanceDelay = director.AutoAdvanceDelay >= 0f ? -1f : autoModeDelay;
         }
 
         private void _OnUiAdvance() {
@@ -340,6 +364,54 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: Auto 버튼 토글 — autoModeDelay + _OnUiAutoToggle 추가
+ *
+ * # 변경
+ * - `[HTitle("Auto Mode")] [SerializeField] float autoModeDelay = 1.5f` 필드 추가.
+ * - `_SubscribeUiEvents / _UnsubscribeUiEvents`: `OnAutoToggle` 구독/해제 추가.
+ * - `_OnUiAutoToggle`: `AutoAdvanceDelay >= 0` → -1f(off) / else → autoModeDelay(on) 토글.
+ *
+ * # 이유
+ * - Auto 버튼(BTN_Auto) 씬 배선 지원. 버튼 클릭마다 Auto on/off 전환.
+ * - autoModeDelay SerializeField: Inspector에서 자동 진행 간격 조정 가능.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: _OnUiSkip — Skip 버튼을 카탈로그 전체 Skip으로 격상
+ *
+ * # 변경
+ * - `_OnUiSkip`: `textController.SkipToEnd()` 단독 → 아래 3단계로 교체.
+ *   1. `director.IsSkipping = true`  — 이후 모든 라인 스킵 플래그.
+ *   2. `textController.SkipToEnd()`  — 타이핑 중이면 현재 라인 즉시 완료.
+ *   3. `textController.RequestAdvance()` — Advance 대기 중이면 즉시 TCS resolve.
+ *
+ * # 이유
+ * - HCUP-2.4.0 Phase 2-C.
+ * - IsSkipping = true 만으로는 이미 await 중인 advanceTcs가 멈추지 않음.
+ *   RequestAdvance()로 현재 대기를 즉시 해제해야 다음 라인부터 Skip이 적용됨.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: IsSkipping / AutoAdvanceDelay 패스스루 프로퍼티 추가
+ *
+ * # 변경
+ * - `bool IsSkipping { get; set; }` — director.IsSkipping 패스스루.
+ * - `float AutoAdvanceDelay { get; set; }` — director.AutoAdvanceDelay 패스스루.
+ *
+ * # 이유
+ * - HCUP-2.4.0 Phase 2 — 외부 UI/게임 코드가 Manager 경유 Auto/Skip 모드 제어 가능.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: audioController SerializeField + _Bind() 연결 추가
+ *
+ * # 변경
+ * - [Controllers] 필드 그룹에 `DialogueAudioController audioController` SerializeField 추가.
+ * - _Bind(): `audioController?.Bind(director)` 추가.
+ * - 헤더 특징에 audioController 선택 기능 안내 1줄 추가.
+ *
+ * # 이유
+ * - HCUP-2.4.0 Phase 1-E — DialogueAudioController를 씬 매니저가 Awake에서 자동 wire.
+ * - null-safe 호출: 오디오 없이 쓰는 씬에서 매니저 비정상 종료 방지.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: _OnDirectorLineEnter — SpeakerKey → DisplayName 조회
  *
