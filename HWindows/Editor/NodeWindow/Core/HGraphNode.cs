@@ -35,6 +35,7 @@ namespace HWindows.Editor.NodeWindow {
         const string USS_ASSET_NAME = "HGraphNode";
         const string ARROW_OPEN = "▼";
         const string ARROW_CLOSED = "▶";
+        const string CSS_ACTIVE = "hgraph-node--active";
         #endregion
 
         #region Fields
@@ -102,6 +103,12 @@ namespace HWindows.Editor.NodeWindow {
             expanded = isExpanded;
             if (toggleArrow != null) toggleArrow.text = _GetToggleSymbol();
             RefreshExpandedState();
+        }
+
+        // HCUP-2.7.0 Phase 1 — HGraphCanvas.HighlightActiveNode / ClearActiveHighlight 에서 호출.
+        public void SetActive(bool isActive) {
+            if (isActive) AddToClassList(CSS_ACTIVE);
+            else RemoveFromClassList(CSS_ACTIVE);
         }
         #endregion
 
