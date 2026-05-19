@@ -5,7 +5,7 @@
  *
  * 특징 / 지원기능 ::
  * + "Dialogue" ActionMap OnEnable/OnDisable 자동 활성·비활성
- * + Advance / Skip / AutoToggle performed → 이벤트 발화
+ * + Advance / Skip / AutoToggle / HistoryToggle performed → 이벤트 발화
  *
  * 주의사항 ::
  * 이벤트 발화만 담당. 비즈니스 로직은 DialogueManager._Bind().
@@ -29,12 +29,14 @@ namespace HDialogue {
         InputAction advanceAction;
         InputAction skipAction;
         InputAction autoToggleAction;
+        InputAction historyToggleAction;
         #endregion
 
         #region Events
         public event Action OnInputAdvance;
         public event Action OnInputSkip;
         public event Action OnInputAutoToggle;
+        public event Action OnInputHistoryToggle;
         #endregion
 
         #region Unity Life Cycle
@@ -46,10 +48,12 @@ namespace HDialogue {
             advanceAction = map.FindAction("Advance", throwIfNotFound: false);
             skipAction = map.FindAction("Skip", throwIfNotFound: false);
             autoToggleAction = map.FindAction("AutoToggle", throwIfNotFound: false);
+            historyToggleAction = map.FindAction("HistoryToggle", throwIfNotFound: false);
 
             if (advanceAction != null) advanceAction.performed += _OnAdvance;
             if (skipAction != null) skipAction.performed += _OnSkip;
             if (autoToggleAction != null) autoToggleAction.performed += _OnAutoToggle;
+            if (historyToggleAction != null) historyToggleAction.performed += _OnHistoryToggle;
 
             map.Enable();
         }
@@ -58,6 +62,7 @@ namespace HDialogue {
             if (advanceAction != null) advanceAction.performed -= _OnAdvance;
             if (skipAction != null) skipAction.performed -= _OnSkip;
             if (autoToggleAction != null) autoToggleAction.performed -= _OnAutoToggle;
+            if (historyToggleAction != null) historyToggleAction.performed -= _OnHistoryToggle;
 
             if (inputActions == null) return;
             var map = inputActions.FindActionMap("Dialogue", throwIfNotFound: false);
@@ -69,6 +74,7 @@ namespace HDialogue {
         private void _OnAdvance(InputAction.CallbackContext ctx) => OnInputAdvance?.Invoke();
         private void _OnSkip(InputAction.CallbackContext ctx) => OnInputSkip?.Invoke();
         private void _OnAutoToggle(InputAction.CallbackContext ctx) => OnInputAutoToggle?.Invoke();
+        private void _OnHistoryToggle(InputAction.CallbackContext ctx) => OnInputHistoryToggle?.Invoke();
         #endregion
     }
 }
@@ -76,6 +82,19 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: HistoryToggle Action 추가 — HCUP-2.6.0 Phase 2
+ *
+ * # 변경
+ * - `historyToggleAction` 필드 추가.
+ * - `public event Action OnInputHistoryToggle` 추가.
+ * - OnEnable: `historyToggleAction.performed += _OnHistoryToggle` 등록.
+ * - OnDisable: `historyToggleAction.performed -= _OnHistoryToggle` 해제.
+ * - `_OnHistoryToggle(CallbackContext)` → `OnInputHistoryToggle?.Invoke()`.
+ *
+ * # 이유
+ * - H키로 히스토리 패널 토글. DialogueManager가 historyController?.ToggleHistory() 위임.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (최초 설계) :: DialogueInputController 생성 — HCUP-2.5.0 Phase 2
  *
