@@ -36,6 +36,7 @@ namespace HWindows.Editor.NodeWindow {
         const string ARROW_OPEN = "▼";
         const string ARROW_CLOSED = "▶";
         const string CSS_ACTIVE = "hgraph-node--active";
+        const string CSS_TRACE = "hgraph-node--trace";
         #endregion
 
         #region Fields
@@ -109,6 +110,12 @@ namespace HWindows.Editor.NodeWindow {
         public void SetActive(bool isActive) {
             if (isActive) AddToClassList(CSS_ACTIVE);
             else RemoveFromClassList(CSS_ACTIVE);
+        }
+
+        // HCUP-2.7.0 Phase 2 — HGraphCanvas.TracePathFrom / ClearTraceHighlight 에서 호출.
+        public void SetTrace(bool on) {
+            if (on) AddToClassList(CSS_TRACE);
+            else RemoveFromClassList(CSS_TRACE);
         }
         #endregion
 
