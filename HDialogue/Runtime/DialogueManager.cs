@@ -7,6 +7,7 @@
  * + HCore.SingletonBehaviour 기반 씬 종속 싱글톤 (dontDestroyOnLoad = false 기본)
  * + Canvas / 컨트롤러 참조 보유. Awake에서 Bind · 이벤트 wiring 일괄 수행.
  * + audioController(선택) — Awake Bind(director)로 BGM·sfx.* SFX 이벤트 자동 처리.
+ * + inputController(선택) — Advance·Skip·AutoToggle 키 이벤트 구독·해제 (Input System 연결).
  * + PlayCatalog(catalog) / PlayDefault() / PlayByKey(key) / Stop() 공개 API.
  * + catalogMap(HDictionary<string, DialogueCatalogSO>) — 키로 카탈로그 선택 재생.
  * + PlayCatalog 진입 시 catalog.Registry/Layout으로 stageDirector 재바인드 (null 시 씬 기본값 폴백).
@@ -59,6 +60,8 @@ namespace HDialogue {
         DialogueUiController uiController;
         [SerializeField]
         DialogueAudioController audioController;
+        [SerializeField]
+        DialogueInputController inputController;
 
         [HTitle("Stage Data")]
         [SerializeField]
@@ -115,10 +118,12 @@ namespace HDialogue {
             if (!_ValidateRefs()) return;
             _Bind();
             _SubscribeUiEvents();
+            _SubscribeInputEvents();
             _SubscribeDirectorEvents();
         }
 
         protected override void OnDestroy() {
+            _UnsubscribeInputEvents();
             _UnsubscribeUiEvents();
             _UnsubscribeDirectorEvents();
 #if UNITY_EDITOR
@@ -224,6 +229,20 @@ namespace HDialogue {
             uiController.OnSelectChoice -= _OnUiSelectChoice;
         }
 
+        private void _SubscribeInputEvents() {
+            if (inputController == null) return;
+            inputController.OnInputAdvance += _OnInputAdvance;
+            inputController.OnInputSkip += _OnInputSkip;
+            inputController.OnInputAutoToggle += _OnInputAutoToggle;
+        }
+
+        private void _UnsubscribeInputEvents() {
+            if (inputController == null) return;
+            inputController.OnInputAdvance -= _OnInputAdvance;
+            inputController.OnInputSkip -= _OnInputSkip;
+            inputController.OnInputAutoToggle -= _OnInputAutoToggle;
+        }
+
         private void _SubscribeDirectorEvents() {
             director.OnCatalogStart += _OnDirectorCatalogStart;
             director.OnCatalogExit += _OnDirectorCatalogExit;
@@ -276,6 +295,12 @@ namespace HDialogue {
             director.SelectChoice(key);
             uiController.HideChoices();
         }
+        #endregion
+
+        #region Private — 이벤트 핸들러 (Input)
+        private void _OnInputAdvance() => _OnUiAdvance();
+        private void _OnInputSkip() => _OnUiSkip();
+        private void _OnInputAutoToggle() => _OnUiAutoToggle();
         #endregion
 
         #region Private — 이벤트 핸들러 (Director)
@@ -364,6 +389,22 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: inputController SerializeField + Input 이벤트 구독 연결 추가
+ *
+ * # 변경
+ * - [Controllers] 그룹에 `DialogueInputController inputController` SerializeField 추가.
+ * - Awake: `_SubscribeInputEvents()` 추가 (UiEvents 구독 직후).
+ * - OnDestroy: `_UnsubscribeInputEvents()` 추가.
+ * - `_SubscribeInputEvents()` / `_UnsubscribeInputEvents()`: inputController null 가드 포함.
+ * - `_OnInputAdvance/Skip/AutoToggle`: 동명 UI 핸들러에 위임 (로직 중복 회피).
+ * - 헤더 특징에 inputController(선택) 안내 1줄 추가.
+ *
+ * # 이유
+ * - HCUP-2.5.0 Phase 3 — DialogueInputController(InputSystem) 이벤트를 Manager가 구독.
+ * - inputController 선택 슬롯: 씬에 GO 없어도 Manager 정상 동작 (audioController와 동일 처리).
+ * - UI/Input 핸들러 로직 동일 → UI 핸들러 위임으로 DRY 유지.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: Auto 버튼 토글 — autoModeDelay + _OnUiAutoToggle 추가
  *
