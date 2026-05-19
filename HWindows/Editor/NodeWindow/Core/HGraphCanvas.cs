@@ -53,6 +53,8 @@ namespace HWindows.Editor.NodeWindow {
         int _searchIndex = -1;
         // PurgeNullNodes 가 SaveAssets → ObjectChangeWatcher → _OnCatalogMutated 재진입 방지.
         bool _isPopulating;
+        // HCUP-2.7.0 Phase 1 — Play 모드 활성 노드 추적. HighlightActiveNode / ClearActiveHighlight 에서 관리.
+        HGraphNode _activeNode;
         // 도메인별 노드 시각 팩토리. RegisterNodeViewFactory 로 등록, _PopulateInternal 에서 조회.
         // static: 도메인 리로드마다 InitializeOnLoadMethod 가 재등록 → 인스턴스 간 공유.
         static readonly Dictionary<Type, Func<BaseNode, bool, HGraphNode>> _externalFactories = new();
@@ -609,7 +611,8 @@ namespace HWindows.Editor.NodeWindow {
         }
 
         private void _PopulateInternal() {
-            ClearSearch();  // Phase 4: node 인스턴스 전면 교체 전 stale ref 방지
+            ClearSearch();          // Phase 4: node 인스턴스 전면 교체 전 stale ref 방지
+            ClearActiveHighlight(); // HCUP-2.7.0 Phase 1: 활성 노드 stale ref 방지
             _ClearAll();
 
             if (currentCatalog == null) {
@@ -796,6 +799,25 @@ namespace HWindows.Editor.NodeWindow {
             HGraphNode target = _searchResults[_searchIndex];
             target.AddToClassList(CSS_SEARCH_ACTIVE);
             CenterViewportOn(target.GetPosition().position);
+        }
+        #endregion
+
+        #region Active Highlight (HCUP-2.7.0 Phase 1)
+        // DialogueNodeWindow 가 Play 모드에서 OnLineEnter 이벤트 수신 시 호출.
+        // 이전 활성 노드 해제 후 uid 에 해당하는 노드를 hgraph-node--active CSS 클래스로 강조.
+        public void HighlightActiveNode(NodeUID uid) {
+            _activeNode?.SetActive(false);
+            _activeNode = null;
+            if (!nodeLookup.TryGetValue(uid, out HGraphNode node)) return;
+            _activeNode = node;
+            node.SetActive(true);
+            CenterViewportOn(node.GetPosition().position);
+        }
+
+        // Play 모드 종료 또는 repopulate 전 활성 노드 하이라이트 해제.
+        public void ClearActiveHighlight() {
+            _activeNode?.SetActive(false);
+            _activeNode = null;
         }
         #endregion
 
