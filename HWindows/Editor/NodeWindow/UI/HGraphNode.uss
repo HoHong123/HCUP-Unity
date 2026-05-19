@@ -111,6 +111,15 @@
     border-right-width: 3px;
 }
 
+/* HCUP-2.7.0 Phase 1 - Play 모드 실행 중 활성 노드 (녹색 3px 외곽선) */
+.hgraph-node--active {
+    border-color: #4CAF50;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-left-width: 3px;
+    border-right-width: 3px;
+}
+
 /* Phase 2 - portRow: mainContainer 직속 → GraphView collapse 관리 밖 항상 표시 */
 .hgraph-node-port-row {
     flex-direction: row;
