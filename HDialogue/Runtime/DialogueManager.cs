@@ -7,7 +7,8 @@
  * + HCore.SingletonBehaviour 기반 씬 종속 싱글톤 (dontDestroyOnLoad = false 기본)
  * + Canvas / 컨트롤러 참조 보유. Awake에서 Bind · 이벤트 wiring 일괄 수행.
  * + audioController(선택) — Awake Bind(director)로 BGM·sfx.* SFX 이벤트 자동 처리.
- * + inputController(선택) — Advance·Skip·AutoToggle 키 이벤트 구독·해제 (Input System 연결).
+ * + inputController(선택) — Advance·Skip·AutoToggle·HistoryToggle 키 이벤트 구독·해제 (Input System 연결).
+ * + historyController(선택) — OnLineEnter 이력 누적 + H키 ToggleHistory() 위임.
  * + PlayCatalog(catalog) / PlayDefault() / PlayByKey(key) / Stop() 공개 API.
  * + catalogMap(HDictionary<string, DialogueCatalogSO>) — 키로 카탈로그 선택 재생.
  * + PlayCatalog 진입 시 catalog.Registry/Layout으로 stageDirector 재바인드 (null 시 씬 기본값 폴백).
@@ -62,6 +63,8 @@ namespace HDialogue {
         DialogueAudioController audioController;
         [SerializeField]
         DialogueInputController inputController;
+        [SerializeField]
+        DialogueHistoryController historyController;
 
         [HTitle("Stage Data")]
         [SerializeField]
@@ -202,6 +205,7 @@ namespace HDialogue {
                 stageDirector.Bind(defaultRegistry, defaultLayout, textController);
             director.Bind(textController, variableContext);
             audioController?.Bind(director);
+            historyController?.Bind(director);
         }
 
         private void _RebindStageDirector(DialogueCatalogSO catalog) {
@@ -234,6 +238,7 @@ namespace HDialogue {
             inputController.OnInputAdvance += _OnInputAdvance;
             inputController.OnInputSkip += _OnInputSkip;
             inputController.OnInputAutoToggle += _OnInputAutoToggle;
+            inputController.OnInputHistoryToggle += _OnInputHistoryToggle;
         }
 
         private void _UnsubscribeInputEvents() {
@@ -241,6 +246,7 @@ namespace HDialogue {
             inputController.OnInputAdvance -= _OnInputAdvance;
             inputController.OnInputSkip -= _OnInputSkip;
             inputController.OnInputAutoToggle -= _OnInputAutoToggle;
+            inputController.OnInputHistoryToggle -= _OnInputHistoryToggle;
         }
 
         private void _SubscribeDirectorEvents() {
@@ -300,6 +306,7 @@ namespace HDialogue {
         #region Private — 이벤트 핸들러 (Input)
         private void _OnInputAdvance() => _OnUiAdvance();
         private void _OnInputSkip() => _OnUiSkip();
+        private void _OnInputHistoryToggle() => historyController?.ToggleHistory();
         private void _OnInputAutoToggle() {
             bool newIsOn = director.AutoAdvanceDelay < 0f;
             director.AutoAdvanceDelay = newIsOn ? autoModeDelay : -1f;
@@ -420,6 +427,20 @@ namespace HDialogue {
  * - HCUP-2.5.0 Phase 3 — DialogueInputController(InputSystem) 이벤트를 Manager가 구독.
  * - inputController 선택 슬롯: 씬에 GO 없어도 Manager 정상 동작 (audioController와 동일 처리).
  * - UI/Input 핸들러 로직 동일 → UI 핸들러 위임으로 DRY 유지.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: historyController SerializeField + _Bind() + Input 이벤트 추가 — HCUP-2.6.0 Phase 3
+ *
+ * # 변경
+ * - [Controllers] 필드 그룹에 `DialogueHistoryController historyController` SerializeField 추가.
+ * - _Bind(): `historyController?.Bind(director)` 추가.
+ * - _SubscribeInputEvents / _UnsubscribeInputEvents: `OnInputHistoryToggle` 구독/해제 추가.
+ * - `_OnInputHistoryToggle()` → `historyController?.ToggleHistory()` 위임.
+ * - 헤더 특징에 historyController 선택 기능 안내 1줄 추가.
+ *
+ * # 이유
+ * - H키로 히스토리 패널 토글. inputController.OnInputHistoryToggle 구독 후 Manager가 위임.
+ * - null-safe 호출: historyController 미연결 씬에서도 정상 동작.
  *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: Auto 버튼 토글 — autoModeDelay + _OnUiAutoToggle 추가
