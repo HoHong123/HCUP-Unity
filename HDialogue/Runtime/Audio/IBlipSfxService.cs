@@ -4,22 +4,20 @@
  * -- 글자 효과음 서비스 계약 인터페이스 (Phase 4).
  *
  * 특징 / 지원기능 ::
- * + PlayBlip(string token) : token 기반 블립 사운드 재생 요청
+ * + PlayBlip(string token) : string token 기반 블립 사운드 재생 요청
  *
  * 주의사항 ::
  * HUI → HAudio 직접 참조 금지를 위해 설계된 DI 계약.
  * AudioManagerBlipAdapter가 같은 HDialogue 패키지 내에서 구현.
  * DialogueBlipSfxAgent.blipServiceSource 슬롯에 MonoBehaviour로 배선.
+ * AudioClips enum은 레거시 SoundManager 전용 — 이 인터페이스는 string 토큰만 사용.
  * =========================================================
  */
 #endif
 
-using HAudio;
-
 namespace HDialogue {
     public interface IBlipSfxService {
         #region Public
-        void PlayBlip(AudioClips audioClips);
         void PlayBlip(string token);
         #endregion
     }
@@ -28,6 +26,17 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: PlayBlip(AudioClips) 오버로드 제거 롤백
+ *
+ * # 변경
+ * - using HAudio 제거.
+ * - void PlayBlip(AudioClips audioClips) 오버로드 제거.
+ * - PlayBlip(string token) 단일 메서드로 복원.
+ *
+ * # 이유
+ * - AudioClips enum은 레거시 SoundManager 전용. HDialogue DI 계약은 string 토큰만 사용.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.TextUI → HDialogue 패키지 이관
  *

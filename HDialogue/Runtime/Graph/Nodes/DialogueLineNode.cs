@@ -16,7 +16,6 @@
  */
 #endif
 
-using HAudio;
 using HInspector;
 using HWindows.NodeWindow;
 using UnityEngine;
@@ -32,7 +31,7 @@ namespace HDialogue {
         [SerializeField]
         float speedMultiplier = 1f;
         [SerializeField]
-        AudioClips overrideBlipToken;
+        string overrideBlipToken;
 
         [HTitle("Portrait")]
         [SerializeField]
@@ -51,7 +50,7 @@ namespace HDialogue {
         public string SpeakerKey => speakerKey;
         public string LocalizationUID => localizationUID;
         public float SpeedMultiplier => speedMultiplier;
-        public AudioClips OverrideBlipToken => overrideBlipToken;
+        public string OverrideBlipToken => overrideBlipToken;
 
         public string SpeakerPoseKey => speakerPoseKey;
         public StageSlot? SpeakerSlot => speakerSlotOverride ? speakerSlot : (StageSlot?)null;
@@ -75,6 +74,17 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: overrideBlipToken — AudioClips 시도 후 string 토큰 롤백
+ *
+ * # 변경
+ * - using HAudio 제거.
+ * - AudioClips overrideBlipToken → string overrideBlipToken.
+ * - AudioClips OverrideBlipToken 프로퍼티 → string OverrideBlipToken 복원.
+ *
+ * # 이유
+ * - AudioClips enum은 레거시 SoundManager 전용. 새 AudioManager string 토큰과 호환 불가.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: rawText → localizationUID 로컬리제이션 연동
  *

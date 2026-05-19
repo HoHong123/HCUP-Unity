@@ -4,13 +4,13 @@
  * -- HCUP-2.2.0 글자 효과음 에이전트 (Phase 4).
  *
  * 특징 / 지원기능 ::
- * + PlayBlip()               : currentBlipToken → IBlipSfxService.PlayBlip 위임
- * + SetVoice(string token)   : VoiceSet 태그 수신 → 현재 토큰 교체
- * + ResetVoice(string token) : PlayLine 시 라인 오버라이드 또는 기본 토큰으로 리셋
+ * + PlayBlip()              : currentBlipToken → IBlipSfxService.PlayBlip 위임
+ * + SetVoice(string token)  : VoiceSet 태그 수신 → 현재 토큰 교체
+ * + ResetVoice(string token): PlayLine 시 라인 오버라이드 또는 기본 토큰으로 리셋
  *
  * 주의사항 ::
  * blipServiceSource는 IBlipSfxService를 구현한 MonoBehaviour를 Inspector에서 연결.
- * defaultBlipToken 미설정 시 무음으로 동작. AudioClip 직접 참조 없음.
+ * defaultBlipToken 미설정(빈 문자열) 시 무음으로 동작. AudioClip 직접 참조 없음.
  * DialogueTextController와 동일 GameObject에 부착.
  * =========================================================
  */
@@ -19,19 +19,18 @@
 using UnityEngine;
 using HInspector;
 using HDiagnosis.Logger;
-using HAudio;
 
 namespace HDialogue {
     public sealed class DialogueBlipSfxAgent : MonoBehaviour {
         #region 변수
         [HTitle("Blip")]
         [SerializeField]
-        AudioClips defaultBlipToken;
+        string defaultBlipToken;
         [SerializeField]
         MonoBehaviour blipServiceSource;
 
         IBlipSfxService blipService;
-        AudioClips currentBlipToken;
+        string currentBlipToken;
         #endregion
 
         #region Unity Life Cycle
@@ -44,21 +43,12 @@ namespace HDialogue {
         #endregion
 
         #region Public
-        public void ResetVoice(AudioClips lineOverrideToken) {
-            SetVoice(lineOverrideToken);
-        }
-
-        public void SetVoice(AudioClips token) {
-            currentBlipToken = token;
+        public void ResetVoice(string lineOverrideToken) {
+            currentBlipToken = string.IsNullOrEmpty(lineOverrideToken) ? defaultBlipToken : lineOverrideToken;
         }
 
         public void SetVoice(string token) {
-            if (System.Enum.TryParse(token, out AudioClips parsedToken)) {
-                currentBlipToken = parsedToken;
-            }
-            else {
-                HLogger.Error($"[DialogueBlipSfxAgent] Failed to parse token '{token}' to AudioClips enum.");
-            }
+            currentBlipToken = token;
         }
 
         public void PlayBlip() {
@@ -71,6 +61,19 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: AudioClips 필드·메서드 전면 string 토큰 롤백
+ *
+ * # 변경
+ * - using HAudio 제거.
+ * - AudioClips defaultBlipToken → string defaultBlipToken.
+ * - AudioClips currentBlipToken → string currentBlipToken.
+ * - SetVoice(AudioClips) 오버로드 제거. SetVoice(string token) 단일 메서드로 복원.
+ * - ResetVoice: AudioClips 기반 오버로드 제거 → ResetVoice(string lineOverrideToken) 로 통합.
+ *
+ * # 이유
+ * - AudioClips enum은 레거시 SoundManager 전용. IBlipSfxService.PlayBlip(string)과 계약 일치.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 Debug.LogError → HLogger.Error 교체
  *

@@ -22,7 +22,7 @@ namespace HDialogue {
         public string SpeakerKey;
         public string RawText;
         public float SpeedMultiplier;
-        public HAudio.AudioClips OverrideBlipToken;
+        public string OverrideBlipToken;
         #endregion
 
         #region Static Factory
@@ -40,6 +40,16 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: OverrideBlipToken — AudioClips 시도 후 string 토큰 롤백
+ *
+ * # 변경
+ * - HAudio.AudioClips OverrideBlipToken → string OverrideBlipToken 복원.
+ *
+ * # 이유
+ * - 새 AudioManager는 string 토큰 기반; AudioClips enum은 레거시 SoundManager 전용.
+ *   HDialogue는 string 토큰 파이프라인만 사용해야 함.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.TextUI → HDialogue 패키지 이관
  *
