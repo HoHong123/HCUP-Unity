@@ -55,6 +55,9 @@ namespace HWindows.Editor.NodeWindow {
         bool _isPopulating;
         // HCUP-2.7.0 Phase 1 — Play 모드 활성 노드 추적. HighlightActiveNode / ClearActiveHighlight 에서 관리.
         HGraphNode _activeNode;
+        // HCUP-2.7.0 Phase 2 — Trace 모드 상태. SetTraceMode / TracePathFrom / ClearTraceHighlight 에서 관리.
+        bool _traceMode;
+        readonly List<HGraphNode> _traceNodes = new();
         // 도메인별 노드 시각 팩토리. RegisterNodeViewFactory 로 등록, _PopulateInternal 에서 조회.
         // static: 도메인 리로드마다 InitializeOnLoadMethod 가 재등록 → 인스턴스 간 공유.
         static readonly Dictionary<Type, Func<BaseNode, bool, HGraphNode>> _externalFactories = new();
@@ -613,6 +616,7 @@ namespace HWindows.Editor.NodeWindow {
         private void _PopulateInternal() {
             ClearSearch();          // Phase 4: node 인스턴스 전면 교체 전 stale ref 방지
             ClearActiveHighlight(); // HCUP-2.7.0 Phase 1: 활성 노드 stale ref 방지
+            ClearTraceHighlight();  // HCUP-2.7.0 Phase 2: Trace 노드 stale ref 방지
             _ClearAll();
 
             if (currentCatalog == null) {
@@ -732,6 +736,8 @@ namespace HWindows.Editor.NodeWindow {
             // 미뤄지지 않도록 명시적으로 dirty 표시.
             MarkDirtyRepaint();
             _isPopulating = false;
+            // HCUP-2.7.0 Phase 2: catalog 재바인드 후 trace 모드가 켜져 있으면 새 노드 인스턴스로 재계산.
+            if (_traceMode) _RecomputeTraceIfActive();
         }
 
         private void _ClearAll() {
@@ -818,6 +824,75 @@ namespace HWindows.Editor.NodeWindow {
         public void ClearActiveHighlight() {
             _activeNode?.SetActive(false);
             _activeNode = null;
+        }
+        #endregion
+
+        #region Selection Override (HCUP-2.7.0 Phase 2)
+        // Trace 모드 ON 상태에서 선택이 바뀔 때마다 BFS 를 자동 재계산.
+        // base.* 호출 필수 — 누락 시 GraphView 내부 selection 상태 disconnect → 이동/삭제 단축키 파괴.
+        public override void AddToSelection(ISelectable selectable) {
+            base.AddToSelection(selectable);
+            _RecomputeTraceIfActive();
+        }
+
+        public override void RemoveFromSelection(ISelectable selectable) {
+            base.RemoveFromSelection(selectable);
+            _RecomputeTraceIfActive();
+        }
+
+        public override void ClearSelection() {
+            base.ClearSelection();
+            _RecomputeTraceIfActive();
+        }
+        #endregion
+
+        #region Trace Mode (HCUP-2.7.0 Phase 2)
+        // DialogueNodeWindow 의 ToolbarToggle 이 호출. public: 크로스 어셈블리 접근 필요.
+        public void SetTraceMode(bool on) {
+            _traceMode = on;
+            if (!on) { ClearTraceHighlight(); return; }
+            _RecomputeTraceIfActive();
+        }
+
+        public bool IsTraceMode => _traceMode;
+
+        // BFS 로 rootUid 에서 도달 가능한 모든 노드를 청록으로 표시.
+        // 사이클 보호: HashSet<NodeUID> visited 로 재방문 차단.
+        public bool TracePathFrom(NodeUID rootUid) {
+            ClearTraceHighlight();
+            if (currentCatalog == null) return false;
+            if (!nodeLookup.ContainsKey(rootUid)) return false;
+
+            HashSet<NodeUID> visited = new() { rootUid };
+            Queue<NodeUID> queue = new();
+            queue.Enqueue(rootUid);
+
+            while (queue.Count > 0) {
+                NodeUID current = queue.Dequeue();
+                if (nodeLookup.TryGetValue(current, out HGraphNode view)) {
+                    view.SetTrace(true);
+                    _traceNodes.Add(view);
+                }
+                foreach (BaseNodeEdge edge in currentCatalog.GetOutgoingEdges(current)) {
+                    if (edge == null) continue;
+                    if (visited.Add(edge.LeafUID)) queue.Enqueue(edge.LeafUID);
+                }
+            }
+            return _traceNodes.Count > 0;
+        }
+
+        public void ClearTraceHighlight() {
+            foreach (HGraphNode n in _traceNodes) n?.SetTrace(false);
+            _traceNodes.Clear();
+        }
+
+        void _RecomputeTraceIfActive() {
+            if (!_traceMode || currentCatalog == null) return;
+            HGraphNode sel = GetSingleSelectedHGraphNode();
+            NodeUID start = (sel != null) ? sel.UID
+                          : (currentCatalog.HasRoot ? currentCatalog.RootUID : default);
+            if (!start.IsValid) { ClearTraceHighlight(); return; }
+            TracePathFrom(start);
         }
         #endregion
 
