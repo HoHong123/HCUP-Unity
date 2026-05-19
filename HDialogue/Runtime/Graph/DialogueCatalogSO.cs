@@ -32,6 +32,10 @@ namespace HDialogue {
         [SerializeField]
         DialogueCatalogTag catalogTag = DialogueCatalogTag.Normal;
 
+        [HTitle("Audio")]
+        [SerializeField]
+        string bgmKey;
+
         [HTitle("Stage")]
         [SerializeField]
         CharacterRegistrySO registry;
@@ -47,6 +51,7 @@ namespace HDialogue {
 
         #region Properties
         public DialogueCatalogTag CatalogTag => catalogTag;
+        public string BgmKey => bgmKey;
         public CharacterRegistrySO Registry => registry;
         public StageLayoutSO Layout => layout;
 
@@ -73,6 +78,17 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: bgmKey — 카탈로그 단위 BGM 토큰 추가
+ *
+ * # 추가
+ * - string bgmKey SerializeField + BgmKey 프로퍼티 추가.
+ * - [HTitle("Audio")] 그룹으로 묶음.
+ *
+ * # 이유
+ * - DialogueAudioController가 OnCatalogStart 수신 시 catalog.BgmKey로 PlayBGM 호출.
+ * - 빈 문자열이면 AudioController가 무동작(BGM 없는 카탈로그).
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (수정) :: registry / layout — 카탈로그 전용 무대 데이터 추가
  *
