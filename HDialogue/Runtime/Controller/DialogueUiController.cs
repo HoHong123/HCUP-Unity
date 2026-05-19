@@ -40,6 +40,8 @@ namespace HDialogue {
         [SerializeField]
         Button skipBtn;
         [SerializeField]
+        Button autoBtn;
+        [SerializeField]
         Button nextLineBtn;
 
         [HTitle("Choice Panel")]
@@ -56,6 +58,7 @@ namespace HDialogue {
         #region Events
         public event Action OnPlay;
         public event Action OnSkip;
+        public event Action OnAutoToggle;
         public event Action OnAdvance;
         public event Action<string> OnSelectChoice;
         #endregion
@@ -64,6 +67,7 @@ namespace HDialogue {
         private void Awake() {
             playBtn?.onClick.AddListener(() => OnPlay?.Invoke());
             skipBtn?.onClick.AddListener(() => OnSkip?.Invoke());
+            autoBtn?.onClick.AddListener(() => OnAutoToggle?.Invoke());
             nextLineBtn?.onClick.AddListener(() => OnAdvance?.Invoke());
 
             if (choicePanel != null) choicePanel.SetActive(false);
@@ -127,6 +131,17 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: autoBtn SerializeField + OnAutoToggle 이벤트 추가
+ *
+ * # 변경
+ * - `[SerializeField] Button autoBtn` 추가 (Controls 그룹, skipBtn 아래).
+ * - `public event Action OnAutoToggle` 추가.
+ * - Awake: `autoBtn?.onClick.AddListener(() => OnAutoToggle?.Invoke())` 추가.
+ *
+ * # 이유
+ * - HCUP-2.4.0 Phase 2-C — Auto 모드 토글 버튼 연결 지원.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.18 (최초 설계) :: DialogueUiController 생성 — 프로덕션 UI 컨트롤러
  *
