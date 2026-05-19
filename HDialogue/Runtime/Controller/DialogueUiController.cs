@@ -6,6 +6,7 @@
  * 특징 / 지원기능 ::
  * + 화자명 / 대사 텍스트 / Advance 힌트 표시
  * + Play / Skip / Advance 버튼 이벤트 발화
+ * + Auto 토글 : Toggle.isOn ↔ OnAutoToggle(bool) 이벤트. SetAutoToggle()로 외부 갱신.
  * + 선택지 패널 : ShowChoices / HideChoices + OnSelectChoice(key) 이벤트
  *
  * 주의사항 ::
@@ -40,7 +41,7 @@ namespace HDialogue {
         [SerializeField]
         Button skipBtn;
         [SerializeField]
-        Button autoBtn;
+        Toggle autoTg;
         [SerializeField]
         Button nextLineBtn;
 
@@ -58,7 +59,7 @@ namespace HDialogue {
         #region Events
         public event Action OnPlay;
         public event Action OnSkip;
-        public event Action OnAutoToggle;
+        public event Action<bool> OnAutoToggle;
         public event Action OnAdvance;
         public event Action<string> OnSelectChoice;
         #endregion
@@ -67,7 +68,7 @@ namespace HDialogue {
         private void Awake() {
             playBtn?.onClick.AddListener(() => OnPlay?.Invoke());
             skipBtn?.onClick.AddListener(() => OnSkip?.Invoke());
-            autoBtn?.onClick.AddListener(() => OnAutoToggle?.Invoke());
+            autoTg?.onValueChanged.AddListener(isOn => OnAutoToggle?.Invoke(isOn));
             nextLineBtn?.onClick.AddListener(() => OnAdvance?.Invoke());
 
             if (choicePanel != null) choicePanel.SetActive(false);
@@ -93,6 +94,10 @@ namespace HDialogue {
 
         public void SetPlayButtonInteractable(bool value) {
             if (playBtn != null) playBtn.interactable = value;
+        }
+
+        public void SetAutoToggle(bool isOn) {
+            autoTg?.SetIsOnWithoutNotify(isOn);
         }
         #endregion
 
@@ -131,6 +136,21 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.19 (수정) :: autoBtn → autoTg(Toggle) 교체 — Auto On/Off 상태 반영
+ *
+ * # 변경
+ * - `[SerializeField] Button autoBtn` → `[SerializeField] Toggle autoTg`.
+ * - `public event Action OnAutoToggle` → `public event Action<bool> OnAutoToggle`.
+ * - Awake: `onClick` → `onValueChanged.AddListener(isOn => OnAutoToggle?.Invoke(isOn))`.
+ * - `public void SetAutoToggle(bool isOn)`: Toggle.SetIsOnWithoutNotify — 이벤트 재발화 없이 UI 갱신.
+ * - 헤더 특징에 Toggle 동작 방식 안내 추가.
+ *
+ * # 이유
+ * - Button은 클릭 시 단순 이벤트만 발화. Toggle은 isOn 상태를 시각적으로 보존해 Auto 모드 활성 여부를 표시.
+ * - SetIsOnWithoutNotify: Manager가 키보드 입력으로 toggle 상태 갱신 시 onValueChanged 순환 호출 방지.
+ * - Action<bool>: Manager가 isOn 값을 직접 수신해 별도의 상태 추론 없이 AutoAdvanceDelay 설정 가능.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: autoBtn SerializeField + OnAutoToggle 이벤트 추가
  *
