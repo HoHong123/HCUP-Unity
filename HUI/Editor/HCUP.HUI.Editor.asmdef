@@ -4,7 +4,9 @@
     "references": [
         "HCUP.HUtil",
         "HCUP.HUI",
-        "HCUP.HCore"
+        "HCUP.HCore",
+        "Unity.TextMeshPro",
+        "Unity.TextMeshPro.Editor"
     ],
     "includePlatforms": [
         "Editor"
