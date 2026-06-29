@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
@@ -60,14 +60,13 @@ namespace HUI.Popup {
         }
 
         protected override void OnDestroy() {
+            base.OnDestroy();
+
             panelBtn.onClick.RemoveAllListeners();
-            OnClickPanel = null;
 
             resourcesProvider?.ReleaseOwner(ownerId);
             addressableProvider?.ReleaseOwner(ownerId);
             if (ownerId.IsValid) AssetOwnerIdGenerator.NotifyReleased(ownerId);
-
-            base.OnDestroy();
         }
         #endregion
 
