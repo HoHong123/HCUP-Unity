@@ -23,7 +23,7 @@
  * =========================================================
  */
 #endif
-#if UNITY_EDITOR
+
 namespace HInspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public class HBoxGroupAttribute : HInspectorAttribute {
@@ -35,4 +35,17 @@ namespace HInspector {
         }
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.06.29 Runtime attribute 빌드 가드 제거
+ *
+ * # 수정
+ * - namespace + 클래스 전체를 감싸던 #if UNITY_EDITOR 가드 제거
+ * - 빌드 포함 필요한 Runtime attribute가 Addressables 플레이어 빌드에서 CS0246 유발했던 문제 수정
+ *
+ * =============================================================================
+ */
 #endif
