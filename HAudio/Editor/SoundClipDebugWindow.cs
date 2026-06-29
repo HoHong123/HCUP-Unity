@@ -1,10 +1,25 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
+/* =========================================================
+ * @Jason - PKH
+ * AudioManager 클립 로드 상태를 에디터에서 실시간 진단하는 창입니다.
+ *
+ * 사용법 ::
+ * + HCUP/Audio/Data Diagnostics 메뉴로 창을 엽니다.
+ * + Play Mode에서만 데이터가 표시됩니다.
+ * + Bind: AudioManager 인스턴스를 재탐색합니다.
+ * + Refresh: 스냅샷을 갱신합니다.
+ * + Auto 토글로 자동 갱신 간격을 설정합니다.
+ *
+ * 주의사항 ::
+ * + Play Mode 진입·종료 시 상태가 자동 초기화됩니다.
+ * =========================================================
+ */
+
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using HAudio.Load;
 
 namespace HAudio.Editor {
     public sealed class SoundClipDiagnosticsWindow : EditorWindow {
@@ -12,14 +27,13 @@ namespace HAudio.Editor {
 
         string search = string.Empty;
         bool loadedOnly = true;
-        bool depPositiveOnly;
 
         bool autoRefresh;
         double refreshIntervalSec = 0.5;
         double nextRefreshTime;
 
-        IAudioClipDiagnostics diagnostics;
-        AudioClipProviderSnapshot snapshot;
+        bool isBound;
+        AudioClipManagerSnapshot snapshot;
 
         readonly Dictionary<string, bool> catalogFold = new();
         string selectedCatalog;
@@ -42,13 +56,12 @@ namespace HAudio.Editor {
         }
 
         private void _OnPlayModeChanged(PlayModeStateChange state) {
-            // 플레이 모드 전환 시점마다 정리
             _ResetState();
             Repaint();
         }
 
         private void _ResetState() {
-            diagnostics = null;
+            isBound = false;
             snapshot = null;
 
             selectedCatalog = null;
@@ -56,38 +69,28 @@ namespace HAudio.Editor {
 
             scroll = Vector2.zero;
 
-            // UI 상태도 요구대로 초기화 (원하면 유지해도 됨)
             search = string.Empty;
             loadedOnly = true;
-            depPositiveOnly = false;
-
             autoRefresh = false;
 
             nextRefreshTime = EditorApplication.timeSinceStartup + refreshIntervalSec;
         }
 
         private void OnGUI() {
-            // PlayMode가 아니라면 UI 자체를 최소화하고, 데이터도 유지하지 않는다.
             if (!EditorApplication.isPlaying) {
                 EditorGUILayout.HelpBox("Play Mode에서만 표시됩니다.", MessageType.Info);
-
-                //using (new EditorGUILayout.HorizontalScope()) {
-                //    if (GUILayout.Button("Clear", GUILayout.Width(80))) _ResetState();
-                //}
                 return;
             }
 
-            // PlayMode일 때만 툴바를 그린다.
             _DrawToolbar();
 
-            _EnsureDiagnostics();
+            _EnsureManager();
 
-            if (diagnostics == null) {
+            if (!isBound) {
                 EditorGUILayout.HelpBox(
-                    "Diagnostics를 찾을 수 없습니다.\n" +
-                    "- SoundManager 존재 여부\n" +
-                    "- Provider가 IAudioClipDiagnostics 구현 여부\n" +
-                    "- SoundManager.TryGetClipDiagnostics() 확인",
+                    "AudioManager를 찾을 수 없습니다.\n" +
+                    "- [BM] AudioManager가 씬에 존재하는지 확인하세요.\n" +
+                    "- Bind 버튼으로 재탐색합니다.",
                     MessageType.Warning);
                 return;
             }
@@ -105,20 +108,16 @@ namespace HAudio.Editor {
         private void _DrawToolbar() {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar)) {
                 if (GUILayout.Button("Bind", EditorStyles.toolbarButton, GUILayout.Width(50))) {
-                    diagnostics = null;
-                    _EnsureDiagnostics(force: true);
+                    isBound = false;
+                    _EnsureManager(force: true);
                 }
 
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(60)))
                     _RefreshSnapshot();
 
-                if (GUILayout.Button("Prune", EditorStyles.toolbarButton, GUILayout.Width(55)))
-                    _Prune();
-
                 GUILayout.Space(10);
 
                 loadedOnly = GUILayout.Toggle(loadedOnly, "Loaded", EditorStyles.toolbarButton);
-                depPositiveOnly = GUILayout.Toggle(depPositiveOnly, "Dep>0", EditorStyles.toolbarButton);
 
                 GUILayout.Space(10);
 
@@ -136,9 +135,7 @@ namespace HAudio.Editor {
         }
 
         private void _DrawSearchField() {
-            // Unity 버전에 따라 toolbar search style이 null이거나 내부 TextEditor NRE가 나는 경우가 있음.
             try {
-                // 2021+에서 주로 안전
                 search = EditorGUILayout.TextField(
                     search,
                     EditorStyles.toolbarSearchField,
@@ -156,16 +153,9 @@ namespace HAudio.Editor {
             }
         }
 
-        private void _EnsureDiagnostics(bool force = false) {
-            if (!force && diagnostics != null) return;
-
-            var sound = FindFirstObjectByType<SoundManager>();
-            if (!sound) {
-                diagnostics = null;
-                return;
-            }
-
-            diagnostics = sound.TryGetClipDiagnostics(out var diag) ? diag : null;
+        private void _EnsureManager(bool force = false) {
+            if (!force && isBound) return;
+            isBound = AudioManager.HasInstance;
         }
 
         private void _AutoRefreshIfNeeded() {
@@ -179,23 +169,17 @@ namespace HAudio.Editor {
         }
 
         private void _RefreshSnapshot() {
-            if (diagnostics == null) return;
-            snapshot = diagnostics.CreateSnapshot();
+            if (!AudioManager.HasInstance) {
+                isBound = false;
+                return;
+            }
+            snapshot = AudioManager.Instance.CreateSnapshot();
             Repaint();
         }
 
-        private void _Prune() {
-            if (diagnostics == null) return;
-
-            int removed = diagnostics.PruneUnusedTokens();
-            if (removed > 0) _RefreshSnapshot();
-
-            ShowNotification(new GUIContent($"Pruned: {removed}"));
-        }
-
-        private void _DrawSnapshot(AudioClipProviderSnapshot snap) {
+        private void _DrawSnapshot(AudioClipManagerSnapshot snap) {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
-                EditorGUILayout.LabelField($"Provider: {snap.ProviderName}");
+                EditorGUILayout.LabelField($"Manager: {snap.ManagerName}");
                 EditorGUILayout.LabelField($"Tokens: {snap.TokenCount}");
                 EditorGUILayout.LabelField($"Loaded: {snap.LoadedCount}");
                 EditorGUILayout.LabelField($"Entries: {snap.EntryCount}");
@@ -210,7 +194,7 @@ namespace HAudio.Editor {
             _DrawEntries(snap);
         }
 
-        private void _DrawCatalogs(AudioClipProviderSnapshot snap) {
+        private void _DrawCatalogs(AudioClipManagerSnapshot snap) {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
                 EditorGUILayout.LabelField("Catalogs", EditorStyles.boldLabel);
 
@@ -236,22 +220,18 @@ namespace HAudio.Editor {
                     }
 
                     if (catalogFold[catalog.Name]) {
-                        var preview = (snap.Entries ?? new List<AudioClipProviderSnapshot.Entry>())
+                        var preview = (snap.Entries ?? new List<AudioClipManagerSnapshot.Entry>())
                             .Where(entry => entry.CatalogNames != null && entry.CatalogNames.Contains(catalog.Name))
-                            .OrderByDescending(entry => entry.Dependency)
-                            .ThenByDescending(entry => entry.IsLoaded)
+                            .OrderByDescending(entry => entry.IsLoaded)
                             .Take(10)
                             .ToList();
 
-                        int depPositive = preview.Count(x => x.Dependency > 0);
-                        EditorGUILayout.LabelField($"  Preview Top10 (Dep>0:{depPositive})");
+                        EditorGUILayout.LabelField($"  Preview Top10");
 
                         foreach (var entry in preview) {
                             using (new EditorGUILayout.HorizontalScope()) {
                                 GUILayout.Space(14);
                                 GUILayout.Label(entry.IsLoaded ? "●" : "○", GUILayout.Width(18));
-                                EditorGUILayout.LabelField($"ID:{entry.Id}", GUILayout.Width(80));
-                                EditorGUILayout.LabelField($"Dep:{entry.Dependency}", GUILayout.Width(70));
                                 EditorGUILayout.LabelField(entry.IsLoaded ? entry.ClipName : "(not loaded)", GUILayout.Width(220));
 
                                 GUILayout.FlexibleSpace();
@@ -271,25 +251,22 @@ namespace HAudio.Editor {
                     selectedCatalog = null;
             }
         }
-        private void _DrawEntries(AudioClipProviderSnapshot snap) {
+
+        private void _DrawEntries(AudioClipManagerSnapshot snap) {
             scroll = EditorGUILayout.BeginScrollView(scroll);
 
-            IEnumerable<AudioClipProviderSnapshot.Entry> view =
-                snap.Entries ?? Enumerable.Empty<AudioClipProviderSnapshot.Entry>();
+            IEnumerable<AudioClipManagerSnapshot.Entry> view =
+                snap.Entries ?? Enumerable.Empty<AudioClipManagerSnapshot.Entry>();
 
             if (!string.IsNullOrEmpty(selectedCatalog))
                 view = view.Where(v => v.CatalogNames != null && v.CatalogNames.Contains(selectedCatalog));
 
             if (loadedOnly) view = view.Where(v => v.IsLoaded);
-            if (depPositiveOnly) view = view.Where(v => v.Dependency > 0);
 
             if (!string.IsNullOrWhiteSpace(search)) {
                 var target = search.Trim();
 
                 view = view.Where(v => {
-                    if (v.Id.ToString().Contains(target))
-                        return true;
-
                     if (!string.IsNullOrEmpty(v.Token) &&
                         v.Token.IndexOf(target, StringComparison.OrdinalIgnoreCase) >= 0)
                         return true;
@@ -309,21 +286,17 @@ namespace HAudio.Editor {
 
             view = view
                 .OrderByDescending(v => v.IsLoaded)
-                .ThenByDescending(v => v.Dependency)
-                .ThenBy(v => v.Id);
+                .ThenBy(v => v.Token);
 
             foreach (var entry in view) {
                 using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox)) {
                     GUILayout.Label(entry.IsLoaded ? "●" : "○", GUILayout.Width(18));
-                    EditorGUILayout.LabelField($"ID:{entry.Id}", GUILayout.Width(80));
-                    EditorGUILayout.LabelField($"Dep:{entry.Dependency}", GUILayout.Width(70));
 
                     string catalogsText = (entry.CatalogNames == null || entry.CatalogNames.Count == 0)
                         ? "(Unassigned)"
                         : string.Join(", ", entry.CatalogNames);
 
                     EditorGUILayout.LabelField(catalogsText, GUILayout.Width(220));
-
                     EditorGUILayout.LabelField(entry.IsLoaded ? entry.ClipName : "(not loaded)", GUILayout.Width(220));
                     EditorGUILayout.LabelField(entry.IsLoaded ? $"{entry.ClipLength:0.00}s" : "-", GUILayout.Width(70));
 
@@ -342,4 +315,26 @@ namespace HAudio.Editor {
         }
     }
 }
+
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.05.24 AudioManager 기반으로 리팩토링
+ *
+ * # 변경
+ * - SoundManager / IAudioClipDiagnostics 의존 제거
+ * - AudioManager.Instance.CreateSnapshot() → AudioClipManagerSnapshot 사용으로 전환
+ * - diagnostics 필드 제거 → isBound(bool) + AudioManager.HasInstance로 대체
+ * - depPositiveOnly 토글 제거 (AudioClipManagerSnapshot.Entry에 Dependency 없음)
+ * - Prune 버튼 제거 (AudioManager에 PruneUnusedTokens 미노출)
+ * - 엔트리 열 재구성: Id·Dep 열 제거, Token을 우측 SelectableLabel로 유지
+ * - using HAudio.Load 제거
+ *
+ * # 이유
+ * - Bootstrap 씬에서 SoundManager가 AudioManager로 교체됨
+ * - IAudioClipDiagnostics는 AudioClipProvider(구 시스템) 전용 인터페이스
+ * - AudioManager는 CreateSnapshot()으로 AudioClipManagerSnapshot을 직접 반환
+ *
+ * =============================================================================
+ */
 #endif
