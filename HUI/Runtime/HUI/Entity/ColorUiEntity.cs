@@ -16,8 +16,10 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using DG.Tweening;
 using HInspector;
+#if DOTWEEN_PRO
+using DG.Tweening;
+#endif
 
 namespace HUI.Entity {
     [Serializable]
@@ -97,6 +99,13 @@ namespace HUI.Entity {
         public MaskableGraphic Graphic => graphic;
         #endregion
 
+#if UNITY_EDITOR
+        #region Debug Owner
+        UnityEngine.Object debugOwner;
+        internal void InitDebugOwner(UnityEngine.Object owner) => debugOwner = owner;
+        #endregion
+#endif
+
         #region Init
         private void _Init() {
             if (graphic == null && image == null) return;
@@ -158,6 +167,12 @@ namespace HUI.Entity {
         }
 
         private void _Dye(Color color, bool immediate = false) {
+            if (graphic == null) {
+#if UNITY_EDITOR
+                Debug.LogWarning("[ColorUiEntity] graphic is null — assign MaskableGraphic in Inspector", debugOwner);
+#endif
+                return;
+            }
 #if DOTWEEN_PRO
             if (_CanAnimate() && !immediate) {
                 graphic.DOKill();
@@ -199,6 +214,21 @@ namespace HUI.Entity {
         #endregion
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.06.29 DG.Tweening 제거 + Debug Owner 추가 + _Dye() null 가드
+ *
+ * # 수정
+ * - using DG.Tweening 제거 (DOTWEEN_PRO 조건부 사용 코드는 #if DOTWEEN_PRO 가드로 유지)
+ * - Debug Owner 블록 추가 — InitDebugOwner(internal, #if UNITY_EDITOR)
+ * - _Dye() 진입부에 graphic null 가드 추가 (에디터에서 경고 로그)
+ *
+ * =============================================================================
+ */
+#endif
 
 #if UNITY_EDITOR
 /* =========================================================
