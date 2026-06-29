@@ -9,17 +9,21 @@ namespace HAudio.AddOn {
         protected bool useOverride = false;
         [HShowIf(nameof(useOverride))]
         [SerializeField]
-        protected int overrideClickUid = 0;
+        protected string overrideClickUid = string.Empty;
         #endregion
 
         #region Protected - Handler
         protected virtual void _HandleClick() {
-            if (!SoundManager.HasInstance) return;
+            if (!AudioManager.HasInstance) return;
 
-            int uid = useOverride ? overrideClickUid : SoundManager.DEFAULT_CLICK_UID;
-            if (uid <= 0) return;
+            if (useOverride) {
+                if (!string.IsNullOrEmpty(overrideClickUid)) {
+                    AudioManager.Instance.PlayUI(overrideClickUid);
+                    return;
+                }
+            }
 
-            SoundManager.Instance.PlayUI(uid);
+            AudioManager.Instance.PlayClick();
         }
         #endregion
     }
