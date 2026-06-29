@@ -2,12 +2,13 @@
 /* =========================================================
  * @Jason - PKH
  * Inspector 값이 변경될 때 특정 메서드를 호출하는 Attribute입니다.
- * 
+ *
  * 사용 예 ::
  * [HOnValueChanged(nameof(UpdatePreview))]
  * public int value;
  * =========================================================
  */
+#endif
 
 namespace HInspector {
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
@@ -25,4 +26,17 @@ namespace HInspector {
         }
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.06.29 Runtime attribute 빌드 가드 제거
+ *
+ * # 수정
+ * - namespace + 클래스 전체를 감싸던 #if UNITY_EDITOR 가드 제거
+ * - 헤더 주석만 가드 유지, 클래스 본문은 빌드에 포함되도록 수정
+ *
+ * =============================================================================
+ */
 #endif
