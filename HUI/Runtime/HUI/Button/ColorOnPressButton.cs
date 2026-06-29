@@ -56,6 +56,16 @@ namespace HUI.ButtonUI {
         protected override void Awake() {
             useInteractionChangeEvent = interactionMode == ButtonEventMode.UseInteraction;
             base.Awake();
+#if UNITY_EDITOR
+            if (targets != null) {
+                foreach (var target in targets)
+                    target?.InitDebugOwner(this.gameObject);
+            }
+            if (interactionTargets != null) {
+                foreach (var target in interactionTargets)
+                    target?.InitDebugOwner(this.gameObject);
+            }
+#endif
         }
         #endregion
 
