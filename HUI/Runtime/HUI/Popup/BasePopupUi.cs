@@ -19,15 +19,16 @@ namespace HUI.Popup {
 
 
         protected virtual void Start() {
+            OnClickCancel += Close;
+
             closeBtn.onClick.AddListener(_HandleCloseClicked);
         }
 
-        // 등록과 대칭되는 해제를 위해 명명 메서드로 승격.
         protected virtual void OnDestroy() {
-            if (closeBtn != null) {
-                closeBtn.onClick.RemoveListener(_HandleCloseClicked);
-            }
             OnClickCancel = null;
+            if (closeBtn != null) {
+                closeBtn.onClick.RemoveAllListeners();
+            }
         }
 
         private void _HandleCloseClicked() {
