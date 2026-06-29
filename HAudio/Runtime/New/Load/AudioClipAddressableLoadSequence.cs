@@ -1,25 +1,7 @@
-﻿using UnityEngine;
-using Cysharp.Threading.Tasks;
-using HUtil.Data.Load;
+using UnityEngine;
 using HUtil.Data.Sequence;
 
 namespace HAudio.Load {
-    public sealed class AudioClipAddressableLoadSequence :
-        BaseLoadSequence<AudioClip>,
-        IDataLoad<string, AudioClip> {
-        public AudioClipAddressableLoadSequence() : base(DataLoadType.Addressable) { }
-
-
-        protected override UniTask<AudioClip> _LoadByKeyAsync(string key) {
-            // TODO: Addressables ���� ��
-            return UniTask.FromResult<AudioClip>(null);
-        }
-
-
-        // To Addressable Token Path
-        protected override string _NormalizeKey(string tokenOrPath) {
-            if (string.IsNullOrWhiteSpace(tokenOrPath)) return string.Empty;
-            return _TrimExtension(tokenOrPath);
-        }
+    public sealed class AudioClipAddressableLoadSequence : AddressableLoadSequence<AudioClip> {
     }
 }
