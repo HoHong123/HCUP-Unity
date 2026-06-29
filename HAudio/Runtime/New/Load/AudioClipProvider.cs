@@ -79,7 +79,12 @@ namespace HAudio.Load {
                     continue;
                 }
 
-                if (!tokenTable.ContainsKey(uid)) tokenTable.Add(uid, entry.Token);
+                if (!tokenTable.ContainsKey(uid)) {
+                    string loadKey = loadType == DataLoadType.Resources
+                        ? SoundCatalogSO.BuildResourcesLoadKey(entry.Path, entry.Token)
+                        : SoundCatalogSO.BuildAddressableLoadKey(entry.Token);
+                    tokenTable.Add(uid, loadKey);
+                }
                 tasks.Add(PrewarmIdAsync(uid));
             }
 
