@@ -19,7 +19,6 @@
  */
 #endif
 
-using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HUtil.Data;
@@ -36,15 +35,20 @@ namespace HAudio.AddOn {
 
         [HTitle("Clips")]
         [SerializeField]
-        [HListDrawer(DefaultExpandedState = true)]
-        List<SfxView> preloadUids = new();
+        SfxView preloadUids = new();
         #endregion
 
         #region Properties
-        public IReadOnlyList<SfxView> PreloadUids => preloadUids;
+        public SfxView PreloadUids => preloadUids;
         #endregion
 
         #region Unity Life Cycle
+#if UNITY_EDITOR
+        private void OnValidate() {
+            preloadUids?.EditorRebuildPreview();
+        }
+#endif
+
         private void Start() {
             if (!_HasTargetManager()) return;
             _PrewarmViews().Forget();
@@ -141,11 +145,7 @@ namespace HAudio.AddOn {
         private async UniTaskVoid _PrewarmViews() {
             try {
                 if (useNewManager) {
-                    foreach (var view in preloadUids) {
-                        if (view == null)
-                            continue;
-                        await AudioManager.Instance.PrewarmSfxView(view);
-                    }
+                    await AudioManager.Instance.PrewarmSfxView(preloadUids);
                     return;
                 }
             }
@@ -156,7 +156,7 @@ namespace HAudio.AddOn {
             }
 
             try {
-                await SoundManager.Instance.PrewarmIds(preloadUids);
+                await SoundManager.Instance.PrewarmIds(new[] { preloadUids });
             }
             catch (System.Exception ex) {
                 HDebug.StackTraceError($"[AudioManager] {gameObject.name} : {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}", 20);
@@ -166,14 +166,11 @@ namespace HAudio.AddOn {
 
         private void _ReleaseViews() {
             if (useNewManager) {
-                foreach (var view in preloadUids) {
-                    if (view == null) continue;
-                    AudioManager.Instance.ReleaseSfxView(view);
-                }
+                AudioManager.Instance.ReleaseSfxView(preloadUids);
                 return;
             }
 
-            SoundManager.Instance.ReleaseIds(preloadUids);
+            SoundManager.Instance.ReleaseIds(new[] { preloadUids });
         }
         #endregion
     }
