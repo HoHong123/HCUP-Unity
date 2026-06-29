@@ -240,6 +240,7 @@ namespace HAudio {
         }
 
         public void PlayBGM(string token, bool ignoreSameClip = true) {
+            if (string.IsNullOrWhiteSpace(token)) return;
             if (!_TryGetLoadedClip(token, out var clip)) return;
             if (ignoreSameClip && bgmAudio.isPlaying && bgmAudio.clip == clip) return;
 
@@ -324,7 +325,7 @@ namespace HAudio {
         }
 
         private float _GetLocalMixerVolume01(string prefKey) {
-            return Mathf.Clamp01(PlayerPrefsHandler.GetFloat(prefKey));
+            return Mathf.Clamp01(PlayerPrefsHandler.GetFloat(prefKey, 1f));
         }
 
         private float _ToDecibel(float volume01) {
