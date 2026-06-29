@@ -3,15 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using Sirenix.OdinInspector;
 using HAudio.Core;
-using HInspector;
 
 namespace HAudio.AddOn {
     [Serializable]
     public sealed class SfxView {
-        #region Fields
+        #region IMGUI Fields
 #if UNITY_EDITOR && ODIN_INSPECTOR
-        [ListDrawerSettings(DefaultExpandedState = true)]
-        [OnValueChanged("_EditorRebuildPreview", includeChildren: true)]
+        [Title("Catalogs")]
+        [ListDrawerSettings]
 #endif
         [SerializeField]
         List<SoundCatalogSO> catalogs = new();
@@ -20,59 +19,45 @@ namespace HAudio.AddOn {
         #endregion
 
         #region ======== Editor Only ========
-#if UNITY_EDITOR && ODIN_INSPECTOR
+#if UNITY_EDITOR
+#if ODIN_INSPECTOR
+        [Title("Preview (Editor Only)")]
+        [ReadOnly]
+        [ListDrawerSettings(IsReadOnly = true)]
+#endif
         [SerializeField]
-        List<EntryPreview> previews = new();
+        List<string> previews = new();
 
-        [Serializable]
-        public sealed class EntryPreview {
-            [HHideLabel]
-            [HReadOnly]
-            [HHorizontalGroup("Row")]
-            public int Id;
-
-            [HHideLabel]
-            [HReadOnly]
-            [HHorizontalGroup("Row")]
-            public AudioClips Clip;
-        }
-
-        private void _EditorRebuildPreview() {
-            previews ??= new List<EntryPreview>();
+        public void EditorRebuildPreview() {
+            previews ??= new List<string>();
             previews.Clear();
 
             if (catalogs == null || catalogs.Count < 1) return;
-
-            HashSet<int> used = new();
+            HashSet<string> usedTokens = new(System.StringComparer.Ordinal);
 
             for (int k = 0; k < catalogs.Count; k++) {
                 var catalog = catalogs[k];
-                if (!catalog) continue;
+                if (!catalog)
+                    continue;
 
                 var entries = catalog.Entries;
-                if (entries == null) continue;
+                if (entries == null)
+                    continue;
 
                 for (int j = 0; j < entries.Count; j++) {
                     var entry = entries[j];
-                    if (entry == null) continue;
+                    if (entry == null)
+                        continue;
 
-                    int uid = entry.Key.Id;
-                    if (uid <= 0) continue;
-                    if (!used.Add(uid)) continue;
+                    string token = entry.Token;
+                    if (string.IsNullOrWhiteSpace(token)) continue;
+                    if (!usedTokens.Add(token)) continue;
 
-                    AudioClips clipEnum = default;
-                    if (Enum.IsDefined(typeof(AudioClips), uid)) {
-                        clipEnum = (AudioClips)Enum.ToObject(typeof(AudioClips), uid);
-                    }
-
-                    previews.Add(new EntryPreview {
-                        Id = uid,
-                        Clip = clipEnum
-                    });
+                    previews.Add(token);
                 }
             }
 
-            previews.Sort((a, b) => a.Id.CompareTo(b.Id));
+            previews.Sort(System.StringComparer.Ordinal);
         }
 #endif
         #endregion
