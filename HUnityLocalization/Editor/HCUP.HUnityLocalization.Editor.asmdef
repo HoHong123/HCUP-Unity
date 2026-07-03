@@ -22,7 +22,7 @@
     "versionDefines": [
         {
             "name": "com.unity.localization",
-            "expression": "1.5",
+            "expression": "[1.5,)",
             "define": "HCUP_UNITY_LOCALIZATION"
         }
     ],
