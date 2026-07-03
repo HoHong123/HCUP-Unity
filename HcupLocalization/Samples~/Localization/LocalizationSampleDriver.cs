@@ -23,9 +23,9 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using HUI.TextUI;
-using HLocalization;
+using HcupLocalization;
 
-namespace HLocalization.Samples {
+namespace HcupLocalization.Samples {
     /// <summary>
     /// 씬 부트스트랩 예시 — 실제 게임 프로젝트에서는 SceneManager 또는 GameManager가 담당합니다.
     /// </summary>
@@ -90,4 +90,15 @@ namespace HLocalization.Samples {
  * □ Data Editor Window → Export 버튼 → xlsx 저장 확인
  * □ 저장된 xlsx 를 다시 Import → 동일 항목 수 유지 확인
  * =========================================================
+ */
+
+/*
+ * =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 HcupLocalization 개칭 반영
+ *
+ * # 변경
+ * - 네임스페이스: HLocalization → HcupLocalization (패키지 개칭 추종)
+ * =============================================================================
  */
