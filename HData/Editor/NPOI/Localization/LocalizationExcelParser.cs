@@ -21,6 +21,17 @@ using HcupLocalization;
 
 namespace HData.NPOI.Localization {
     public static class LocalizationExcelParser {
+#if UNITY_EDITOR
+        // 엑셀 헤더 규격 단일 소스 — 양 로더의 keys 가 이 배열을 반환
+        public static readonly string[] HEADER_KEYS = {
+            "UID",
+            nameof(LocalizationLanguage.Korean),
+            nameof(LocalizationLanguage.English),
+            nameof(LocalizationLanguage.Japanese),
+            nameof(LocalizationLanguage.Chinese),
+            nameof(LocalizationLanguage.Russian)
+        };
+
         /// <summary> 병합 JArray를 LocalizationData 목록으로 파싱. 검증 실패 시 null. </summary>
         public static List<LocalizationData> Parse(JArray merged) {
             if (merged == null || merged.Count == 0) {
@@ -52,12 +63,20 @@ namespace HData.NPOI.Localization {
             }
             return dataList;
         }
+#endif
     }
 }
 
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 HEADER_KEYS 공용 상수 추가 + 클래스 본체 UNITY_EDITOR 가드
+ *
+ * # 변경
+ * - HEADER_KEYS: 엑셀 헤더 규격 단일 소스 추가 — HcupLocalizationTableLoader / HUnityLocalizationTableLoader 양 로더의 keys 가 참조
+ * - 클래스 본체 #if UNITY_EDITOR 가드 추가 (디렉터리 관용 정합)
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 최초 작성
  *
