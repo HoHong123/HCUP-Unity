@@ -9,6 +9,8 @@
     "url": "https://github.com/HoHong123"
   },
   "dependencies": {
-    "com.unity.localization": "1.5.12"
+    "com.unity.localization": "1.5.12",
+    "com.hohong123.hdata": "1.0.0",
+    "com.hohong123.hcuplocalization": "1.0.0"
   }
 }
