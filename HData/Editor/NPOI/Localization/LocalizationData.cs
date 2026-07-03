@@ -4,7 +4,7 @@
  * 로컬리제이션 엑셀 1행을 파싱한 임시 데이터 전송 객체(DTO).
  *
  * 특징 ::
- * - LocalizationTableLoader.ImportData() 내부에서만 사용
+ * - HcupLocalizationTableLoader / HUnityLocalizationTableLoader 양 로더의 Import 파이프라인에서 사용 (LocalizationExcelParser 경유)
  * - 언어 필드는 Excel 컬럼명과 1:1 대응 (UID / Korean / English / Japanese / Chinese / Russian)
  *
  * 주의사항 ::
@@ -42,6 +42,12 @@ namespace HData.NPOI.Localization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 헤더 서술 현행화
+ *
+ * # 수정
+ * - 특징 섹션의 로더 서술을 HcupLocalizationTableLoader / HUnityLocalizationTableLoader 양 로더 기준으로 갱신
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 GetText(LocalizationLanguage) 추가
  *
