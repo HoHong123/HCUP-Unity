@@ -1,7 +1,9 @@
 {
     "name": "HCUP.HDeploy.Editor",
     "rootNamespace": "HDeploy",
-    "references": [],
+    "references": [
+        "HCUP.HInspector.Editor"
+    ],
     "includePlatforms": [
         "Editor"
     ],
