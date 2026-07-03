@@ -130,7 +130,7 @@ namespace HData.NPOI.Core {
         #region Private - Entry Management
         private void _BuildEntries() {
             entries = new List<(string, ScriptableObject)> {
-                ("00. Localization", LocalizationTableLoader.Instance),
+                ("00. HcupLocalization", HcupLocalizationTableLoader.Instance),
             };
         }
 
