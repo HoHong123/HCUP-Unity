@@ -8,7 +8,7 @@
  * - OdinMenuEditorWindow 제거 완료 (M4)
  *
  * 주의사항 ::
- * - 새 Loader 추가 시 _BuildEntries()에 항목만 추가
+ * - 새 Loader 추가 시 [DataEditorEntry("NN. 라벨")] 어트리뷰트만 부착 (TypeCache 자동 발견)
  * - cachedEditor는 선택 변경 / OnDisable 시 반드시 DestroyImmediate 필요
  * =========================================================
  */
@@ -16,10 +16,11 @@
 
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using HData.NPOI.Core.Editor;
-using HData.NPOI.Localization;
+using HDiagnosis.Logger;
 
 namespace HData.NPOI.Core {
     public class DataEditorWindow : EditorWindow {
@@ -129,9 +130,28 @@ namespace HData.NPOI.Core {
 
         #region Private - Entry Management
         private void _BuildEntries() {
-            entries = new List<(string, ScriptableObject)> {
-                ("00. HcupLocalization", HcupLocalizationTableLoader.Instance),
-            };
+            entries = new List<(string, ScriptableObject)>();
+
+            foreach (var type in TypeCache.GetTypesWithAttribute<DataEditorEntryAttribute>()) {
+                if (type.IsAbstract) continue;
+
+                var attribute = (DataEditorEntryAttribute)type.GetCustomAttributes(typeof(DataEditorEntryAttribute), false)[0];
+                var instanceProperty = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+                if (instanceProperty == null) {
+                    HLogger.Error($"[DataEditorWindow] '{type.Name}' 에 static Instance 프로퍼티가 없습니다. AssetDatabaseInstance<T> 상속 여부를 확인하세요.");
+                    continue;
+                }
+
+                var loader = instanceProperty.GetValue(null) as ScriptableObject;
+                if (loader == null) {
+                    HLogger.Error($"[DataEditorWindow] '{type.Name}'.Instance 가 ScriptableObject 를 반환하지 않았습니다.");
+                    continue;
+                }
+
+                entries.Add((attribute.Label, loader));
+            }
+
+            entries.Sort((a, b) => string.CompareOrdinal(a.label, b.label));
         }
 
         private void _SelectEntry(int index) {
@@ -158,6 +178,16 @@ namespace HData.NPOI.Core {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 _BuildEntries TypeCache 자동 발견 전환
+ *
+ * # 변경
+ * - 하드코딩 목록 → TypeCache.GetTypesWithAttribute<DataEditorEntryAttribute> 스캔
+ * - Label Ordinal 정렬. static Instance 프로퍼티 리플렉션 획득 (FlattenHierarchy)
+ *
+ * # 이유
+ * - HUnityLocalization.Editor 가 본 어셈블리를 참조하므로 하드코딩 시 순환 참조
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 "00. Localization" 항목 추가 (Phase 2)
  *
