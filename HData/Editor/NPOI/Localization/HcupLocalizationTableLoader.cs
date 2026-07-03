@@ -33,6 +33,7 @@ using HData.NPOI.Core;
 using HcupLocalization;
 
 namespace HData.NPOI.Localization {
+    [DataEditorEntry("00. HcupLocalization")]
     public class HcupLocalizationTableLoader : ExcelLoader<HcupLocalizationTableLoader> {
 #if UNITY_EDITOR
         #region Protected - Keys
