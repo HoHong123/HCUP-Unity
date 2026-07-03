@@ -27,7 +27,7 @@ namespace HData.NPOI.Localization {
         public string chinese;
         public string russian;
 
-        /// <summary> 지정 언어의 번역 문자열 반환. 매핑 없는 언어는 빈 문자열. </summary>
+        /// <summary> 지정 언어의 번역 문자열 반환. 미매칭 언어는 SwitchExpressionException 발생. </summary>
         // 기본 arm 없음 — 언어 추가 시 미매칭이 예외로 즉시 드러나게 (조용한 "" 기록 금지)
         public string GetText(LocalizationLanguage language) => language switch {
             LocalizationLanguage.Korean   => korean,
