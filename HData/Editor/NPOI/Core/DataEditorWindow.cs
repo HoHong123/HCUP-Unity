@@ -34,6 +34,7 @@ namespace HData.NPOI.Core {
         UnityEditor.Editor cachedEditor;
         Vector2 sidebarScroll;
         Vector2 contentScroll;
+        GUIStyle sidebarItemStyle; // 좌측 정렬 사이드바 버튼 (OnGUI 시점 lazy 생성 — EditorStyles는 OnGUI 밖 접근 불가)
 
         #region Private - Editor Window Control
         [MenuItem("HCUP/Windows/Data Editor Window")]
@@ -93,9 +94,11 @@ namespace HData.NPOI.Core {
                 if (!string.IsNullOrEmpty(query) && !label.ToLowerInvariant().Contains(query))
                     continue;
 
+                sidebarItemStyle ??= new GUIStyle(EditorStyles.toolbarButton) { alignment = TextAnchor.MiddleLeft };
+
                 bool isSelected = k == selectedIndex;
                 if (isSelected) GUI.backgroundColor = new Color(0.24f, 0.49f, 0.91f);
-                if (GUILayout.Button(label, EditorStyles.toolbarButton, GUILayout.ExpandWidth(true))) {
+                if (GUILayout.Button(label, sidebarItemStyle, GUILayout.ExpandWidth(true))) {
                     _SelectEntry(k);
                 }
                 GUI.backgroundColor = Color.white;
@@ -178,6 +181,13 @@ namespace HData.NPOI.Core {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 사이드바 라벨 좌측 정렬
+ *
+ * # 변경
+ * - sidebarItemStyle 필드 추가 — toolbarButton 기반 + MiddleLeft 정렬 (OnGUI lazy 생성)
+ * - _DrawSidebar 항목 버튼 스타일을 sidebarItemStyle 로 교체
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 _BuildEntries TypeCache 자동 발견 전환
  *
