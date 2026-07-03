@@ -1,6 +1,6 @@
 {
-    "name": "HCUP.HLocalization",
-    "rootNamespace": "HLocalization",
+    "name": "HCUP.HcupLocalization",
+    "rootNamespace": "HcupLocalization",
     "references": [
         "UniTask",
         "UniTask.Addressables",
