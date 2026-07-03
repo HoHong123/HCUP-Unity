@@ -1,0 +1,11 @@
+{
+  "name": "com.hohong123.hdata",
+  "displayName": "Hohong123 Data Layer",
+  "version": "1.0.0",
+  "unity": "2021.3",
+  "description": "HCUP data pipeline. NPOI Excel import/export and editor tooling.",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  }
+}
