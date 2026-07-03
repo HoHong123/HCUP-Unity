@@ -13,6 +13,7 @@ using UnityEditor;
 
 namespace HData.NPOI.Core {
     public static class AssetFolderUtility {
+#if UNITY_EDITOR
         /// <summary> unityPath("Assets/...") 폴더가 없으면 부모부터 재귀 생성. </summary>
         public static void EnsureFolder(string unityPath) {
             if (AssetDatabase.IsValidFolder(unityPath)) return;
@@ -26,12 +27,19 @@ namespace HData.NPOI.Core {
             EnsureFolder(parent);
             AssetDatabase.CreateFolder(parent, folderName);
         }
+#endif
     }
 }
 
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 클래스 본체 UNITY_EDITOR 가드 추가
+ *
+ * # 변경
+ * - 클래스 본체 #if UNITY_EDITOR 가드 추가 (ExcelLoader/AssetDatabaseInstance/HcupLocalizationTableLoader 디렉터리 관용 정합)
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 최초 작성
  *
