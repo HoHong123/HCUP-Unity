@@ -39,20 +39,14 @@ using HcupLocalization;
 namespace HUnityLocalization {
     [DataEditorEntry("01. HUnityLocalization")]
     public class HUnityLocalizationTableLoader : ExcelLoader<HUnityLocalizationTableLoader> {
+#if UNITY_EDITOR
         #region Const
         const string TABLE_COLLECTION_NAME = "Localization";
         const string LOCALES_FOLDER_NAME = "Locales";
         #endregion
 
         #region Protected - Keys
-        protected override string[] keys => new[] {
-            "UID",
-            nameof(LocalizationLanguage.Korean),
-            nameof(LocalizationLanguage.English),
-            nameof(LocalizationLanguage.Japanese),
-            nameof(LocalizationLanguage.Chinese),
-            nameof(LocalizationLanguage.Russian)
-        };
+        protected override string[] keys => LocalizationExcelParser.HEADER_KEYS;
         #endregion
 
         #region Public - Import
@@ -75,8 +69,8 @@ namespace HUnityLocalization {
             var collection = _EnsureTableCollection(locales);
             if (collection == null) return;
 
-            _RemoveStaleEntries(collection, dataList);
-
+            // 1) 모든 언어의 StringTable 을 먼저 확보 — 실패 시 데이터 변형 전에 중단 (테이블 신설은 추가적 부수효과라 무손실)
+            var tables = new Dictionary<LocalizationLanguage, StringTable>(locales.Count);
             foreach (var pair in locales) {
                 var identifier = pair.Value.Identifier;
                 var table = collection.GetTable(identifier) as StringTable;
@@ -85,11 +79,17 @@ namespace HUnityLocalization {
                     HLogger.Error($"[HUnityLocalizationTableLoader] '{identifier.Code}' StringTable 생성 실패. Localization Tables 창에서 컬렉션 상태를 확인하세요.");
                     return;
                 }
+                tables[pair.Key] = table;
+            }
 
+            // 2) 전 테이블 확보 후에만 stale 제거 + 기록
+            _RemoveStaleEntries(collection, dataList);
+
+            foreach (var pair in tables) {
                 for (int k = 0; k < dataList.Count; k++) {
-                    table.AddEntry(dataList[k].uid, dataList[k].GetText(pair.Key));
+                    pair.Value.AddEntry(dataList[k].uid, dataList[k].GetText(pair.Key));
                 }
-                EditorUtility.SetDirty(table);
+                EditorUtility.SetDirty(pair.Value);
             }
 
             EditorUtility.SetDirty(collection.SharedData);
@@ -145,19 +145,27 @@ namespace HUnityLocalization {
 
         #region Private - Locale
         private Dictionary<LocalizationLanguage, Locale> _EnsureLocales() {
-            string localesPath = $"{DataOutputPath}/{LOCALES_FOLDER_NAME}";
-            AssetFolderUtility.EnsureFolder(localesPath);
-
             var langs = (LocalizationLanguage[])Enum.GetValues(typeof(LocalizationLanguage));
-            var result = new Dictionary<LocalizationLanguage, Locale>(langs.Length);
-            var existingLocales = LocalizationEditorSettings.GetLocales();
 
+            // 1) 전 언어 매핑 검증 — 부분 생성 전에 전체 실패 확정
+            var languageMap = new Dictionary<LocalizationLanguage, SystemLanguage>(langs.Length);
             foreach (var lang in langs) {
                 if (!LocaleCodeMap.TryGetSystemLanguage(lang, out SystemLanguage systemLanguage)) {
                     HLogger.Error($"[HUnityLocalizationTableLoader] '{lang}' 의 SystemLanguage 매핑이 없습니다. LocaleCodeMap 을 확인하세요.");
                     return null;
                 }
+                languageMap[lang] = systemLanguage;
+            }
 
+            // 2) 매핑 검증 통과 후에만 폴더/Locale 생성
+            string localesPath = $"{DataOutputPath}/{LOCALES_FOLDER_NAME}";
+            AssetFolderUtility.EnsureFolder(localesPath);
+
+            var result = new Dictionary<LocalizationLanguage, Locale>(langs.Length);
+            var existingLocales = LocalizationEditorSettings.GetLocales();
+
+            foreach (var lang in langs) {
+                var systemLanguage = languageMap[lang];
                 var identifier = new LocaleIdentifier(systemLanguage);
                 Locale locale = null;
                 foreach (var existing in existingLocales) {
@@ -205,12 +213,22 @@ namespace HUnityLocalization {
             }
         }
         #endregion
+#endif
     }
 }
 
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 Import 원자성 보강 + 매핑 선행 검증 + 클래스 본체 UNITY_EDITOR 가드
+ *
+ * # 변경
+ * - ImportData(): 언어별 StringTable 확보 루프를 stale 제거 앞으로 이동 — 루프 중간 AddNewTable 실패 시 "stale 제거 + 일부 언어만 갱신" 중간 상태 제거
+ * - _EnsureLocales(): SystemLanguage 매핑 검증 루프를 Locale 생성 루프 앞으로 분리 — enum 확장 시 매핑 누락으로 인한 고아 Locale 생성 방지
+ * - keys: LocalizationExcelParser.HEADER_KEYS 공용 상수 참조로 교체 (HcupLocalizationTableLoader 와 헤더 규격 단일 소스화)
+ * - 클래스 본체 #if UNITY_EDITOR 가드 추가 (ExcelLoader/AssetDatabaseInstance/HcupLocalizationTableLoader 디렉터리 관용 정합)
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 최초 작성
  *
