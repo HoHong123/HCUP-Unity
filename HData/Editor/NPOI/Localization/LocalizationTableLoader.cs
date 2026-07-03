@@ -30,7 +30,7 @@ using UnityEditor;
 using Newtonsoft.Json.Linq;
 using HDiagnosis.Logger;
 using HData.NPOI.Core;
-using HLocalization;
+using HcupLocalization;
 
 namespace HData.NPOI.Localization {
     public class LocalizationTableLoader : ExcelLoader<LocalizationTableLoader> {
