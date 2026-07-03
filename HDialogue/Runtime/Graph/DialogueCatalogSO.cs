@@ -22,7 +22,7 @@ using UnityEngine;
 using HInspector;
 using HWindows.NodeWindow;
 #if UNITY_EDITOR
-using HLocalization;
+using HcupLocalization;
 #endif
 
 namespace HDialogue {
@@ -78,6 +78,12 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 HcupLocalization 개칭 반영
+ *
+ * # 변경
+ * - 조건부 using: HLocalization → HcupLocalization (패키지 개칭 추종)
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: bgmKey — 카탈로그 단위 BGM 토큰 추가
  *
