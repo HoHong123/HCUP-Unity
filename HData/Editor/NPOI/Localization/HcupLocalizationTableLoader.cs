@@ -37,14 +37,7 @@ namespace HData.NPOI.Localization {
     public class HcupLocalizationTableLoader : ExcelLoader<HcupLocalizationTableLoader> {
 #if UNITY_EDITOR
         #region Protected - Keys
-        protected override string[] keys => new[] {
-            "UID",
-            nameof(LocalizationLanguage.Korean),
-            nameof(LocalizationLanguage.English),
-            nameof(LocalizationLanguage.Japanese),
-            nameof(LocalizationLanguage.Chinese),
-            nameof(LocalizationLanguage.Russian)
-        };
+        protected override string[] keys => LocalizationExcelParser.HEADER_KEYS;
         #endregion
 
         #region Public - Import
@@ -142,6 +135,12 @@ namespace HData.NPOI.Localization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 keys 를 LocalizationExcelParser.HEADER_KEYS 공용 상수로 교체
+ *
+ * # 변경
+ * - keys 배열 리터럴 제거 — LocalizationExcelParser.HEADER_KEYS 참조 (HUnityLocalizationTableLoader 와 헤더 규격 단일 소스화)
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 HcupLocalizationTableLoader 개칭 + 공용 파서 적용
  *
