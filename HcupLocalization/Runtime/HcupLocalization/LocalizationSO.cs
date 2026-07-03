@@ -22,8 +22,8 @@
 using UnityEngine;
 using HCollection;
 
-namespace HLocalization {
-    [CreateAssetMenu(fileName = "Localization_Language", menuName = "HCUP/Localization/LocalizationSO")]
+namespace HcupLocalization {
+    [CreateAssetMenu(fileName = "Localization_Language", menuName = "HCUP/HcupLocalization/LocalizationSO")]
     public class LocalizationSO : ScriptableObject {
         [SerializeField]
         LocalizationLanguage language;
@@ -46,6 +46,14 @@ namespace HLocalization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 HLocalization → HcupLocalization 패키지 개칭
+ *
+ * # 변경
+ * - 네임스페이스: HLocalization → HcupLocalization
+ * - CreateAssetMenu: HCUP/Localization → HCUP/HcupLocalization
+ * - 에셋 파일명 규약(Localization_{언어})은 유지 — 기존 에셋 호환
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 HUI.TextUI 에서 HLocalization 으로 이전 — Enum 타입 전환
  *
