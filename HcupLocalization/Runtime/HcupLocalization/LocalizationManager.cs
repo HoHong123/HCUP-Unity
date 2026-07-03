@@ -31,7 +31,7 @@ using HUtil.Data.Load;
 using HDiagnosis.Logger;
 using HUI.TextUI;
 
-namespace HLocalization {
+namespace HcupLocalization {
     public sealed class LocalizationManager : SingletonBehaviour<LocalizationManager> {
         #region Const
         const string PREFS_LANGUAGE_KEY = "LocalizationManager.Language";
@@ -128,6 +128,13 @@ namespace HLocalization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 HLocalization → HcupLocalization 패키지 개칭
+ *
+ * # 변경
+ * - 네임스페이스: HLocalization → HcupLocalization
+ * - PlayerPrefs 키 / Addressable 키 규약은 유지 — 기존 세이브·에셋 호환
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 HUI.TextUI 에서 HLocalization 으로 이전 — Enum 타입 전환
  *
