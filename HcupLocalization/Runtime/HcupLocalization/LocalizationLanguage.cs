@@ -1,4 +1,4 @@
-namespace HLocalization {
+namespace HcupLocalization {
     public enum LocalizationLanguage {
         Korean,
         English,
