@@ -14,7 +14,7 @@
  * - ExportData() 는 Korean SO 의 UID 목록 기준으로 Export (다른 언어 누락 UID 는 빈 문자열)
  *
  * 사용 ::
- * - DataEditorWindow → "00. Localization" → 엑셀 파일 할당 → ImportData()
+ * - DataEditorWindow → "00. HcupLocalization" → 엑셀 파일 할당 → ImportData()
  * - 생성 SO: Localization_Korean / English / Japanese / Chinese / Russian
  *
  * 엑셀 규격 ::
@@ -33,7 +33,7 @@ using HData.NPOI.Core;
 using HcupLocalization;
 
 namespace HData.NPOI.Localization {
-    public class LocalizationTableLoader : ExcelLoader<LocalizationTableLoader> {
+    public class HcupLocalizationTableLoader : ExcelLoader<HcupLocalizationTableLoader> {
 #if UNITY_EDITOR
         #region Protected - Keys
         protected override string[] keys => new[] {
@@ -49,62 +49,35 @@ namespace HData.NPOI.Localization {
         #region Public - Import
         public override void ImportData() {
             if (workBook == null) {
-                HLogger.Error("[LocalizationTableLoader] 엑셀 파일을 먼저 로드하세요.");
+                HLogger.Error("[HcupLocalizationTableLoader] 엑셀 파일을 먼저 로드하세요.");
                 return;
             }
             if (string.IsNullOrEmpty(DataOutputPath)) {
-                HLogger.Error("[LocalizationTableLoader] 데이터 출력 경로(dataOutputPath)를 설정하세요.");
+                HLogger.Error("[HcupLocalizationTableLoader] 데이터 출력 경로(dataOutputPath)를 설정하세요.");
                 return;
             }
 
-            var merged = ExcelToJsonAllSheets();
-            if (merged == null || merged.Count == 0) {
-                HLogger.Error("[LocalizationTableLoader] 유효한 시트 데이터가 없습니다. 컬럼(UID/Korean/…)을 확인하세요.");
-                return;
-            }
+            var dataList = LocalizationExcelParser.Parse(ExcelToJsonAllSheets());
+            if (dataList == null) return;
 
-            // UID 중복 검사 + 행 파싱
-            var uidSet = new HashSet<string>(StringComparer.Ordinal);
-            var dataList = new List<LocalizationData>(merged.Count);
+            AssetFolderUtility.EnsureFolder(DataOutputPath);
 
-            foreach (JObject row in merged) {
-                string uid = row["UID"]?.Value<string>();
-                if (string.IsNullOrWhiteSpace(uid)) {
-                    HLogger.Error("[LocalizationTableLoader] 빈 UID 발견. Import를 중단합니다.");
-                    return;
-                }
-                if (!uidSet.Add(uid)) {
-                    HLogger.Error($"[LocalizationTableLoader] 중복 UID '{uid}' 발견. Import를 중단합니다.");
-                    return;
-                }
-                dataList.Add(new LocalizationData {
-                    uid      = uid,
-                    korean   = row[nameof(LocalizationLanguage.Korean)]?.Value<string>()   ?? "",
-                    english  = row[nameof(LocalizationLanguage.English)]?.Value<string>()  ?? "",
-                    japanese = row[nameof(LocalizationLanguage.Japanese)]?.Value<string>() ?? "",
-                    chinese  = row[nameof(LocalizationLanguage.Chinese)]?.Value<string>()  ?? "",
-                    russian  = row[nameof(LocalizationLanguage.Russian)]?.Value<string>()  ?? ""
-                });
-            }
-
-            _EnsureDirectory(DataOutputPath);
-
-            _WriteLanguageSO(LocalizationLanguage.Korean,   dataList, d => d.korean);
-            _WriteLanguageSO(LocalizationLanguage.English,  dataList, d => d.english);
-            _WriteLanguageSO(LocalizationLanguage.Japanese, dataList, d => d.japanese);
-            _WriteLanguageSO(LocalizationLanguage.Chinese,  dataList, d => d.chinese);
-            _WriteLanguageSO(LocalizationLanguage.Russian,  dataList, d => d.russian);
+            _WriteLanguageSO(LocalizationLanguage.Korean,   dataList);
+            _WriteLanguageSO(LocalizationLanguage.English,  dataList);
+            _WriteLanguageSO(LocalizationLanguage.Japanese, dataList);
+            _WriteLanguageSO(LocalizationLanguage.Chinese,  dataList);
+            _WriteLanguageSO(LocalizationLanguage.Russian,  dataList);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            HLogger.Log($"[LocalizationTableLoader] Import 완료 — UID {dataList.Count}개 / 5개 언어 SO 생성·갱신.");
+            HLogger.Log($"[HcupLocalizationTableLoader] Import 완료 — UID {dataList.Count}개 / 5개 언어 SO 생성·갱신.");
         }
         #endregion
 
         #region Public - Export
         public override void ExportData() {
             if (string.IsNullOrEmpty(DataOutputPath)) {
-                HLogger.Error("[LocalizationTableLoader] 데이터 출력 경로(dataOutputPath)를 설정하세요.");
+                HLogger.Error("[HcupLocalizationTableLoader] 데이터 출력 경로(dataOutputPath)를 설정하세요.");
                 return;
             }
 
@@ -115,7 +88,7 @@ namespace HData.NPOI.Localization {
                 string path = $"{DataOutputPath}/Localization_{lang}.asset";
                 var so = AssetDatabase.LoadAssetAtPath<LocalizationSO>(path);
                 if (so == null) {
-                    HLogger.Error($"[LocalizationTableLoader] {path} 를 찾을 수 없습니다. Import를 먼저 실행하세요.");
+                    HLogger.Error($"[HcupLocalizationTableLoader] {path} 를 찾을 수 없습니다. Import를 먼저 실행하세요.");
                     return;
                 }
                 soMap[lang] = so;
@@ -140,7 +113,7 @@ namespace HData.NPOI.Localization {
         #endregion
 
         #region Private - SO Write
-        private void _WriteLanguageSO(LocalizationLanguage language, List<LocalizationData> data, Func<LocalizationData, string> textSelector) {
+        private void _WriteLanguageSO(LocalizationLanguage language, List<LocalizationData> data) {
             string assetPath = $"{DataOutputPath}/Localization_{language}.asset";
 
             var so = AssetDatabase.LoadAssetAtPath<LocalizationSO>(assetPath);
@@ -148,32 +121,17 @@ namespace HData.NPOI.Localization {
                 so = ScriptableObject.CreateInstance<LocalizationSO>();
                 so.SetLanguageCode(language);
                 for (int k = 0; k < data.Count; k++) {
-                    so.SetEntry(data[k].uid, textSelector(data[k]));
+                    so.SetEntry(data[k].uid, data[k].GetText(language));
                 }
                 AssetDatabase.CreateAsset(so, assetPath);
             } else {
                 so.SetLanguageCode(language);
                 so.ClearTable();
                 for (int k = 0; k < data.Count; k++) {
-                    so.SetEntry(data[k].uid, textSelector(data[k]));
+                    so.SetEntry(data[k].uid, data[k].GetText(language));
                 }
                 EditorUtility.SetDirty(so);
             }
-        }
-        #endregion
-
-        #region Private - Directory
-        private static void _EnsureDirectory(string unityPath) {
-            if (AssetDatabase.IsValidFolder(unityPath)) return;
-
-            int lastSlash = unityPath.LastIndexOf('/');
-            if (lastSlash <= 0) return;
-
-            string parent = unityPath.Substring(0, lastSlash);
-            string folderName = unityPath.Substring(lastSlash + 1);
-
-            _EnsureDirectory(parent);
-            AssetDatabase.CreateFolder(parent, folderName);
         }
         #endregion
 #endif
@@ -183,6 +141,15 @@ namespace HData.NPOI.Localization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 HcupLocalizationTableLoader 개칭 + 공용 파서 적용
+ *
+ * # 변경
+ * - 클래스명: LocalizationTableLoader → HcupLocalizationTableLoader (HUnityLocalization 과 구별)
+ * - 파싱·UID 검증 블록 → LocalizationExcelParser.Parse() 로 추출 (공용화)
+ * - _EnsureDirectory → AssetFolderUtility.EnsureFolder 로 추출 (공용화)
+ * - _WriteLanguageSO selector 파라미터 제거 — LocalizationData.GetText 사용
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 LocalizationLanguage 열거형 도입 — 타입 안정성 강화
  *
