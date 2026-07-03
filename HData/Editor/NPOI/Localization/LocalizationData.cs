@@ -28,13 +28,13 @@ namespace HData.NPOI.Localization {
         public string russian;
 
         /// <summary> 지정 언어의 번역 문자열 반환. 매핑 없는 언어는 빈 문자열. </summary>
+        // 기본 arm 없음 — 언어 추가 시 미매칭이 예외로 즉시 드러나게 (조용한 "" 기록 금지)
         public string GetText(LocalizationLanguage language) => language switch {
             LocalizationLanguage.Korean   => korean,
             LocalizationLanguage.English  => english,
             LocalizationLanguage.Japanese => japanese,
             LocalizationLanguage.Chinese  => chinese,
             LocalizationLanguage.Russian  => russian,
-            _ => ""
         };
     }
 }
@@ -42,6 +42,13 @@ namespace HData.NPOI.Localization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 GetText 기본 arm 제거 — 미매칭 언어를 예외로 노출
+ *
+ * # 수정
+ * - switch 식 `_ => ""` 기본 arm 제거. 미매칭 LocalizationLanguage 는 SwitchExpressionException 즉시 발생
+ * - 조용한 빈 문자열 기록을 막아 언어 추가 시 매핑 누락을 즉시 드러냄 ("에러를 조용히 무시하지 말 것" 규칙 정합)
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.04 헤더 서술 현행화
  *
