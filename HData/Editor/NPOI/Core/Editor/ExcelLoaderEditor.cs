@@ -6,6 +6,7 @@
  * - [FilePath], [ValueDropdown], [OnValueChanged], [Button], [ShowIf] 대체
  * - open generic [CustomEditor(typeof(ExcelLoader<>), true)] 적용
  * - ExcelLoader의 open generic 특성상 멤버 접근은 Reflection 경유
+ * - 섹션 타이틀은 HInspector HTitleDrawer 시각 규격(볼드 라벨 + 1px 구분선)으로 통일
  *
  * 주의사항 ::
  * - internal 멤버(LoadExcelFile, GetSheet, Sheets, IsAvailable)도
@@ -15,12 +16,15 @@
 
 using System.Collections.Generic;
 using System.Reflection;
+using HInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
 namespace HData.NPOI.Core.Editor {
     [CustomEditor(typeof(ExcelLoader<>), true)]
     public class ExcelLoaderEditor : UnityEditor.Editor {
+        const float SECTION_GAP = 8f;
+
         SerializedProperty excelFileAssetProp;
         SerializedProperty sheetNameProp;
         SerializedProperty dataOutputPathProp;
@@ -45,7 +49,6 @@ namespace HData.NPOI.Core.Editor {
             _DrawFilePathRow();
             _DrawSheetDropdown();
             _DrawDataOutputPathRow();
-            EditorGUILayout.Space(4);
             _DrawActionButtons();
 
             serializedObject.ApplyModifiedProperties();
@@ -69,7 +72,7 @@ namespace HData.NPOI.Core.Editor {
         }
 
         private void _DrawFilePathRow() {
-            EditorGUILayout.LabelField("엑셀 파일", EditorStyles.boldLabel);
+            HTitleDrawer.Draw("엑셀 파일");
 
             EditorGUI.BeginChangeCheck();
             EditorGUILayout.ObjectField(excelFileAssetProp, typeof(DefaultAsset), GUIContent.none);
@@ -83,7 +86,8 @@ namespace HData.NPOI.Core.Editor {
             var sheets = _GetSheets();
             if (sheets == null || sheets.Count == 0) return;
 
-            EditorGUILayout.LabelField("시트 선택", EditorStyles.boldLabel);
+            EditorGUILayout.Space(SECTION_GAP);
+            HTitleDrawer.Draw("시트 선택");
 
             string current = sheetNameProp.stringValue;
             int currentIndex = sheets.IndexOf(current);
@@ -106,7 +110,8 @@ namespace HData.NPOI.Core.Editor {
         private void _DrawDataOutputPathRow() {
             if (dataOutputPathProp == null) return;
 
-            EditorGUILayout.LabelField("데이터 출력 경로", EditorStyles.boldLabel);
+            EditorGUILayout.Space(SECTION_GAP);
+            HTitleDrawer.Draw("데이터 출력 경로");
             EditorGUILayout.BeginHorizontal();
 
             EditorGUI.BeginChangeCheck();
@@ -132,6 +137,8 @@ namespace HData.NPOI.Core.Editor {
         }
 
         private void _DrawActionButtons() {
+            EditorGUILayout.Space(SECTION_GAP);
+            HTitleDrawer.Draw("실행");
             EditorGUILayout.BeginHorizontal();
 
             if (GUILayout.Button("Load Excel", GUILayout.Height(50))) {
@@ -198,8 +205,8 @@ namespace HData.NPOI.Core.Editor {
             if (previewHeaders == null || previewHeaders.Length == 0) return;
             if (previewRows    == null || previewRows.Length    == 0) return;
 
-            EditorGUILayout.Space(6);
-            EditorGUILayout.LabelField($"데이터 미리보기 — {previewRows.Length}행", EditorStyles.boldLabel);
+            EditorGUILayout.Space(SECTION_GAP);
+            HTitleDrawer.Draw($"데이터 미리보기 — {previewRows.Length}행");
 
             float colWidth    = Mathf.Clamp(
                 (EditorGUIUtility.currentViewWidth - 48f) / previewHeaders.Length,
@@ -234,6 +241,15 @@ namespace HData.NPOI.Core.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 HTitle 시각 규격 적용
+ *
+ * # 변경
+ * - 섹션 헤더(boldLabel)를 HTitleDrawer.Draw()로 대체 :: 엑셀 파일 / 시트 선택 / 데이터 출력 경로 / 실행(신설) / 데이터 미리보기 5개 타이틀 블록.
+ * - 섹션 간 여백을 SECTION_GAP(8f) 상수로 통일 — 조건부 섹션(시트 선택 등)은 가드 통과 후 여백 삽입 (숨김 시 공백 잔류 방지).
+ * - asmdef :: HCUP.HInspector.Editor 참조 추가 — HData.NPOI.Editor → HInspector 패키지 의존 발생.
+ * - 본 에디터는 ExcelLoader<> 파생 전체(HcupLocalization / HUnityLocalization 등)에 공통 적용됨.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 Sprite Preview 제거 — SpritePreviewAttribute/Drawer 로 분리
  *
