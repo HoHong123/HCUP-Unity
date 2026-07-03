@@ -1,0 +1,30 @@
+{
+    "name": "HCUP.HUnityLocalization.Editor",
+    "rootNamespace": "HUnityLocalization",
+    "references": [
+        "HCUP.HData.NPOI.Editor",
+        "HCUP.HcupLocalization",
+        "HCUP.HDiagnosis",
+        "Unity.Localization",
+        "Unity.Localization.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HCUP_UNITY_LOCALIZATION"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.localization",
+            "expression": "1.5",
+            "define": "HCUP_UNITY_LOCALIZATION"
+        }
+    ],
+    "noEngineReferences": false
+}
