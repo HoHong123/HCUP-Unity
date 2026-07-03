@@ -14,7 +14,7 @@
  *
  * 사용 ::
  * - 조회: so.TryGetText(uid, out string text)
- * - 에디터 생성: LocalizationTableLoader.ImportData()
+ * - 에디터 생성: HcupLocalizationTableLoader.ImportData()
  * =========================================================
  */
 #endif
@@ -46,6 +46,12 @@ namespace HcupLocalization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 헤더 서술 현행화
+ *
+ * # 수정
+ * - 사용 섹션의 에디터 생성 예시를 HcupLocalizationTableLoader.ImportData() 로 갱신
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 HLocalization → HcupLocalization 패키지 개칭
  *
