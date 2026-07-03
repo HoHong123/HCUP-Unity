@@ -15,6 +15,7 @@
 #endif
 
 using System;
+using HcupLocalization;
 
 namespace HData.NPOI.Localization {
     [Serializable]
@@ -25,12 +26,28 @@ namespace HData.NPOI.Localization {
         public string japanese;
         public string chinese;
         public string russian;
+
+        /// <summary> 지정 언어의 번역 문자열 반환. 매핑 없는 언어는 빈 문자열. </summary>
+        public string GetText(LocalizationLanguage language) => language switch {
+            LocalizationLanguage.Korean   => korean,
+            LocalizationLanguage.English  => english,
+            LocalizationLanguage.Japanese => japanese,
+            LocalizationLanguage.Chinese  => chinese,
+            LocalizationLanguage.Russian  => russian,
+            _ => ""
+        };
     }
 }
 
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.03 GetText(LocalizationLanguage) 추가
+ *
+ * # 추가
+ * - 언어 → 필드 매핑을 DTO 단일 소스로 통합 (양 로더 공용)
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 최초 작성
  *
