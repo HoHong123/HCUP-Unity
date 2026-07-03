@@ -8,9 +8,11 @@
  * + Dev Deploy : 빌드 → 산출물 교체 → dev 브랜치 push
  * + Release Deploy : 재빌드 없이 dev → release 승격(merge push)
  * + 버전(bundleVersion) 표시·수정, 설정 UI, 연결 테스트, 진행 로그 뷰
+ * + 섹션 타이틀은 HInspector HTitleDrawer 시각 규격(볼드 라벨 + 1px 구분선)으로 통일
  *
  * 주의사항 ::
  * UI 표시·입력만 담당한다. 빌드/git 로직은 VercelDeployService 계층이 수행.
+ * HCUP.HInspector.Editor 어셈블리를 참조한다 (HTitleDrawer).
  * =========================================================
  */
 #endif
@@ -18,6 +20,7 @@
 using System.Text.RegularExpressions;
 using HDeploy.Deploy;
 using HDeploy.Git;
+using HInspector.Editor;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -31,6 +34,7 @@ namespace HDeploy.Vercel {
         const float MIN_WINDOW_HEIGHT = 560f;
         const string REPO_PATH_PICKER_TITLE = "배포 레포 폴더 선택";
         const string SEMVER_PATTERN = @"^\d+\.\d+\.\d+$";
+        const float SECTION_GAP = 8f;
         #endregion
 
         #region 변수
@@ -56,15 +60,14 @@ namespace HDeploy.Vercel {
 
         void OnGUI() {
             using (new EditorGUI.DisabledScope(isBusy)) {
-                _DrawUserSettings();
-                _DrawProjectSettings();
-                EditorGUILayout.Space();
+                _DrawDeploySettings();
+                EditorGUILayout.Space(SECTION_GAP);
                 _DrawVersionField();
-                EditorGUILayout.Space();
+                EditorGUILayout.Space(SECTION_GAP);
                 _DrawDeployButtons();
                 _DrawConnectionTest();
             }
-            EditorGUILayout.Space();
+            EditorGUILayout.Space(SECTION_GAP);
             _DrawLogView();
         }
         #endregion
@@ -77,13 +80,18 @@ namespace HDeploy.Vercel {
             window.Show();
         }
 
+        private void _DrawDeploySettings() {
+            HTitleDrawer.Draw("배포 설정");
+            _DrawUserSettings();
+            _DrawProjectSettings();
+        }
+
         private void _DrawUserSettings() {
             VercelDeployUserSettings settings = VercelDeployUserSettings.instance;
 
-            EditorGUILayout.LabelField("머신 설정 (미커밋)", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope()) {
                 EditorGUI.BeginChangeCheck();
-                string repoPath = EditorGUILayout.TextField("배포 레포 경로", settings.DeployRepoAbsolutePath);
+                string repoPath = EditorGUILayout.TextField("배포 레포 경로 (미커밋)", settings.DeployRepoAbsolutePath);
                 if (EditorGUI.EndChangeCheck()) {
                     settings.DeployRepoAbsolutePath = repoPath;
                     settings.SaveSettings();
@@ -111,7 +119,7 @@ namespace HDeploy.Vercel {
         }
 
         private void _DrawVersionField() {
-            EditorGUILayout.LabelField("버전 (bundleVersion)", EditorStyles.boldLabel);
+            HTitleDrawer.Draw("버전 (bundleVersion)");
             using (new EditorGUILayout.HorizontalScope()) {
                 versionInput = EditorGUILayout.TextField("Version", versionInput);
                 if (GUILayout.Button("적용", GUILayout.Width(50f))) _ApplyVersion();
@@ -126,6 +134,7 @@ namespace HDeploy.Vercel {
         private void _DrawDeployButtons() {
             VercelDeployProjectSettings settings = VercelDeployProjectSettings.instance;
 
+            HTitleDrawer.Draw("배포");
             if (GUILayout.Button($"Dev Deploy  (빌드 → {settings.DevBranchName} push)", GUILayout.Height(32f))) {
                 _RunDevDeployAsync();
             }
@@ -139,8 +148,10 @@ namespace HDeploy.Vercel {
         }
 
         private void _DrawLogView() {
+            // HorizontalScope 안에서 HTitleDrawer.Draw의 내부 Space는 가로 여백으로 동작한다 —
+            // 타이틀+구분선이 남은 폭을 채우고 Clear 버튼이 같은 행 우측에 배치된다.
             using (new EditorGUILayout.HorizontalScope()) {
-                EditorGUILayout.LabelField("Log", EditorStyles.boldLabel);
+                HTitleDrawer.Draw("Log");
                 if (GUILayout.Button("Clear", GUILayout.Width(50f))) log.Clear();
             }
 
@@ -276,6 +287,16 @@ namespace HDeploy.Vercel {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.07.04 HTitle 시각 규격 적용
+ *
+ * # 변경
+ * - 섹션 헤더(boldLabel)를 HTitleDrawer.Draw()로 대체 :: 배포 설정 / 버전 / 배포 / Log 4개 타이틀 블록.
+ * - 머신 설정·프로젝트 설정을 "배포 설정" 타이틀 아래로 통합 ("미커밋" 표기는 레포 경로 필드 라벨로 이동).
+ * - 연결 테스트 버튼을 "배포" 섹션에 편입.
+ * - 섹션 간 여백을 SECTION_GAP(8f) 상수로 통일 (HTitleDrawer 내부 상단 패딩 6f와 합산됨).
+ * - asmdef :: HCUP.HInspector.Editor 참조 추가 — HDeploy → HInspector 패키지 의존 발생 (사용자 승인).
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 메뉴 경로 이동
  *
