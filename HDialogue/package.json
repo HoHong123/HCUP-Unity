@@ -1,0 +1,11 @@
+{
+  "name": "com.hohong123.hdialogue",
+  "displayName": "Hohong123 Dialogue System",
+  "version": "1.0.0",
+  "unity": "2021.3",
+  "description": "Node-based dialogue system with localization, audio, and portrait subsystems.",
+  "author": {
+    "name": "HoHong123",
+    "url": "https://github.com/HoHong123"
+  }
+}
