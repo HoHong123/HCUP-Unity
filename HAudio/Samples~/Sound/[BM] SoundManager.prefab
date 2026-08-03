@@ -208,9 +208,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 5656368760335633532}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cef18096884c9794aa917e68f8dccd81, type: 3}
+  m_Script: {fileID: 11500000, guid: a3c2c8b9ed75ac644b6ec9e7c6797329, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: HCUP.HGame::HGame.Audio.SoundManager
+  m_EditorClassIdentifier: HCUP.HAudio::HAudio.AudioManager
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -286,7 +286,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50b4d24791acbec4f90043878a6a7e20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HCUP.HGame::HGame.Sound.AddOn.SfxAgent
-  useNewManager: 1
   preloadUids:
   - catalogs:
     - {fileID: 11400000, guid: 34295028aa7a61e48ae6dadc4b8f96c3, type: 2}
