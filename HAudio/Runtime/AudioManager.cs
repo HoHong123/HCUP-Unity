@@ -136,11 +136,11 @@ namespace HAudio {
 
         private void _BuildRepository() {
 #if UNITY_ASSERTIONS
-            Assert.IsNotNull(audioMix, "[Audio.SoundManager] Mixer is null.");
-            Assert.IsNotNull(sfxAudio, "[Audio.SoundManager] sfxAudio is null.");
-            Assert.IsNotNull(bgmAudio, "[Audio.SoundManager] bgmAudio is null.");
-            Assert.IsNotNull(uiAudio, "[Audio.SoundManager] uiAudio is null.");
-            Assert.IsNotNull(spatialPool, "[Audio.SoundManager] spatialPool is null.");
+            Assert.IsNotNull(audioMix, "[AudioManager] Mixer is null.");
+            Assert.IsNotNull(sfxAudio, "[AudioManager] sfxAudio is null.");
+            Assert.IsNotNull(bgmAudio, "[AudioManager] bgmAudio is null.");
+            Assert.IsNotNull(uiAudio, "[AudioManager] uiAudio is null.");
+            Assert.IsNotNull(spatialPool, "[AudioManager] spatialPool is null.");
 #endif
             catalogRegistry = new AudioCatalogRegistry();
             clipRepository = new AudioClipRepository(loadMode, catalogRegistry);
@@ -271,14 +271,14 @@ namespace HAudio {
 
         #region Private - Clip
         private bool _TryGetLoadedClip(string token, out AudioClip clip) {
-            Assert.IsNotNull(clipRepository, "[Audio.SoundManager] clipRepository is null.");
+            Assert.IsNotNull(clipRepository, "[AudioManager] clipRepository is null.");
             string normalizedToken = _NormalizeToken(token);
 #if UNITY_EDITOR
             _TrackPreviewToken(normalizedToken);
 #endif
             if (clipRepository.TryGet(normalizedToken, out clip) && clip) return true;
 #if UNITY_EDITOR
-            HDebug.StackTraceError($"[Audio.SoundManager] Clip not loaded yet. Prewarm required. token={normalizedToken}", 10);
+            HDebug.StackTraceError($"[AudioManager] Clip not loaded yet. Prewarm required. token={normalizedToken}", 10);
 #endif
 
             clip = null;
