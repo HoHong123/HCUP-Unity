@@ -1,5 +1,18 @@
 # HGame Changelog
 
+## [Unreleased] - 2026-08-04
+
+### 주요 변경
+
+- `GameModule` 을 `InitModule` 로 개칭했습니다. 폴더(`Runtime/HGame/InitModule`, `Samples~/InitModule`)와 클래스(`BaseGameModule` → `BaseInitModule`, `IGamePhaseModule` → `IInitModule`)를 함께 정리했습니다. 파일 guid 는 보존되어 기존 씬/프리팹 참조는 유지됩니다.
+- 구현체와 호출부가 없던 `IGameInitRequire` 인터페이스를 삭제했습니다.
+- 파일명과 타입명이 불일치하던 `IGamePhase.cs` 를 `IInitModule.cs` 로 정리했습니다.
+
+### 마이그레이션 / 주의
+
+- `BaseGameModule` / `IGamePhaseModule` 을 코드에서 직접 참조하던 경우 `BaseInitModule` / `IInitModule` 로 치환하십시오. `GameManager<TSelf>`, `GameContext`, `GamePhaseType` 은 변경 없습니다.
+- `OnEnterResume` / `OnEnterExit` 은 여전히 `IInitModule` 계약에 없는 베이스 전용 확장 훅입니다.
+
 ## [1.0.3] - 2026-05-05
 
 ### 주요 변경
