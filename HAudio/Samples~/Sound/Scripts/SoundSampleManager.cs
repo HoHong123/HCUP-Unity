@@ -44,28 +44,28 @@ namespace HAudio.Sample.Sound {
 
         private void _OnClickRegister() {
             if (!testCatalog) return;
-            Audio.SoundManager.Instance.PrewarmCatalog(testCatalog);
+            AudioManager.Instance.PrewarmCatalog(testCatalog);
         }
 
         private void _OnClickRelease() {
             if (!testCatalog) return;
-            Audio.SoundManager.Instance.ReleaseCatalog(testCatalog);
+            AudioManager.Instance.ReleaseCatalog(testCatalog);
         }
 
         private void _OnClickPlay() {
             string token = play.Input.text;
             if (string.IsNullOrWhiteSpace(token)) return;
-            Audio.SoundManager.Instance.Play(token);
+            AudioManager.Instance.Play(token);
         }
 
         private void _OnClickPlayBGM() {
             string token = play.Input.text;
             if (string.IsNullOrWhiteSpace(token)) return;
-            Audio.SoundManager.Instance.PlayBGM(token);
+            AudioManager.Instance.PlayBGM(token);
         }
 
         private void _OnClickStop() {
-            Audio.SoundManager.Instance.StopBGM(0);
+            AudioManager.Instance.StopBGM(0);
         }
     }
 }
