@@ -40,7 +40,7 @@
 ### 메인 UPM 패키지 (5개)
 - `HUtil`: 공용 기반 계층 (AssetHandler / Pooling / Animation / Font)
 - `HUI`: UI 계층 (Button / Toggle / DropDown / Popup / Panel / Scrollview / DebugConsole)
-- `HGame`: 게임 로직 계층 (GameModule / Player / Skill / World / Camera / 2D / Character)
+- `HGame`: 게임 로직 계층 (InitModule / Player / Skill / World / Camera / 2D / Character)
 - `HAudio`: 오디오 계층 (token 기반 AudioManager / Catalog / Repository / AddOn / Load)
 - `HWindows`: 에디터 윈도우 계층 (Editor-only. NodeWindow 서브모듈 포함)
 
@@ -69,7 +69,7 @@
 
 ### HGame
 - 역할: 게임 진행 흐름, 플레이어, 스킬, 월드, 카메라, 2D 관련 게임 로직 계층을 담당합니다.
-- 핵심 축: `GameModule`, `Player`, `Skill`, `World`, `Camera`, `2D`
+- 핵심 축: `InitModule`, `Player`, `Skill`, `World`, `Camera`, `2D`
 - 문서: `HGame/README.md`, `HGame/doc/CHANGELOG.md`
 
 ### HAudio
@@ -102,8 +102,8 @@
 
 ### `HGame` (UPM 패키지)
 - `Runtime/HGame`
-  - `2D(9)`, `Camera(6)`, `Character(3)`, `GameModule(6)`, `Player(6)`, `Skill(8)`, `World(7)`
-- `Samples~`: `GameModule`, `Player`, `Skill`, `World2D`
+  - `2D(9)`, `Camera(6)`, `Character(3)`, `InitModule(5)`, `Player(6)`, `Skill(8)`, `World(7)`
+- `Samples~`: `InitModule`, `Player`, `Skill`, `World2D`
 
 ### `HAudio` (UPM 패키지)
 - `Runtime/New`
@@ -147,7 +147,7 @@
 
 1. 공용 기반이 필요한 경우 `HUtil` 부터 확인하십시오.
 2. UI 작업이 목적이면 `HUI` 를 확인하고, `Scrollview` 와 `Popup` 샘플부터 보는 편이 빠릅니다.
-3. 게임 진행 흐름이 목적이면 `HGame` 의 `GameModule` 부터 확인하십시오.
+3. 게임 진행 흐름이 목적이면 `HGame` 의 `InitModule` 부터 확인하십시오.
 4. 오디오 재생 / 카탈로그 / sfx addon 이 목적이면 `HAudio` 의 `AudioManager` 와 `Catalog` 부터 확인하십시오.
 5. 노드 그래프 에디터 / 데이터 시각화가 목적이면 `HWindows` 의 `NodeWindow` 와 `NodeCatalogSO` 부터 확인하십시오.
 6. 샘플은 참고용입니다. 실제 프로젝트에는 그대로 복사하지 말고 입력 체계, 네임스페이스, 초기화 순서에 맞게 다시 감싸서 넣으십시오.
