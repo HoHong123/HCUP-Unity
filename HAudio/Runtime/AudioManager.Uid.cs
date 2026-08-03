@@ -5,7 +5,7 @@ using HAudio;
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * Audio.SoundManager의 레거시 enum, int 재생 래퍼 partial 스크립트입니다.
+ * AudioManager의 레거시 enum, int uid 재생 래퍼 partial 스크립트입니다.
  *
  * 주의사항 ::
  * 1. 신규 코드의 기본 재생 API는 string token 경로입니다.
@@ -55,7 +55,7 @@ namespace HAudio {
             if (clipRepository.TryGet(uid, out clip) && clip) return true;
 
 #if UNITY_EDITOR
-            HDebug.StackTraceError($"[Audio.SoundManager] Clip not loaded yet. Prewarm required. uid={uid}", 10);
+            HDebug.StackTraceError($"[AudioManager] Clip not loaded yet. Prewarm required. uid={uid}", 10);
 #endif
             clip = null;
             return false;
@@ -77,7 +77,7 @@ namespace HAudio {
  *
  * 이벤트 ::
  * 1. 별도의 이벤트는 없습니다.
- * 2. 실제 재생과 로딩 검증은 본체 SoundManager가 담당합니다.
+ * 2. 실제 재생과 로딩 검증은 본체 AudioManager가 담당합니다.
  *
  * 기타 ::
  * 1. 레거시 지원 범위를 partial 파일로 명확히 분리합니다.
