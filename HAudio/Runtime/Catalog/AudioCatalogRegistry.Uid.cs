@@ -5,7 +5,7 @@ using HAudio.Core;
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * SoundCatalogRegistry의 레거시 int id 인덱스 partial 스크립트입니다.
+ * AudioCatalogRegistry의 레거시 int id 인덱스 partial 스크립트입니다.
  *
  * 주의사항 ::
  * 1. core registry의 기준은 token이며 이 파일은 보조 경로입니다.
@@ -50,7 +50,7 @@ namespace HAudio.Catalog {
                 entry.Key.Id,
                 entry,
                 existing => _AssertEquivalentEntry(existing, entry, normalizedToken, normalizedPath),
-                duplicateKey => $"[SoundCatalogRegistry] Legacy id collision detected. id={duplicateKey}");
+                duplicateKey => $"[AudioCatalogRegistry] Legacy id collision detected. id={duplicateKey}");
         }
 
         partial void _ReleaseLegacyEntry(SoundCatalogSO.Entry entry, bool tokenRemoved) {
@@ -58,7 +58,7 @@ namespace HAudio.Catalog {
             Assert.AreEqual(
                 tokenRemoved,
                 legacyRemoved,
-                $"[SoundCatalogRegistry] Removal mismatch. token={entry.Token}, id={entry.Key.Id}");
+                $"[AudioCatalogRegistry] Removal mismatch. token={entry.Token}, id={entry.Key.Id}");
         }
 
         partial void _ClearLegacyCache() {
