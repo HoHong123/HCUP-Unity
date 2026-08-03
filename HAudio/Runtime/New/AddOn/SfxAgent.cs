@@ -4,7 +4,7 @@
  * SFX 재생과 preload 호출의 게이트 클래스입니다.
  *
  * 특징 / 지원기능 ::
- * + useNewManager flag 로 AudioManager / SoundManager 라우팅 분기.
+ * + AudioManager 단일 라우팅.
  * + token / int uid / AudioClips enum 세 가지 호출 인자 지원.
  * + Start 시점에 preload, OnDestroy 시점에 release 자동 수행.
  *
@@ -29,10 +29,6 @@ using HDiagnosis.HDebug;
 namespace HAudio.AddOn {
     public class SfxAgent : MonoBehaviour, IDataSubscriber {
         #region Fields
-        [HTitle("Settings")]
-        [SerializeField]
-        bool useNewManager = true;
-
         [HTitle("Clips")]
         [SerializeField]
         SfxView preloadUids = new();
@@ -50,113 +46,70 @@ namespace HAudio.AddOn {
 #endif
 
         private void Start() {
-            if (!_HasTargetManager()) return;
+            if (!AudioManager.HasInstance) return;
             _PrewarmViews().Forget();
         }
 
         private void OnDestroy() {
             if (!Application.isPlaying) return;
-            if (!_HasTargetManager()) return;
+            if (!AudioManager.HasInstance) return;
             _ReleaseViews();
         }
         #endregion
 
         #region Public - Token API
         public void Play(string token) {
-            if (!useNewManager || !AudioManager.HasInstance) return;
+            if (!AudioManager.HasInstance) return;
             AudioManager.Instance.Play(token);
         }
 
         public void PlayUI(string token) {
-            if (!useNewManager || !AudioManager.HasInstance) return;
+            if (!AudioManager.HasInstance) return;
             AudioManager.Instance.PlayUI(token);
         }
 
         public void Play3D(string token, Transform parent) {
-            if (!useNewManager || !AudioManager.HasInstance) return;
+            if (!AudioManager.HasInstance) return;
             AudioManager.Instance.Play3D(token, parent);
         }
 
         public void Play3D(string token, Vector3 worldPos) {
-            if (!useNewManager || !AudioManager.HasInstance) return;
+            if (!AudioManager.HasInstance) return;
             AudioManager.Instance.Play3D(token, worldPos);
         }
         #endregion
 
-        #region Legacy Support
+        #region Public - Uid API
         public void Play(AudioClips clip) => Play((int)clip);
         public void PlayUI(AudioClips clip) => PlayUI((int)clip);
         public void Play3D(AudioClips clip, Transform parent) => Play3D((int)clip, parent);
         public void Play3D(AudioClips clip, Vector3 worldPos) => Play3D((int)clip, worldPos);
 
         public void Play(int uid) {
-            if (useNewManager) {
-                if (!AudioManager.HasInstance) return;
-                AudioManager.Instance.Play(uid);
-                return;
-            }
-
-            if (!SoundManager.HasInstance) return;
-            SoundManager.Instance.Play(uid);
+            if (!AudioManager.HasInstance) return;
+            AudioManager.Instance.Play(uid);
         }
 
         public void PlayUI(int uid) {
-            if (useNewManager) {
-                if (!AudioManager.HasInstance) return;
-                AudioManager.Instance.PlayUI(uid);
-                return;
-            }
-
-            if (!SoundManager.HasInstance) return;
-            SoundManager.Instance.PlayUI(uid);
+            if (!AudioManager.HasInstance) return;
+            AudioManager.Instance.PlayUI(uid);
         }
 
         public void Play3D(int uid, Transform parent) {
-            if (useNewManager) {
-                if (!AudioManager.HasInstance) return;
-                AudioManager.Instance.Play3D(uid, parent);
-                return;
-            }
-
-            if (!SoundManager.HasInstance) return;
-            SoundManager.Instance.Play3D(uid, parent);
+            if (!AudioManager.HasInstance) return;
+            AudioManager.Instance.Play3D(uid, parent);
         }
 
         public void Play3D(int uid, Vector3 worldPos) {
-            if (useNewManager) {
-                if (!AudioManager.HasInstance) return;
-                AudioManager.Instance.Play3D(uid, worldPos);
-                return;
-            }
-
-            if (!SoundManager.HasInstance) return;
-            SoundManager.Instance.Play3D(uid, worldPos);
-        }
-        #endregion
-
-        #region Private - Manager
-        private bool _HasTargetManager() {
-            if (useNewManager) return AudioManager.HasInstance;
-            return SoundManager.HasInstance;
+            if (!AudioManager.HasInstance) return;
+            AudioManager.Instance.Play3D(uid, worldPos);
         }
         #endregion
 
         #region Private - Prewarm
         private async UniTaskVoid _PrewarmViews() {
             try {
-                if (useNewManager) {
-                    await AudioManager.Instance.PrewarmSfxView(preloadUids);
-                    return;
-                }
-            }
-            catch (System.Exception ex) {
-                HDebug.StackTraceError($"[AudioManager] {gameObject.name} : {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}", 20);
-                HLogger.Exception(ex);
-                return;
-            }
-
-            try {
-                await SoundManager.Instance.PrewarmIds(new[] { preloadUids });
+                await AudioManager.Instance.PrewarmSfxView(preloadUids);
             }
             catch (System.Exception ex) {
                 HDebug.StackTraceError($"[AudioManager] {gameObject.name} : {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}", 20);
@@ -165,12 +118,7 @@ namespace HAudio.AddOn {
         }
 
         private void _ReleaseViews() {
-            if (useNewManager) {
-                AudioManager.Instance.ReleaseSfxView(preloadUids);
-                return;
-            }
-
-            SoundManager.Instance.ReleaseIds(new[] { preloadUids });
+            AudioManager.Instance.ReleaseSfxView(preloadUids);
         }
         #endregion
     }
@@ -179,6 +127,20 @@ namespace HAudio.AddOn {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.04 이중 매니저 분기 제거 - AudioManager 단일화
+ *
+ * # 삭제
+ * - useNewManager 직렬화 필드 및 SoundManager(구형) 폴백 분기 전체 제거.
+ * - _HasTargetManager 제거 - Start/OnDestroy 에서 AudioManager.HasInstance 직접 확인.
+ *
+ * # 변경
+ * - Legacy Support 리전을 Public - Uid API 로 개칭 (uid/enum 오버로드는 AudioManager uid partial 로 포워딩 유지).
+ * - _PrewarmViews / _ReleaseViews 를 AudioManager 단일 경로로 축소.
+ *
+ * # 이유
+ * - 구형 SoundManager 는 외부 참조 0건으로 삭제 확정 (Phase 1 HCUP 정리). 라우팅 분기는 dead path.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.01 _PrewarmViews catch 진단 정보 회복 + 헤더/데브로그 정본화
  *
