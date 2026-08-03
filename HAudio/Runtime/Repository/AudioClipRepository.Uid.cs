@@ -6,7 +6,7 @@ using HUtil.AssetHandler.Subscription;
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * 레거시 int id를 token으로 변환하는 SoundClipRepository partial 스크립트입니다.
+ * 레거시 int id를 token으로 변환하는 AudioClipRepository partial 스크립트입니다.
  *
  * 주의사항 ::
  * 1. 신규 token 경로를 대체하는 것이 아니라 호환 목적입니다.
