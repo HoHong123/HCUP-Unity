@@ -4,7 +4,7 @@
 
 `HGame`은 게임 로직 계층을 담당하는 패키지입니다.
 
-공용 유틸리티 위에 바로 게임 진행 흐름, 플레이어/스킬/월드 관련 기능을 얹는 구조로 되어 있습니다. 이 저장소에서는 `GameModule` 을 중심으로 게임 실행 흐름을 확인하기 위한 핵심 패키지입니다. 오디오 도메인은 별도 패키지 `HCUP.HAudio` 로 분리되었습니다.
+공용 유틸리티 위에 바로 게임 진행 흐름, 플레이어/스킬/월드 관련 기능을 얹는 구조로 되어 있습니다. 이 저장소에서는 `InitModule` 을 중심으로 게임 실행 흐름을 확인하기 위한 핵심 패키지입니다. 오디오 도메인은 별도 패키지 `HCUP.HAudio` 로 분리되었습니다.
 
 ## 1.0.3 에서 변경된 점
 
@@ -14,32 +14,32 @@
 ## 1.0.0 에서 변경된 점
 
 - 2D 맵 경계, 미니맵, 카메라 바운더리, 월드 이벤트 포인트 구조를 보강했습니다.
-- GameModule, Player, Skill 도메인 구조를 보강하고 샘플 연동을 확장했습니다.
-- Player, Skill, World2D, GameModule 샘플 씬과 에셋을 대폭 추가했습니다.
+- InitModule, Player, Skill 도메인 구조를 보강하고 샘플 연동을 확장했습니다.
+- Player, Skill, World2D, InitModule 샘플 씬과 에셋을 대폭 추가했습니다.
 
 ## 디렉토리 구성
 
 ### `Runtime`
 
 - 게임 실행 흐름과 직접 연결되는 로직이 들어 있습니다.
-- `GameModule`, `Player`, `Skill`, `Camera`, `World`, `2D`, `Character` 영역으로 나뉩니다.
+- `InitModule`, `Player`, `Skill`, `Camera`, `World`, `2D`, `Character` 영역으로 나뉩니다.
 
 ### `Samples~`
 
-- `GameModule`, `Skill`, `Player`, `World2D` 샘플이 포함되어 있습니다.
+- `InitModule`, `Skill`, `Player`, `World2D` 샘플이 포함되어 있습니다.
 - 기능별 사용 예제를 확인할 수 있습니다.
 
 ## 중점적으로 봐야 할 부분
 
-- `GameManager` 와 `BaseGameModule` 기반 단계 전환 구조
+- `GameManager` 와 `BaseInitModule` 기반 단계 전환 구조
 - 기능별 모듈 분리를 통한 흐름 제어
 - 샘플을 통한 실제 패키지 사용 방식
 
 ## 추천 확인 순서
 
-1. `Runtime/HGame/GameModule/GameManager.cs`
-2. `Runtime/HGame/GameModule/BaseGameModule.cs`
-3. `Samples~/GameModule`
+1. `Runtime/HGame/InitModule/GameManager.cs`
+2. `Runtime/HGame/InitModule/BaseInitModule.cs`
+3. `Samples~/InitModule`
 
 ## 기술 전제
 
@@ -62,7 +62,7 @@
 - 2D(9): 패럴랙스, 맵/미니맵, 2D 유틸.
 - Camera(6): 카메라 추적/영역 제어.
 - Character(3): 캐릭터 입력·상태 제어.
-- GameModule(5): 씬/게임 단계 관리 베이스 모듈.
+- InitModule(5): 씬/게임 단계 관리 베이스 모듈.
 - Player(6): 플레이어 제어/입력/인터랙션.
 - Skill(8): 스킬/쿨타임/효과 처리.
 - World(7): 월드/스폰/웨이브 관리.
