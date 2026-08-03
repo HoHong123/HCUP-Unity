@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR && ODIN_INSPECTOR
 using Sirenix.OdinInspector;
+#endif
 using HAudio.Core;
 
 namespace HAudio.AddOn {
@@ -60,6 +62,6 @@ namespace HAudio.AddOn {
             previews.Sort(System.StringComparer.Ordinal);
         }
 #endif
-        #endregion
+#endregion
     }
 }
