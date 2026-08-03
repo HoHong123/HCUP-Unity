@@ -6,7 +6,7 @@ using HAudio.Core;
 
 /* =========================================================
  * @Jason - PKH
- * Audio.SoundManager의 에디터 preview partial 스크립트입니다.
+ * AudioManager의 에디터 preview partial 스크립트입니다.
  *
  * 주의사항 ::
  * 1. 에디터에서만 사용되는 디버그 보조 코드입니다.
@@ -142,7 +142,7 @@ namespace HAudio {
  * 2. 현재 상태를 AudioClipManagerSnapshot으로 변환합니다.
  *
  * 사용법 ::
- * 1. SoundManager 인스펙터 preview 확인 용도로 사용합니다.
+ * 1. AudioManager 인스펙터 preview 확인 용도로 사용합니다.
  * 2. CreateSnapshot 호출 시 현재 추적 상태를 정리합니다.
  *
  * 이벤트 ::
@@ -151,7 +151,7 @@ namespace HAudio {
  *
  * 기타 ::
  * 1. 디버그용 HashSet과 Dictionary를 내부에서 유지합니다.
- * 2. 재생 로직과 해제 로직은 본체 SoundManager에 있습니다.
+ * 2. 재생 로직과 해제 로직은 본체 AudioManager에 있습니다.
  * =========================================================
  */
 #endif
