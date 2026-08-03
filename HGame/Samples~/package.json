@@ -15,9 +15,9 @@
       "path": "Samples~/"
     },
     {
-      "displayName": "GameModule",
+      "displayName": "InitModule",
       "description": "Simple game phase/state flow example.",
-      "path": "Samples~/GameModule"
+      "path": "Samples~/InitModule"
     },
     {
       "displayName": "Skill",

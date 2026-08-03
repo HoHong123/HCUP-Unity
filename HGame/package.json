@@ -11,8 +11,8 @@
   "samples": [
     {
       "displayName": "Game Flow Demo",
-      "description": "Phase switching sample using the GameModule/Phase stack.",
-      "path": "Samples~/GameModule"
+      "description": "Phase switching sample using the InitModule/Phase stack.",
+      "path": "Samples~/InitModule"
     },
     {
       "displayName": "Skill Templates",

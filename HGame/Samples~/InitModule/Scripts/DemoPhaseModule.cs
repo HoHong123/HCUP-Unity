@@ -7,7 +7,7 @@ using HGame.Sample.Module;
 
 namespace HGame.Flow.Sample {
     // Add this module into 'GameManager.modules' list.
-    public class DemoPhaseModule : BaseGameModule {
+    public class DemoPhaseModule : BaseInitModule {
         [HTitle("Demo Value")]
         [SerializeField]
         int delayMiliseconds;

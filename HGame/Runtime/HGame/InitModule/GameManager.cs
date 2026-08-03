@@ -15,7 +15,7 @@ namespace HGame.Flow {
         protected GamePhaseType phase = GamePhaseType.None;
         [SerializeField]
         [Tooltip("Modules (children or same GameObject)")]
-        List<BaseGameModule> modules = new();
+        List<BaseInitModule> modules = new();
 
         GameContext context = new GameContext();
         CancellationTokenSource phaseCts;
