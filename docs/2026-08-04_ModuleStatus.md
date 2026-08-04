@@ -18,7 +18,7 @@ Lisa Tail Cafe (LTC) 프로젝트의 Phase 1 "HCUP 패키지 최신화/정리" �
 | HDialogue | HCUP.HDialogue (+Editor) | dev/feat-dialog-node-2.0.0 작업 중 계층 |
 | HDeploy | HCUP.HDeploy.Editor | 배포 에디터 도구 |
 | HWindows | HCUP.HWindows.NodeWindow (+Editor) | 노드 그래프 윈도우 |
-| HUnityLocalization / HcupLocalization | 각 asmdef | 로컬라이제이션 이중 구현 (Unity 패키지 기반 / 자체) |
+| HLocalization (HcupLocalization + HUnityLocalization) | 각 asmdef 유지 | 로컬라이제이션 이중 구현 (자체 / Unity 패키지 기반). 2026-08-04 우산 폴더로 통합 |
 
 ## 2026-08-04 재구성 내역
 
