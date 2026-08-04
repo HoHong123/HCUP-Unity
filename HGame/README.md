@@ -31,13 +31,13 @@
 
 ## 중점적으로 봐야 할 부분
 
-- `GameManager` 와 `BaseInitModule` 기반 단계 전환 구조
+- `InitManager` 와 `BaseInitModule` 기반 단계 전환 구조
 - 기능별 모듈 분리를 통한 흐름 제어
 - 샘플을 통한 실제 패키지 사용 방식
 
 ## 추천 확인 순서
 
-1. `Runtime/HGame/InitModule/GameManager.cs`
+1. `Runtime/HGame/InitModule/InitManager.cs`
 2. `Runtime/HGame/InitModule/BaseInitModule.cs`
 3. `Samples~/InitModule`
 
