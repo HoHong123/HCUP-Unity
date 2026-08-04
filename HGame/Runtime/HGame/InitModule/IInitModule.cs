@@ -15,11 +15,11 @@ using HGame.Flow;
 
 public interface IInitModule {
     int Order { get; }
-    UniTask OnEnterPrepare(GameContext ctx, CancellationToken ct);
-    UniTask OnEnterStart(GameContext ctx, CancellationToken ct);
-    UniTask OnEnterRun(GameContext ctx, CancellationToken ct);
-    UniTask OnEnterPause(GameContext ctx, CancellationToken ct);
-    UniTask OnEnterOver(GameContext ctx, CancellationToken ct);
+    UniTask OnEnterPrepare(InitContext ctx, CancellationToken ct);
+    UniTask OnEnterStart(InitContext ctx, CancellationToken ct);
+    UniTask OnEnterRun(InitContext ctx, CancellationToken ct);
+    UniTask OnEnterPause(InitContext ctx, CancellationToken ct);
+    UniTask OnEnterOver(InitContext ctx, CancellationToken ct);
 }
 
 #if UNITY_EDITOR
@@ -30,6 +30,7 @@ public interface IInitModule {
  *
  * # 변경
  * - 타입명 IGamePhaseModule -> IInitModule, 파일명 IGamePhase.cs -> IInitModule.cs (guid 보존).
+ * - (후속) 계약 시그니처의 GameContext -> InitContext 개칭 반영.
  *
  * # 이유
  * - 파일명(IGamePhase)과 타입명(IGamePhaseModule) 불일치 해소 + InitModule 계열 명명 통일 (Phase 1 HCUP 정리).

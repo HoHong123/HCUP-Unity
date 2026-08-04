@@ -7,7 +7,7 @@ using TMPro;
 using Cysharp.Threading.Tasks;
 
 namespace HGame.Sample.Module {
-    public class DemoGameManager : GameManager<DemoGameManager> {
+    public class DemoGameManager : InitManager<DemoGameManager> {
         [HTitle("Log")]
         [SerializeField]
         TMP_Text logTxt;
@@ -57,12 +57,12 @@ namespace HGame.Sample.Module {
         }
 
 
-        private void _OnClickPrepare() => SwitchGamePhaseAsync(GamePhaseType.Prepare).Forget();
-        private void _OnClickStart() => SwitchGamePhaseAsync(GamePhaseType.Start).Forget();
-        private void _OnClickRun() => SwitchGamePhaseAsync(GamePhaseType.Running).Forget();
-        private void _OnClickPause() => SwitchGamePhaseAsync(GamePhaseType.Pause).Forget();
-        private void _OnClickResume() => SwitchGamePhaseAsync(GamePhaseType.Resume).Forget();
-        private void _OnClickOver() => SwitchGamePhaseAsync(GamePhaseType.Over).Forget();
-        private void _OnClickExit() => SwitchGamePhaseAsync(GamePhaseType.Exit).Forget();
+        private void _OnClickPrepare() => SwitchGamePhaseAsync(InitPhaseType.Prepare).Forget();
+        private void _OnClickStart() => SwitchGamePhaseAsync(InitPhaseType.Start).Forget();
+        private void _OnClickRun() => SwitchGamePhaseAsync(InitPhaseType.Running).Forget();
+        private void _OnClickPause() => SwitchGamePhaseAsync(InitPhaseType.Pause).Forget();
+        private void _OnClickResume() => SwitchGamePhaseAsync(InitPhaseType.Resume).Forget();
+        private void _OnClickOver() => SwitchGamePhaseAsync(InitPhaseType.Over).Forget();
+        private void _OnClickExit() => SwitchGamePhaseAsync(InitPhaseType.Exit).Forget();
     }
 }
