@@ -25,12 +25,18 @@ namespace HDeploy.Deploy {
         const string ARTIFACT_BUILD_FOLDER = "Build";
         const string ARTIFACT_INDEX_FILE = "index.html";
 
+        const int MIN_OUTPUT_PATH_DEPTH = 2;
+
         static readonly string[] REQUIRED_ARTIFACT_PATTERNS = { "*.wasm", "*.data", "*.framework.js", "*.loader.js" };
+        static readonly string[] FORBIDDEN_ROOT_FOLDERS = { "Assets", "Library", "Packages", "ProjectSettings", "UserSettings", "Temp", "Logs", ".git" };
         #endregion
 
         #region 일반 함수
         /// <summary> 출력 폴더를 비우고 WebGL 빌드 후 산출물 구성을 검증. 실패 시 로그를 남기고 false. </summary>
         public static bool BuildAndValidate(string outputAbsolutePath, DeployLog log) {
+            // 아래에서 출력 폴더를 재귀 삭제하므로, 삭제 전에 경로가 안전한지 먼저 확정한다.
+            if (_ValidateOutputPath(ref outputAbsolutePath, log) == false) return false;
+
             string[] scenePaths = _GetEnabledScenePaths();
             if (scenePaths.Length == 0) {
                 log.Error("No enabled scene in EditorBuildSettings. Add at least one scene.");
@@ -57,6 +63,49 @@ namespace HDeploy.Deploy {
 
             log.Info($"Build succeeded :: {report.summary.totalSize / (1024 * 1024)}MB, {report.summary.totalTime.TotalSeconds:F1}s");
             return _ValidateArtifacts(outputAbsolutePath, log);
+        }
+
+        /// <summary> 출력 경로가 프로젝트 루트 하위의 전용 폴더인지 검증. 재귀 삭제 대상이므로 통과 전에는 삭제하지 않는다. </summary>
+        private static bool _ValidateOutputPath(ref string outputAbsolutePath, DeployLog log) {
+            if (string.IsNullOrWhiteSpace(outputAbsolutePath)) {
+                log.Error("Build output path is empty. Set a relative folder such as 'Build/WebGL'.");
+                return false;
+            }
+
+            string projectRoot = Path.GetFullPath(Directory.GetCurrentDirectory());
+            string fullPath;
+            try {
+                fullPath = Path.GetFullPath(outputAbsolutePath);
+            }
+            catch (System.ArgumentException e) {
+                log.Error($"Build output path is malformed :: {outputAbsolutePath} ({e.Message})");
+                return false;
+            }
+
+            string rootWithSeparator = projectRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                                  + Path.DirectorySeparatorChar;
+            if (fullPath.StartsWith(rootWithSeparator, System.StringComparison.OrdinalIgnoreCase) == false) {
+                log.Error($"Build output path escapes the project root :: '{fullPath}' is not under '{projectRoot}'. Abort.");
+                return false;
+            }
+
+            string relative = fullPath.Substring(rootWithSeparator.Length);
+            string[] segments = relative.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                                               System.StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length < MIN_OUTPUT_PATH_DEPTH) {
+                log.Error($"Build output path is too shallow :: '{relative}' — use at least {MIN_OUTPUT_PATH_DEPTH} segments (e.g. 'Build/WebGL') so a stray value cannot wipe a top-level folder.");
+                return false;
+            }
+
+            foreach (string forbidden in FORBIDDEN_ROOT_FOLDERS) {
+                if (string.Equals(segments[0], forbidden, System.StringComparison.OrdinalIgnoreCase)) {
+                    log.Error($"Build output path targets a protected folder :: '{segments[0]}/' cannot be used as build output. Abort.");
+                    return false;
+                }
+            }
+
+            outputAbsolutePath = fullPath;
+            return true;
         }
 
         private static string[] _GetEnabledScenePaths() {
