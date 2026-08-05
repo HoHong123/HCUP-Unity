@@ -78,6 +78,7 @@ namespace HUI.DebugConsole {
             showHLoggerToggle.onValueChanged.RemoveListener(_OnFilterChanged);
             showUnityToggle.onValueChanged.RemoveListener(_OnFilterChanged);
 
+            recycleView.OnCellClicked = null;
             recycleView.OnLatestFollowStateChanged = null;
         }
 

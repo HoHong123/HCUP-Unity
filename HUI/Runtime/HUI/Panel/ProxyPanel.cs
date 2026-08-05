@@ -20,10 +20,27 @@ namespace HUI.Panel {
         public event Action<PointerEventData> PointerUpEvent;
         public event Action<PointerEventData> PointerDownEvent;
 
+        object autoDragOwner;
+
+        /// <summary> 드래그 시작/종료에 UiEvent 드래그 잠금을 자동 연결. 재호출 시 owner 만 교체된다. </summary>
         public void SetAutoDragCheck(object proxyOwner) {
-            BeginDragEvent += (eventData) => UiEvent.LockDrag(proxyOwner);
-            EndDragEvent += (eventData) => UiEvent.UnlockDrag(proxyOwner);
+            // 익명 람다 구독은 해제 수단이 없고 재호출마다 누적된다 — 명명 핸들러 1회 구독으로 고정.
+            if (autoDragOwner == null) {
+                BeginDragEvent += _OnAutoDragBegin;
+                EndDragEvent += _OnAutoDragEnd;
+            }
+            autoDragOwner = proxyOwner;
         }
+
+        public void ClearAutoDragCheck() {
+            if (autoDragOwner == null) return;
+            BeginDragEvent -= _OnAutoDragBegin;
+            EndDragEvent -= _OnAutoDragEnd;
+            autoDragOwner = null;
+        }
+
+        private void _OnAutoDragBegin(PointerEventData eventData) => UiEvent.LockDrag(autoDragOwner);
+        private void _OnAutoDragEnd(PointerEventData eventData) => UiEvent.UnlockDrag(autoDragOwner);
 
         public void OnBeginDrag(PointerEventData eventData) => BeginDragEvent?.Invoke(eventData);
         public void OnEndDrag(PointerEventData eventData) => EndDragEvent?.Invoke(eventData);

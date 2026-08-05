@@ -113,9 +113,13 @@ namespace HUI.Popup {
             }
 
             background.SetActive(true);
-            var wrapper = onClickCancel;
-            wrapper += _SetTextPopup;
-            logHistory.Enqueue(new(uid, level, title, message, onClickOk, wrapper, okTxt, cancelTxt));
+            // 큐 진행 콜백은 OK/Cancel 양쪽에 결합해야 한다 — Cancel 에만 걸려 있던 종전 코드는
+            // OK 를 누르면 큐가 영구 정체되고 background 가 입력을 막았다.
+            var okWrapper = onClickOk;
+            okWrapper += _SetTextPopup;
+            var cancelWrapper = onClickCancel;
+            cancelWrapper += _SetTextPopup;
+            logHistory.Enqueue(new(uid, level, title, message, okWrapper, cancelWrapper, okTxt, cancelTxt));
 
             // Create one text popup
             if (textInstance == null) {

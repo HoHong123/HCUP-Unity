@@ -8,7 +8,8 @@
         "HCUP.HDiagnosis",
         "HCUP.HInspector",
         "HCUP.HCore",
-        "DOTween.Modules"
+        "DOTween.Modules",
+        "HCUP.HResource"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

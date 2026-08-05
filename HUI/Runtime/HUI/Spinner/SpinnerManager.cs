@@ -95,11 +95,15 @@ namespace HUI.Spinner {
             string toolTip = null) {
             Show(caller, toolTip);
             var ct = cts?.Token ?? default;
-            await UniTask.Delay(
-                millisecondsDelay: tick,
-                ignoreTimeScale: ignorTimeScale,
-                cancellationToken: ct);
-            Hide(caller);
+            try {
+                await UniTask.Delay(
+                    millisecondsDelay: tick,
+                    ignoreTimeScale: ignorTimeScale,
+                    cancellationToken: ct);
+            }
+            finally {
+                Hide(caller);   // 취소 시에도 스피너 고착 방지 — 다른 오버로드와 동일 규약
+            }
         }
 
         public async UniTask Show(
@@ -109,11 +113,15 @@ namespace HUI.Spinner {
             string toolTip = null) {
             Show(caller, toolTip);
             var ct = cts?.Token ?? default;
-            await UniTask.WaitForSeconds(
-                duration: second,
-                ignoreTimeScale: ignorTimeScale,
-                cancellationToken: ct);
-            Hide(caller);
+            try {
+                await UniTask.WaitForSeconds(
+                    duration: second,
+                    ignoreTimeScale: ignorTimeScale,
+                    cancellationToken: ct);
+            }
+            finally {
+                Hide(caller);   // 취소 시에도 스피너 고착 방지
+            }
         }
 
         public async UniTask Show(object caller, Func<UniTask> taskFunc, string toolTip = null) {
@@ -167,9 +175,13 @@ namespace HUI.Spinner {
         public void CleanUp() {
             var keysToRemove = new List<object>();
 
+            // Dictionary 는 null 키를 담을 수 없으므로 `key != null` 검사는 항상 no-op 이었다.
+            // 수거 대상은 "파괴된 UnityEngine.Object 호출자" (fake-null) — 정적 타입이 object 라
+            // Unity 의 == 오버로드가 걸리지 않아 명시 캐스트로 판정한다.
             foreach (var key in callers.Keys) {
-                if (key != null) continue;
-                keysToRemove.Add(key);
+                if (key is UnityEngine.Object unityCaller && unityCaller == null) {
+                    keysToRemove.Add(key);
+                }
             }
 
             foreach (var key in keysToRemove) {

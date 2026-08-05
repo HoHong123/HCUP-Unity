@@ -53,6 +53,12 @@ namespace HUI.ToggleUI {
             _EnsureInitialized();
             SyncToToggleState(immediate: false);
         }
+
+        private void OnDestroy() {
+            if (!isInitialized || toggle == null) return;
+            toggle.onValueChanged.RemoveListener(_OnToggleValueChanged);
+            isInitialized = false;
+        }
         #endregion
 
         #region Public - Init / Sync
