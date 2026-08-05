@@ -45,11 +45,16 @@ namespace HUI.Popup {
             public Action OnClickOk { get; private set; }
             public Action OnClickCancel { get; private set; }
 
+            // 큐 진행 콜백을 합성하면 OnClickOk 는 절대 null 이 아니게 된다.
+            // 호출자가 실제로 OK 를 원했는지는 이 플래그로 따로 보존한다.
+            public bool HasOk { get; private set; }
+
             public LogQue(
                 int uid, PopLevel level,
                 string title, string message,
                 Action onClickOk, Action onClickCancel,
-                string okTxt, string cancelTxt) {
+                string okTxt, string cancelTxt,
+                bool hasOk) {
                 this.uid = uid;
                 this.level = level;
                 this.title = title;
@@ -58,6 +63,7 @@ namespace HUI.Popup {
                 this.cancelText = cancelTxt;
                 OnClickOk = onClickOk;
                 OnClickCancel = onClickCancel;
+                HasOk = hasOk;
             }
         }
         #endregion
@@ -83,8 +89,8 @@ namespace HUI.Popup {
         [SerializeField]
         protected Transform gameParent;
 
-        [HTitle("Logs")]
-        [SerializeField]
+        // Unity 는 Queue<T> 를 직렬화하지 않고 LogQue 는 Action 필드를 가진다 —
+        // [SerializeField] 는 무효였으므로 제거한다.
         protected Queue<LogQue> logHistory = new();
 
         protected TextPopup textInstance = null;
@@ -93,8 +99,17 @@ namespace HUI.Popup {
 
         protected int logCreatStack = 0;
 
+        // 콜백 재진입으로 큐가 무한히 자라는 것을 막는 상한.
+        protected const int MAX_LOG_QUEUE = 256;
 
-        protected bool isAllCose => gameParent.childCount + logHistory.Count == 0;
+
+        // 종전: gameParent.childCount 기반. Destroy 가 프레임 종료 후에 적용되고 "닫혔지만 살아있는"
+        // 자식도 계수되어, 이미지/비디오 팝업을 닫아도 배경이 영원히 남았다. 인스턴스 활성 여부로 판정한다.
+        protected bool IsAllClosed =>
+            logHistory.Count == 0
+            && (textInstance == null || !textInstance.IsActive)
+            && (imgInstnace == null || !imgInstnace.IsActive)
+            && (vidInstnace == null || !vidInstnace.IsActive);
         #endregion
 
 
@@ -112,18 +127,26 @@ namespace HUI.Popup {
             default: HLogger.Error($"Log data invalid. Check log level({level.ToString()})"); return;
             }
 
-            background.SetActive(true);
+            // 콜백 안에서 ShowLog 를 다시 부르는 재진입에 상한이 없어 큐가 무한히 자랄 수 있었다.
+            if (logHistory.Count >= MAX_LOG_QUEUE) {
+                HLogger.Error($"[Popup] Log queue limit ({MAX_LOG_QUEUE}) reached. Dropping '{title}'.");
+                return;
+            }
+
+            if (background != null) background.SetActive(true);
             // 큐 진행 콜백은 OK/Cancel 양쪽에 결합해야 한다 — Cancel 에만 걸려 있던 종전 코드는
             // OK 를 누르면 큐가 영구 정체되고 background 가 입력을 막았다.
+            bool hasOk = onClickOk != null;
             var okWrapper = onClickOk;
             okWrapper += _SetTextPopup;
             var cancelWrapper = onClickCancel;
             cancelWrapper += _SetTextPopup;
-            logHistory.Enqueue(new(uid, level, title, message, okWrapper, cancelWrapper, okTxt, cancelTxt));
+            logHistory.Enqueue(new(uid, level, title, message, okWrapper, cancelWrapper, okTxt, cancelTxt, hasOk));
 
             // Create one text popup
             if (textInstance == null) {
                 textInstance = Instantiate(textPrefab, logParent);
+                textInstance.OnClosed += _OnPopupClosed;
                 textInstance.Close();
             }
 
@@ -132,21 +155,30 @@ namespace HUI.Popup {
             }
         }
 
-        public void ShowImage(Sprite sprite, Action onClick = null) => ShowImage(sprite.texture, onClick);
+        public void ShowImage(Sprite sprite, Action onClick = null) {
+            if (sprite == null) {
+                HLogger.Error("[Popup] ShowImage: sprite is null.");
+                return;
+            }
+            ShowImage(sprite.texture, onClick);
+        }
+
         public void ShowImage(Texture texture, Action onClick = null) {
-            background.SetActive(true);
+            if (background != null) background.SetActive(true);
             _DisposeImageInstance();
 
             imgInstnace = Instantiate(imagePrefab, gameParent);
+            imgInstnace.OnClosed += _OnPopupClosed;   // 닫힘을 매니저가 알아야 배경을 내릴 수 있다
             imgInstnace.SetUi(texture);
             if (onClick != null) imgInstnace.OnClickPanel += onClick;
         }
 
         public void ShowVideo(string address, Action onClick = null, int width = 0, int height = 0) {
-            background.SetActive(true);
+            if (background != null) background.SetActive(true);
             _DisposeVideoInstance();
 
             vidInstnace = Instantiate(videoPrefab, gameParent);
+            vidInstnace.OnClosed += _OnPopupClosed;
             vidInstnace.SetVideo(address, width, height);
             if (onClick != null) vidInstnace.OnClickPanel += onClick;
         }
@@ -157,6 +189,7 @@ namespace HUI.Popup {
             _DisposeVideoInstance();
 
             if (textInstance != null) {
+                textInstance.OnClosed -= _OnPopupClosed;
                 Destroy(textInstance.gameObject);
                 textInstance = null;
             }
@@ -167,26 +200,41 @@ namespace HUI.Popup {
 
         private void _DisposeImageInstance() {
             if (imgInstnace == null) return;
+            imgInstnace.OnClosed -= _OnPopupClosed;
             Destroy(imgInstnace.gameObject);
             imgInstnace = null;
         }
 
         private void _DisposeVideoInstance() {
             if (vidInstnace == null) return;
+            vidInstnace.OnClosed -= _OnPopupClosed;
             Destroy(vidInstnace.gameObject);
             vidInstnace = null;
         }
 
 
+        // 배경 해제가 _SetTextPopup 안에만 있어서, 이미지/비디오만 사용한 흐름에서는
+        // 해제 코드가 실행조차 되지 않았다. 모든 닫힘 경로가 이 함수를 거치게 한다.
+        protected void _RefreshBackground() {
+            if (background == null) return;
+            background.SetActive(!IsAllClosed);
+        }
+
+        private void _OnPopupClosed(BasePopupUi popup) => _RefreshBackground();
+
         private void _SetTextPopup() {
             if (logHistory.Count == 0) {
-                textInstance.Close();
-                if (isAllCose) background.SetActive(false);
+                if (textInstance != null) textInstance.Close();
+                _RefreshBackground();
                 return;
             }
 
             LogQue log = logHistory.Dequeue();
-            textInstance.SetText(log.Title, log.Message, log.OnClickOk, log.OnClickCancel, log.OkText, log.CancelText);
+            textInstance.SetText(
+                log.Title, log.Message,
+                log.OnClickOk, log.OnClickCancel,
+                log.OkText, log.CancelText,
+                log.HasOk);
             textInstance.Open();
         }
 

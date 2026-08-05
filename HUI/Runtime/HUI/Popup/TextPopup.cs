@@ -34,17 +34,20 @@ namespace HUI.Popup {
             okBtn.onClick.AddListener(() => OnClickOk?.Invoke());
         }
 
+        // showOk 를 별도로 받는다. 호출자가 okEvent 에 내부 큐 진행 콜백을 합성해 넘기면
+        // okEvent != null 판정이 항상 참이 되어 "취소 전용 팝업" 을 만들 수 없었다.
         public void SetText(
             string title, string message,
             Action okEvent = null, Action cancelEvent = null,
-            string okBtnTxt = null, string cancelBtnTxt = null) {
+            string okBtnTxt = null, string cancelBtnTxt = null,
+            bool showOk = true) {
             titleTxt.text = title;
             bodyTxt.text = message;
 
             OnClickOk = null;
             OnClickOk = okEvent;
 
-            var isOkActive = (okEvent != null);
+            var isOkActive = showOk && (okEvent != null);
             okBtn.gameObject.SetActive(isOkActive);
             if (isOkActive) okTxt.text = okBtnTxt ?? "확인";
 

@@ -15,7 +15,11 @@ namespace HUI.Popup {
 
         public event Action OnClickCancel;
 
-        public bool IsActive => panel.activeSelf;
+        // 팝업이 스스로 닫혔음을 매니저에 알리는 유일한 경로. 이것이 없어서
+        // PopupManager 는 이미지/비디오 팝업이 닫힌 사실을 영원히 알지 못했다 (배경 잔존).
+        public event Action<BasePopupUi> OnClosed;
+
+        public bool IsActive => panel != null && panel.activeSelf;
 
 
         protected virtual void Start() {
@@ -26,6 +30,7 @@ namespace HUI.Popup {
 
         protected virtual void OnDestroy() {
             OnClickCancel = null;
+            OnClosed = null;
             if (closeBtn != null) {
                 closeBtn.onClick.RemoveAllListeners();
             }
@@ -36,7 +41,14 @@ namespace HUI.Popup {
         }
 
 
-        public virtual void Open() => panel.SetActive(true);
-        public virtual void Close() => panel.SetActive(false);
+        public virtual void Open() {
+            if (panel != null) panel.SetActive(true);
+        }
+
+        public virtual void Close() {
+            bool wasActive = IsActive;
+            if (panel != null) panel.SetActive(false);
+            if (wasActive) OnClosed?.Invoke(this);
+        }
     }
 }
