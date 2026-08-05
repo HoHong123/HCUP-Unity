@@ -144,8 +144,7 @@ namespace HDialogue {
             OnAdvanceRequested?.Invoke();
         }
 
-#if UNITY_EDITOR
-        // INPUT_GUARD 없이 현재 라인을 즉시 완료 — 에디터 테스트 전용.
+        /// <summary> INPUT_GUARD 없이 현재 라인을 즉시 완료. 스킵은 런타임 사양이므로 플레이어 빌드에도 포함된다. </summary>
         public void ForceSkipToEnd() {
             if (state == TextDisplayState.Idle
                 || state == TextDisplayState.Waiting
@@ -155,7 +154,6 @@ namespace HDialogue {
             _SetState(TextDisplayState.Skipped);
             OnLineComplete?.Invoke();
         }
-#endif
         #endregion
 
         #region Private — 타이프라이터

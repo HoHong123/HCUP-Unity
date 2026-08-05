@@ -294,6 +294,11 @@ namespace HDialogue {
                     uiController.ShowAdvanceHint(false);
                     textController.RequestAdvance();
                     break;
+                case TextDisplayState.Idle:
+                    // 첫 노드가 Cinematic/Wait 등 비텍스트 노드면 State 가 Idle 인 채 입력을 받는다.
+                    // 미처리 시 버튼·키보드 전부 무반응으로 대화가 영구 정지 — advance 요청만 전달.
+                    textController.RequestAdvance();
+                    break;
             }
         }
 

@@ -57,6 +57,11 @@ namespace HDialogue {
 
         bool hasWarnedNullController;
 
+        // 그래프 순회 폭주 방어. Branch→Branch 순환은 await 없이 완전 동기로 돌아
+        // 메인 스레드를 하드 프리즈시킨다 (검증기 W002 는 에디터 수동 실행이라 런타임 방어 불가).
+        const int MAX_NODE_TRANSITIONS = 10000;
+        const int SYNC_YIELD_INTERVAL = 32;
+
         float autoAdvanceOverride = -1f;
         bool isSkipping;
         #endregion
@@ -152,8 +157,22 @@ namespace HDialogue {
         #region Private — Main Loop
         private async UniTaskVoid _PlayCatalogAsync(BaseNode startNode, CancellationToken ct) {
             currentNode = startNode;
+            int transitionCount = 0;
             try {
                 while (currentNode != null && state != DialogueDirectorState.Finished) {
+                    if (++transitionCount > MAX_NODE_TRANSITIONS) {
+                        HLogger.Error(
+                            $"[DialogueDirector] Node transition limit ({MAX_NODE_TRANSITIONS}) exceeded — probable graph cycle at '{currentNode.Title}'. Finishing.");
+                        state = DialogueDirectorState.Finished;
+                        break;
+                    }
+
+                    // 동기 노드(Branch/Variable 등)만 이어지는 구간에서도 주기적으로 프레임을 양보해
+                    // 순환이 있어도 에디터/게임이 멈추지 않고 위 상한 로그에 도달하게 한다.
+                    if (transitionCount % SYNC_YIELD_INTERVAL == 0) {
+                        await UniTask.Yield(ct);
+                    }
+
                     string hubKey = await _ProcessNode(currentNode, ct);
                     if (state == DialogueDirectorState.Finished) break;
                     currentNode = _ResolveNextNode(currentNode, hubKey);

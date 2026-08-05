@@ -14,7 +14,8 @@
         "HCUP.HDiagnosis",
         "HCUP.HWindows.NodeWindow",
         "HCUP.HCollection",
-        "HCUP.HcupLocalization"
+        "HCUP.HcupLocalization",
+        "HCUP.HResource"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -33,8 +33,8 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using HDiagnosis.Logger;
 using HInspector;
-using HUtil.AssetHandler.Data;
-using HUtil.AssetHandler.Provider;
+using HResource.Data;
+using HResource.Provider;
 using UnityEngine;
 using UnityEngine.UI;
 
