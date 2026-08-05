@@ -366,7 +366,7 @@ namespace HAudio {
  * 2. OnDestroy에서 owner 기준으로 관리 중인 asset을 해제합니다.
  *
  * 기타 ::
- * 1. 레거시 호출 지원은 Legacy partial에 분리되어 있습니다.
+ * 1. 기준 키는 string token 단일 체계입니다. int/enum 진입점은 없습니다.
  * 2. 에디터 preview 기능은 별도 partial에서만 동작합니다.
  * =========================================================
  */

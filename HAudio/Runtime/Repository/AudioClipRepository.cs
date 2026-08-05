@@ -21,7 +21,7 @@ using HResource.Subscription;
 #endif
 
 namespace HAudio.Repository {
-    public sealed partial class AudioClipRepository : IAudioClipRepository {
+    public sealed class AudioClipRepository : IAudioClipRepository {
         #region Fields
         readonly AudioCatalogRegistry catalogRegistry;
         readonly IAssetProvider<string, AudioClip> assetProvider;

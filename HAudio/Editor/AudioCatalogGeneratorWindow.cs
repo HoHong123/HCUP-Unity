@@ -14,7 +14,6 @@ namespace HAudio.Editor {
     public sealed class AudioCatalogGeneratorWindow : EditorWindow {
         #region ===== Types =====
         struct DiscoveredClip {
-            public int Uid;
             public AudioMajorCategory Major;
             public string FileName;
             public string AssetPath;
@@ -32,8 +31,6 @@ namespace HAudio.Editor {
         string outputFileName = "SoundCatalog";
         [SerializeField]
         AudioCatalogPolicySO policy;
-        [SerializeField]
-        bool validateUidByPolicy = true;
         [SerializeField]
         List<AudioClip> extraClips = new();
         #endregion
@@ -98,8 +95,7 @@ namespace HAudio.Editor {
                 outputFolder = (DefaultAsset)EditorGUILayout.ObjectField("Output Folder", outputFolder, typeof(DefaultAsset), false);
                 outputFileName = EditorGUILayout.TextField("File Name", outputFileName);
 
-                if (validateUidByPolicy) policy = (AudioCatalogPolicySO)EditorGUILayout.ObjectField("Policy", policy, typeof(AudioCatalogPolicySO), false);
-                validateUidByPolicy = EditorGUILayout.Toggle("Validate UID By Policy", validateUidByPolicy);
+                policy = (AudioCatalogPolicySO)EditorGUILayout.ObjectField("Policy", policy, typeof(AudioCatalogPolicySO), false);
             }
         }
 
@@ -216,9 +212,8 @@ namespace HAudio.Editor {
                     logs.Add($"[Warn] Empty token. Skip :: {discover.AssetPath}");
                     continue;
                 }
-                var key = new AudioKey(discover.Major, discover.Uid);
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(discover.AssetPath);
-                catalog.EditorAddEntry(key, discover.Token, discover.Path, clip);
+                catalog.EditorAddEntry(discover.Major, discover.Token, discover.Path, clip);
             }
 
             EditorUtility.SetDirty(catalog);
@@ -271,23 +266,14 @@ namespace HAudio.Editor {
             string fileName = Path.GetFileName(assetPath);
             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
 
-            if (!_TryParseUid(fileNameWithoutExtension, out int uid)) {
-                if (logOnInvalid) logs.Add($"[Warn] Invalid filename :: {fileName}");
-                return false;
-            }
-
+            // 종전에는 파일명이 "{uid}_{이름}" 형식이어야 발굴 대상이 됐다.
+            // uid 체계를 걷어내면서 그 제약이 사라져, 루트 아래 모든 AudioClip 이 대상이 된다.
             var major = _InferMajor(assetPath);
-
-            if (validateUidByPolicy && !_IsUidValidByPolicy(major, uid)) {
-                if (logOnInvalid) logs.Add($"[Warn] UID out of policy :: {fileName} ({uid})");
-                return false;
-            }
 
             string token = _ToToken(assetPath);
             string folderPath = _ToResourceFolderPath(assetPath);
 
             clip = new DiscoveredClip {
-                Uid = uid,
                 Major = major,
                 FileName = fileName,
                 AssetPath = assetPath,
@@ -321,7 +307,6 @@ namespace HAudio.Editor {
 
                 foreach (var d in discovered) {
                     using (new EditorGUILayout.HorizontalScope()) {
-                        EditorGUILayout.LabelField(d.Uid.ToString(), GUILayout.Width(80));
                         EditorGUILayout.LabelField(d.Major.ToString(), GUILayout.Width(80));
                         EditorGUILayout.LabelField(d.FileName, GUILayout.Width(220));
                         EditorGUILayout.LabelField(d.Token, GUILayout.Width(180));
@@ -420,10 +405,9 @@ namespace HAudio.Editor {
             if (!discoveredDirty) return;
 
             var sb = new StringBuilder(4096);
-            sb.AppendLine("UID\tMajor\tFileName\tToken\tPath\tAssetPath");
+            sb.AppendLine("Major\tFileName\tToken\tPath\tAssetPath");
 
             foreach (var d in discovered) {
-                sb.Append(d.Uid).Append('\t');
                 sb.Append(d.Major).Append('\t');
                 sb.Append(d.FileName).Append('\t');
                 sb.Append(d.Token).Append('\t');
@@ -445,24 +429,12 @@ namespace HAudio.Editor {
             logsDirty = false;
         }
 
-        private bool _TryParseUid(string name, out int uid) {
-            uid = -1;
-            int idx = name.IndexOf('_');
-            return idx > 0 && int.TryParse(name.Substring(0, idx), out uid);
-        }
-
         private AudioMajorCategory _InferMajor(string path) {
             path = path.ToLowerInvariant();
             if (path.Contains("/ui/")) return AudioMajorCategory.UI;
             if (path.Contains("/bgm/")) return AudioMajorCategory.BGM;
             if (path.Contains("/voice/")) return AudioMajorCategory.Voice;
             return AudioMajorCategory.SFX;
-        }
-
-        private bool _IsUidValidByPolicy(AudioMajorCategory major, int uid) {
-            if (!policy) return true;
-            if (!policy.TryGetUidRange(major, out var range)) return true;
-            return range.Contains(uid);
         }
 
         private void _MarkAllDirty() {

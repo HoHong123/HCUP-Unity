@@ -17,7 +17,7 @@ using HResource.Subscription;
 #endif
 
 namespace HAudio.Repository {
-    public partial interface IAudioClipRepository {
+    public interface IAudioClipRepository {
         AssetLoadMode LoadMode { get; }
 
         bool TryGet(string token, out AudioClip clip);
@@ -54,7 +54,7 @@ namespace HAudio.Repository {
  * 2. owner 기반 release 경로를 노출합니다.
  *
  * 사용법 ::
- * 1. SoundManager는 source loader 대신 이 인터페이스를 참조합니다.
+ * 1. AudioManager는 source loader 대신 이 인터페이스를 참조합니다.
  * 2. token 기준 API를 우선 사용합니다.
  *
  * 이벤트 ::
@@ -62,7 +62,7 @@ namespace HAudio.Repository {
  * 2. 실제 로딩 이벤트는 구현체와 하위 provider가 담당합니다.
  *
  * 기타 ::
- * 1. 레거시 int 경로는 partial 인터페이스로 분리되어 있습니다.
+ * 1. 기준 키는 string token 단일 체계입니다.
  * 2. 도메인 경계를 고정하기 위한 인터페이스입니다.
  * =========================================================
  */

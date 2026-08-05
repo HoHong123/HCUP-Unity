@@ -16,7 +16,7 @@ using HAudio.Core;
 #endif
 
 namespace HAudio.Catalog {
-    public sealed partial class AudioCatalogRegistry {
+    public sealed class AudioCatalogRegistry {
         #region Nested Types
         sealed class EntrySlot {
             public AudioCatalogSO.Entry Entry { get; private set; }
@@ -50,7 +50,7 @@ namespace HAudio.Catalog {
 
         #region Public - Catalog
         public int RegisterCatalog(AudioCatalogSO catalog) {
-            Assert.IsNotNull(catalog, "[SoundCatalogRegistry] catalog is null.");
+            Assert.IsNotNull(catalog, "[AudioCatalogRegistry] catalog is null.");
             if (!catalog) return 0;
 
             if (catalogRefTable.TryGetValue(catalog, out var currentRefCount)) {
@@ -73,7 +73,7 @@ namespace HAudio.Catalog {
             AudioCatalogSO catalog,
             List<AudioCatalogSO.Entry> removedEntries = null) {
 
-            Assert.IsNotNull(catalog, "[SoundCatalogRegistry] catalog is null.");
+            Assert.IsNotNull(catalog, "[AudioCatalogRegistry] catalog is null.");
             if (!catalog) return 0;
             if (!catalogRefTable.TryGetValue(catalog, out var currentRefCount)) return 0;
 
@@ -97,7 +97,6 @@ namespace HAudio.Catalog {
         public void Clear() {
             catalogRefTable.Clear();
             tokenEntryTable.Clear();
-            _ClearLegacyCache();
         }
         #endregion
 
@@ -122,7 +121,7 @@ namespace HAudio.Catalog {
 
         #region Private - Register
         private void _RegisterEntry(AudioCatalogSO.Entry entry) {
-            Assert.IsNotNull(entry, "[SoundCatalogRegistry] entry is null.");
+            Assert.IsNotNull(entry, "[AudioCatalogRegistry] entry is null.");
             if (entry == null) return;
 
             string normalizedToken = _NormalizeToken(entry.Token);
@@ -130,24 +129,21 @@ namespace HAudio.Catalog {
 
             Assert.IsFalse(
                 string.IsNullOrWhiteSpace(normalizedToken),
-                $"[SoundCatalogRegistry] Token is empty. key={entry.Key}");
+                $"[AudioCatalogRegistry] Token is empty. path={entry.Path}");
             _RetainEntry(
                 tokenEntryTable,
                 normalizedToken,
                 entry,
                 existing => _AssertEquivalentEntry(existing, entry, normalizedToken, normalizedPath),
-                duplicateKey => $"[SoundCatalogRegistry] Token collision detected. token={duplicateKey}");
+                duplicateKey => $"[AudioCatalogRegistry] Token collision detected. token={duplicateKey}");
 
-            _RegisterLegacyEntry(entry, normalizedToken, normalizedPath);
         }
 
         private bool _ReleaseEntry(AudioCatalogSO.Entry entry) {
-            Assert.IsNotNull(entry, "[SoundCatalogRegistry] entry is null.");
+            Assert.IsNotNull(entry, "[AudioCatalogRegistry] entry is null.");
             if (entry == null) return false;
 
-            bool removed = _ReleaseEntry(tokenEntryTable, _NormalizeToken(entry.Token));
-            _ReleaseLegacyEntry(entry, removed);
-            return removed;
+            return _ReleaseEntry(tokenEntryTable, _NormalizeToken(entry.Token));
         }
         #endregion
 
@@ -185,21 +181,21 @@ namespace HAudio.Catalog {
             string normalizedIncomingToken,
             string normalizedIncomingPath) {
 
-            Assert.IsNotNull(existing, "[SoundCatalogRegistry] existing entry is null.");
-            Assert.IsNotNull(incoming, "[SoundCatalogRegistry] incoming entry is null.");
+            Assert.IsNotNull(existing, "[AudioCatalogRegistry] existing entry is null.");
+            Assert.IsNotNull(incoming, "[AudioCatalogRegistry] incoming entry is null.");
             if (existing == null || incoming == null) return;
 
             string normalizedExistingToken = _NormalizeToken(existing.Token);
             string normalizedExistingPath = _NormalizePath(existing.Path);
 
             bool isEquivalent =
-                existing.Key.Equals(incoming.Key) &&
+                existing.Major == incoming.Major &&
                 string.Equals(normalizedExistingToken, normalizedIncomingToken, StringComparison.Ordinal) &&
                 string.Equals(normalizedExistingPath, normalizedIncomingPath, StringComparison.Ordinal);
 
             Assert.IsTrue(
                 isEquivalent,
-                "[SoundCatalogRegistry] Active catalogs contain conflicting entries.");
+                "[AudioCatalogRegistry] Active catalogs contain conflicting entries.");
         }
         #endregion
 
@@ -215,15 +211,6 @@ namespace HAudio.Catalog {
         }
         #endregion
 
-        #region Private - Legacy Hooks
-        partial void _RegisterLegacyEntry(
-            AudioCatalogSO.Entry entry,
-            string normalizedToken,
-            string normalizedPath);
-
-        partial void _ReleaseLegacyEntry(AudioCatalogSO.Entry entry, bool tokenRemoved);
-        partial void _ClearLegacyCache();
-        #endregion
     }
 }
 
@@ -233,7 +220,7 @@ namespace HAudio.Catalog {
  * 주요 기능 ::
  * 1. catalog ref count를 관리합니다.
  * 2. token 기준으로 AudioCatalogSO.Entry를 조회합니다.
- * 3. legacy partial이 연결될 수 있는 확장 지점을 제공합니다.
+ * 3. 활성 catalog 집합과 token 인덱스를 함께 유지합니다.
  *
  * 사용법 ::
  * 1. catalog preload 전에 RegisterCatalog를 호출합니다.

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Assertions;
 using HInspector;
 
 #if UNITY_EDITOR
@@ -21,8 +20,9 @@ namespace HAudio.Core {
         [Serializable]
         public sealed class Entry {
             #region Private - Serialized Fields
+            // 분류용 enum. 개발자가 카탈로그를 읽을 때의 라벨이며 로드 키가 아니다.
             [SerializeField]
-            AudioKey key;
+            AudioMajorCategory major;
 
             [HTitle("Load Token")]
             [SerializeField]
@@ -39,7 +39,7 @@ namespace HAudio.Core {
             #endregion
 
             #region Public - Properties
-            public AudioKey Key => key;
+            public AudioMajorCategory Major => major;
             public string Token => token;
             public string Path => path;
 #if UNITY_EDITOR
@@ -49,7 +49,7 @@ namespace HAudio.Core {
 
 #if UNITY_EDITOR
             #region Public - Editor
-            public void EditorSetKey(AudioKey value) => key = value;
+            public void EditorSetMajor(AudioMajorCategory value) => major = value;
             public void EditorSetToken(string value) => token = value;
             public void EditorSetPath(string value) => path = value;
             public void EditorSetClip(AudioClip value) => editorClip = value;
@@ -62,7 +62,7 @@ namespace HAudio.Core {
         [SerializeField]
         List<Entry> entries = new();
 
-        Dictionary<AudioKey, Entry> entryMap;
+        Dictionary<string, Entry> entryMap;
         #endregion
 
         #region Public - Properties
@@ -71,24 +71,38 @@ namespace HAudio.Core {
 
         #region Public - Cache
         public void BuildCache() {
-            entryMap = new Dictionary<AudioKey, Entry>(entries.Count);
+            entryMap = new Dictionary<string, Entry>(entries.Count, StringComparer.Ordinal);
 
             for (int k = 0; k < entries.Count; k++) {
                 Entry entry = entries[k];
-                Assert.IsNotNull(entry);
-                Assert.IsFalse(
-                    entryMap.ContainsKey(entry.Key),
-                    $"[AudioCatalogSO] Duplicated AudioKey detected. key={entry.Key}, index={k}");
-                Assert.IsFalse(
-                    string.IsNullOrWhiteSpace(entry.Token),
-                    $"[AudioCatalogSO] Token is empty. key={entry.Key}, index={k}");
-                entryMap.Add(entry.Key, entry);
+                // Assert 는 릴리즈에서 제거된다 — 유효하지 않은 행은 런타임에도 건너뛴다.
+                if (entry == null) {
+                    Debug.LogError($"[AudioCatalogSO] Entry is null. index={k}", this);
+                    continue;
+                }
+                string token = _NormalizeRuntimeToken(entry.Token);
+                if (string.IsNullOrWhiteSpace(token)) {
+                    Debug.LogError($"[AudioCatalogSO] Token is empty. index={k}", this);
+                    continue;
+                }
+                if (entryMap.ContainsKey(token)) {
+                    Debug.LogError($"[AudioCatalogSO] Duplicated token detected. token={token}, index={k}", this);
+                    continue;
+                }
+                entryMap.Add(token, entry);
             }
         }
 
-        public bool TryGet(in AudioKey key, out Entry entry) {
+        public bool TryGet(string token, out Entry entry) {
             if (entryMap == null) BuildCache();
-            return entryMap.TryGetValue(key, out entry);
+            return entryMap.TryGetValue(_NormalizeRuntimeToken(token), out entry);
+        }
+
+        // 에디터의 _NormalizeToken 은 확장자 제거까지 수행하는 저작용이라 런타임에서 쓸 수 없다
+        // (#if UNITY_EDITOR 안에 있다). 런타임 정규화는 registry/repository 와 동일하게 Trim 만 한다.
+        private static string _NormalizeRuntimeToken(string token) {
+            if (string.IsNullOrWhiteSpace(token)) return string.Empty;
+            return token.Trim();
         }
         #endregion
 
@@ -114,12 +128,12 @@ namespace HAudio.Core {
         }
 
         public void EditorAddEntry(
-            AudioKey key,
+            AudioMajorCategory major,
             string token,
             string path,
             AudioClip clip) {
             Entry entry = new Entry();
-            entry.EditorSetKey(key);
+            entry.EditorSetMajor(major);
             entry.EditorSetToken(_NormalizeToken(token));
             entry.EditorSetPath(_NormalizeFolderPath(path));
             entry.EditorSetClip(clip);

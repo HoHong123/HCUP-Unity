@@ -13,7 +13,7 @@ namespace HAudio.Editor {
         #region Nested Class
         public sealed class Row {
             public int Index;
-            public AudioKey Key;
+            public AudioMajorCategory Major;
             public AudioClip Clip;
             public AudioCatalogSO Catalog;
             public string Token;
@@ -46,7 +46,6 @@ namespace HAudio.Editor {
         bool dirtyRows = true;
 
         string searchText = "";
-        bool searchByUid = true;
         bool searchByName = true;
         bool searchByToken = true;
         bool searchByPath = true;
@@ -203,9 +202,6 @@ namespace HAudio.Editor {
                 }
 
                 using (new EditorGUILayout.HorizontalScope()) {
-                    bool nextUid = EditorGUILayout.ToggleLeft("UID", searchByUid, GUILayout.Width(60));
-                    if (nextUid != searchByUid) { searchByUid = nextUid; dirtyRows = true; }
-
                     bool nextName = EditorGUILayout.ToggleLeft("Name", searchByName, GUILayout.Width(70));
                     if (nextName != searchByName) { searchByName = nextName; dirtyRows = true; }
 
@@ -314,7 +310,7 @@ namespace HAudio.Editor {
         private void _DrawRow(Row row) {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
                 using (new EditorGUILayout.HorizontalScope()) {
-                    EditorGUILayout.LabelField($"[{row.Key.Major}] {row.Key.Id}", GUILayout.Width(140));
+                    EditorGUILayout.LabelField($"[{row.Major}]", GUILayout.Width(140));
 
                     if (!groupByCatalog) EditorGUILayout.LabelField(row.Catalog.name, GUILayout.Width(220));
 
@@ -391,7 +387,7 @@ namespace HAudio.Editor {
                     var row = new Row {
                         Catalog = catalog,
                         Index = j,
-                        Key = e.Key,
+                        Major = e.Major,
                         Token = e.Token,
                         Path = e.Path,
                         Clip = _TryGetEditorClip(e)
@@ -404,8 +400,8 @@ namespace HAudio.Editor {
 
             rows = rows
                 .OrderBy(row => row.Catalog ? row.Catalog.name : "")
-                .ThenBy(row => (int)row.Key.Major)
-                .ThenBy(row => row.Key.Id)
+                .ThenBy(row => (int)row.Major)
+                .ThenBy(row => row.Token, StringComparer.Ordinal)
                 .ToList();
 
             dirtyRows = false;
@@ -423,9 +419,7 @@ namespace HAudio.Editor {
             if (string.IsNullOrWhiteSpace(query)) return false;
             if (row.Catalog && row.Catalog.name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
-            if (row.Key.Major.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
-                return true;
-            if (searchByUid && row.Key.Id.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (row.Major.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
             if (searchByName && row.Clip && row.Clip.name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;

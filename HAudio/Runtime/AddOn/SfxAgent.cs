@@ -5,22 +5,23 @@
  *
  * 특징 / 지원기능 ::
  * + AudioManager 단일 라우팅.
- * + token / int uid / AudioClips enum 세 가지 호출 인자 지원.
+ * + 호출 인자는 string token 단일 체계.
  * + Start 시점에 preload, OnDestroy 시점에 release 자동 수행.
  *
  * 주의사항 ::
- * + preloadUids 의 SfxView.Catalogs 는 인스펙터에서 미리 채워야 합니다.
+ * + preloadCatalogs 의 SfxView.Catalogs 는 인스펙터에서 미리 채워야 합니다.
  * + Prewarm 호출 중 예외 발생 시 catch 가 GameObject 이름 + 예외 타입/메시지를 stack trace 와 함께 출력합니다.
  *
  * 사용법 ::
- * + 인스펙터에서 preloadUids 에 SfxView 추가 (각 SfxView 안에 Catalogs 채움).
- * + 외부 호출은 Play / PlayUI / Play3D (token / int uid / AudioClips enum 가능).
+ * + 인스펙터에서 preloadCatalogs 에 SfxView 추가 (각 SfxView 안에 Catalogs 채움).
+ * + 외부 호출은 Play / PlayUI / Play3D (string token).
  * =========================================================
  */
 #endif
 
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Serialization;
 using HInspector;
 using HDiagnosis.Logger;
 using HDiagnosis.HDebug;
@@ -29,20 +30,20 @@ namespace HAudio.AddOn {
     public class SfxAgent : MonoBehaviour {
         #region Fields
         [HTitle("Clips")]
-        [SerializeField]
-        SfxView preloadUids = new();
+        [SerializeField, FormerlySerializedAs("preloadCatalogs")]
+        SfxView preloadCatalogs = new();
 
         UniTask prewarmTask = UniTask.CompletedTask;
         #endregion
 
         #region Properties
-        public SfxView PreloadUids => preloadUids;
+        public SfxView PreloadCatalogs => preloadCatalogs;
         #endregion
 
         #region Unity Life Cycle
 #if UNITY_EDITOR
         private void OnValidate() {
-            preloadUids?.EditorRebuildPreview();
+            preloadCatalogs?.EditorRebuildPreview();
         }
 #endif
 
@@ -80,37 +81,10 @@ namespace HAudio.AddOn {
         }
         #endregion
 
-        #region Public - Uid API
-        public void Play(AudioClips clip) => Play((int)clip);
-        public void PlayUI(AudioClips clip) => PlayUI((int)clip);
-        public void Play3D(AudioClips clip, Transform parent) => Play3D((int)clip, parent);
-        public void Play3D(AudioClips clip, Vector3 worldPos) => Play3D((int)clip, worldPos);
-
-        public void Play(int uid) {
-            if (!AudioManager.HasInstance) return;
-            AudioManager.Instance.Play(uid);
-        }
-
-        public void PlayUI(int uid) {
-            if (!AudioManager.HasInstance) return;
-            AudioManager.Instance.PlayUI(uid);
-        }
-
-        public void Play3D(int uid, Transform parent) {
-            if (!AudioManager.HasInstance) return;
-            AudioManager.Instance.Play3D(uid, parent);
-        }
-
-        public void Play3D(int uid, Vector3 worldPos) {
-            if (!AudioManager.HasInstance) return;
-            AudioManager.Instance.Play3D(uid, worldPos);
-        }
-        #endregion
-
         #region Private - Prewarm
         private async UniTask _PrewarmViews() {
             try {
-                await AudioManager.Instance.PrewarmSfxView(preloadUids);
+                await AudioManager.Instance.PrewarmSfxView(preloadCatalogs);
             }
             catch (System.Exception ex) {
                 HDebug.StackTraceError($"[AudioManager] {gameObject.name} : {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}", 20);
@@ -123,7 +97,7 @@ namespace HAudio.AddOn {
             // registry refCount 가 영구 잔류한다 — 완료를 기다린 뒤 해제한다.
             await prewarmTask;
             if (!AudioManager.HasInstance) return;
-            AudioManager.Instance.ReleaseSfxView(preloadUids);
+            AudioManager.Instance.ReleaseSfxView(preloadCatalogs);
         }
         #endregion
     }

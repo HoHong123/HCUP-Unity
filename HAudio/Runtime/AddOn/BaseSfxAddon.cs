@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 using HInspector;
 
 namespace HAudio.AddOn {
@@ -8,8 +9,8 @@ namespace HAudio.AddOn {
         [SerializeField]
         protected bool useOverride = false;
         [HShowIf(nameof(useOverride))]
-        [SerializeField]
-        protected string overrideClickUid = string.Empty;
+        [SerializeField, FormerlySerializedAs("overrideClickUid")]
+        protected string overrideClickToken = string.Empty;
         #endregion
 
         #region Protected - Handler
@@ -17,8 +18,8 @@ namespace HAudio.AddOn {
             if (!AudioManager.HasInstance) return;
 
             if (useOverride) {
-                if (!string.IsNullOrEmpty(overrideClickUid)) {
-                    AudioManager.Instance.PlayUI(overrideClickUid);
+                if (!string.IsNullOrEmpty(overrideClickToken)) {
+                    AudioManager.Instance.PlayUI(overrideClickToken);
                     return;
                 }
             }
