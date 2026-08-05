@@ -5,6 +5,9 @@ using System.Globalization;
 
 namespace HInspector.Editor {
     internal static class HInspectorExpressionUtility {
+        // 파싱 실패 경고는 표현식당 1회 — OnGUI 에서 프레임당 2회 파싱되므로 스팸 방지가 필수.
+        static readonly HashSet<string> warnedExpressions = new HashSet<string>();
+
         sealed class IdentifierLiteral {
             public string Text { get; }
 
@@ -318,7 +321,12 @@ namespace HInspector.Editor {
                 result = parser.Parse();
                 return true;
             }
-            catch {
+            catch (Exception e) {
+                // 무음 삼킴은 멤버 오타·문법 오류 시 인스펙터 필드가 이유 없이 사라지게 만든다.
+                if (warnedExpressions.Add(expression)) {
+                    UnityEngine.Debug.LogWarning(
+                        $"[HInspector] Expression evaluation failed — field will be hidden. expression='{expression}' :: {e.Message}");
+                }
                 result = false;
                 return false;
             }

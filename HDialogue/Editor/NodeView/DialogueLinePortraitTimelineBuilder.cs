@@ -89,7 +89,10 @@ namespace HDialogue.Editor {
                     return sprite;
                 }
                 Addressables.Release(handle);
-            } catch { }
+            } catch (System.Exception e) {
+                // 미리보기 실패는 치명적이지 않지만 무음이면 키 오타를 못 찾는다 — null 캐시라 키당 1회만 출력된다.
+                UnityEngine.Debug.LogWarning($"[DialogueLinePortraitTimelineBuilder] Preview sprite load failed. key='{key}' :: {e.Message}");
+            }
             spriteCache[key] = null;
             return null;
         }

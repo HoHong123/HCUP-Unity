@@ -486,7 +486,9 @@ namespace HAudio.Editor {
                 var prop = entry.GetType().GetProperty("EditorClip");
                 if (prop != null) return prop.GetValue(entry) as AudioClip;
             }
-            catch { }
+            catch (System.Reflection.TargetInvocationException) {
+                // 선택적 EditorClip 프로퍼티 탐침 — getter 예외만 무시하고 그 외 예외는 드러낸다.
+            }
 
             return null;
         }
