@@ -48,13 +48,25 @@ namespace HCore.Scene {
             if (scenes != null) return;
             scenes = new Dictionary<SceneKey, string>(entries.Count);
 
+            // 조용히 스킵하면 SceneLoader 가 "매핑되지 않음" 으로 오진한다 — 실제 원인은 깨진 SceneRef 다.
             foreach (var entry in entries) {
-                if (entry.Scene == null) continue;
+                if (entry.Scene == null) {
+                    Debug.LogError($"[SceneCatalog] '{name}': SceneKey '{entry.Key}' has no SceneRef assigned.", this);
+                    continue;
+                }
 
-                var name = entry.Scene.SceneName;
-                if (string.IsNullOrEmpty(name)) continue;
+                var sceneName = entry.Scene.SceneName;
+                if (string.IsNullOrEmpty(sceneName)) {
+                    Debug.LogError($"[SceneCatalog] '{name}': SceneKey '{entry.Key}' has a SceneRef with an empty scene name.", this);
+                    continue;
+                }
 
-                scenes[entry.Key] = name;
+                // 중복 키는 last-wins 로 조용히 덮어써지고 있었다. 편집 실수를 드러낸다.
+                if (scenes.ContainsKey(entry.Key)) {
+                    Debug.LogError($"[SceneCatalog] '{name}': duplicate SceneKey '{entry.Key}'. The last entry wins.", this);
+                }
+
+                scenes[entry.Key] = sceneName;
             }
         }
         #endregion

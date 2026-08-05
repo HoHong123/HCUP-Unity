@@ -41,6 +41,8 @@ namespace HCore.Scene {
         #region Protected - Unity Life Cycle
         protected override void Awake() {
             base.Awake();
+            // base 가 중복 인스턴스를 Destroy 한 경우 초기화를 진행하지 않는다 (InitManager 와 동일 규약).
+            if (instance != this) return;
 #if UNITY_EDITOR || DEBUG
             if (useDevRef) Assert.IsNotNull(devRef, "[SceneManager] useDevRef is true but devRef is null.");
             SceneLoader.Initialize(releaseRef, useDevRef ? devRef : null);
@@ -51,7 +53,7 @@ namespace HCore.Scene {
         #endregion
 
         #region Public - Load Scene
-        public virtual UniTask LoadSceneAsync(
+        public virtual UniTask<bool> LoadSceneAsync(
             SceneKey key,
             LoadSceneMode mode = LoadSceneMode.Single,
             Action<float> onProgress = null,
@@ -59,7 +61,7 @@ namespace HCore.Scene {
             SceneKey? loadingKey = null)
             => SceneLoader.LoadSceneAsync(key, mode, onProgress, onComplete, loadingKey);
 
-        public virtual UniTask LoadSceneAsync(
+        public virtual UniTask<bool> LoadSceneAsync(
             string sceneName,
             LoadSceneMode mode = LoadSceneMode.Single,
             Action<float> onProgress = null,
@@ -69,13 +71,13 @@ namespace HCore.Scene {
         #endregion
 
         #region Public - Reload Same Scene
-        public virtual UniTask ReloadActiveSceneAsync(
+        public virtual UniTask<bool> ReloadActiveSceneAsync(
             Action<float> onProgress = null,
             Action onComplete = null,
             SceneKey? loadingKey = null)
             => SceneLoader.ReloadActiveSceneAsync(onProgress, onComplete, loadingKey);
 
-        public virtual UniTask ReloadActiveSceneAsync(
+        public virtual UniTask<bool> ReloadActiveSceneAsync(
             Action<float> onProgress = null,
             Action onComplete = null,
             string loadingScene = null)
@@ -83,13 +85,13 @@ namespace HCore.Scene {
         #endregion
 
         #region Public - Unload Scene
-        public virtual UniTask UnloadSceneAsync(
+        public virtual UniTask<bool> UnloadSceneAsync(
             SceneKey key,
             Action<float> onProgress = null,
             Action onComplete = null)
             => SceneLoader.UnloadSceneAsync(key, onProgress, onComplete);
 
-        public virtual UniTask UnloadSceneAsync(
+        public virtual UniTask<bool> UnloadSceneAsync(
             string sceneName,
             Action<float> onProgress = null,
             Action onComplete = null)
