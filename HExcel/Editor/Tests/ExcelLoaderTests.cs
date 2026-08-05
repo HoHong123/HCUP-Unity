@@ -27,10 +27,9 @@ using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
-using HData.NPOI.Core;
-using HData.NPOI.Samples;
+using HExcel.Core;
 
-namespace HData.NPOI.Tests {
+namespace HExcel.Tests {
 
     // AssetDatabase 의존 없이 ImportData 결과를 메모리에 저장하는 테스트 전용 Loader
     public class TestLoader : ExcelLoader<TestLoader> {

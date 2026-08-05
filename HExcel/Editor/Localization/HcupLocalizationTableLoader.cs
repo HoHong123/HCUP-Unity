@@ -29,10 +29,10 @@ using UnityEngine;
 using UnityEditor;
 using Newtonsoft.Json.Linq;
 using HDiagnosis.Logger;
-using HData.NPOI.Core;
+using HExcel.Core;
 using HcupLocalization;
 
-namespace HData.NPOI.Localization {
+namespace HExcel.Localization {
     [DataEditorEntry("00. HcupLocalization")]
     public class HcupLocalizationTableLoader : ExcelLoader<HcupLocalizationTableLoader> {
 #if UNITY_EDITOR
@@ -175,7 +175,7 @@ namespace HData.NPOI.Localization {
  * - ExcelToJsonAllSheets() 사용: 다중 시트 병합으로 UID 네임스페이스 유연하게 관리
  * - UID 중복 시 즉시 return — 데이터 일관성을 빌드타임에 강제
  * - ExportData() Korean SO 기준 정렬: 동일 UID 순서로 재Import 시 Excel 안정성 확보
- * - HCUP.HData.NPOI.asmdef 에 GUID:633df54f5635b1f4c95d4e6926f70597 (HCUP.HUI) 참조 추가
+ * - HCUP.HExcel.asmdef 에 GUID:633df54f5635b1f4c95d4e6926f70597 (HCUP.HUI) 참조 추가
  *
  * =============================================================================
  */

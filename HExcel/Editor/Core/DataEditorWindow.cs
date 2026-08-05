@@ -19,10 +19,10 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using HData.NPOI.Core.Editor;
+using HExcel.Core.Editor;
 using HDiagnosis.Logger;
 
-namespace HData.NPOI.Core {
+namespace HExcel.Core {
     public class DataEditorWindow : EditorWindow {
         const float WINDOW_WIDTH  = 1200f;
         const float WINDOW_HEIGHT = 700f;
@@ -202,14 +202,14 @@ namespace HData.NPOI.Core {
  * @Jason - PKH 2026.05.13 "00. Localization" 항목 추가 (Phase 2)
  *
  * # 변경
- * - using HData.NPOI.Localization 추가
+ * - using HExcel.Localization 추가
  * - _BuildEntries() : ("00. Localization", LocalizationTableLoader.Instance) 추가
  *
  * =============================================================================
  * @Jason - PKH 2026.05.13 Samples 항목 제거 — LocalizationTableLoader 연동 전 빈 목록으로 초기화
  *
  * # 변경
- * - using HData.NPOI.Samples 제거
+ * - using HExcel.Samples 제거
  * - _BuildEntries() : Sample / Goods 항목 삭제 → 빈 List 초기화
  * - Phase 2 완료 시 "00. Localization" + LocalizationTableLoader.Instance 추가 예정
  *
@@ -218,7 +218,7 @@ namespace HData.NPOI.Core {
  *
  * # 변경
  * - _SelectEntry() : Editor.CreateEditor(target) → CreateEditor(target, typeof(ExcelLoaderEditor))
- * - using HData.NPOI.Core.Editor 추가
+ * - using HExcel.Core.Editor 추가
  *
  * # 원인
  * - AssetDatabaseInstanceEditor / ExcelLoaderEditor 둘 다 open generic [CustomEditor]로 등록

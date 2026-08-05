@@ -11,7 +11,7 @@
 
 using UnityEditor;
 
-namespace HData.NPOI.Core {
+namespace HExcel.Core {
     public static class AssetFolderUtility {
 #if UNITY_EDITOR
         /// <summary> unityPath("Assets/...") 폴더가 없으면 부모부터 재귀 생성. </summary>

@@ -8,7 +8,7 @@
  * - 언어 필드는 Excel 컬럼명과 1:1 대응 (UID / Korean / English / Japanese / Chinese / Russian)
  *
  * 주의사항 ::
- * - Editor Assembly 전용 (HCUP.HData.NPOI.Editor). 런타임 참조 불가.
+ * - Editor Assembly 전용 (HCUP.HExcel.Editor). 런타임 참조 불가.
  * - 장기 보관 용도 아님 — Import 직후 LocalizationSO 에 기록 후 버려진다.
  * =========================================================
  */
@@ -17,7 +17,7 @@
 using System;
 using HcupLocalization;
 
-namespace HData.NPOI.Localization {
+namespace HExcel.Localization {
     [Serializable]
     public class LocalizationData {
         public string uid;

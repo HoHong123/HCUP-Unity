@@ -15,7 +15,7 @@
 
 using System;
 
-namespace HData.NPOI.Core {
+namespace HExcel.Core {
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public sealed class DataEditorEntryAttribute : Attribute {
         public string Label { get; }
@@ -33,7 +33,7 @@ namespace HData.NPOI.Core {
  * @Jason - PKH 2026.07.03 최초 작성
  *
  * # 목적
- * - HUnityLocalization.Editor → HData.NPOI.Editor 참조 방향에서 DataEditorWindow 가
+ * - HUnityLocalization.Editor → HExcel.Editor 참조 방향에서 DataEditorWindow 가
  *   신규 로더를 하드코딩할 수 없음 (순환 참조) → TypeCache 자동 발견으로 전환
  *
  * =============================================================================

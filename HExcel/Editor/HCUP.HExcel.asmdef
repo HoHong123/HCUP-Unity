@@ -1,6 +1,6 @@
 {
-    "name": "HCUP.HData.NPOI.Editor",
-    "rootNamespace": "HData.NPOI.Editor",
+    "name": "HCUP.HExcel.Editor",
+    "rootNamespace": "HExcel",
     "references": [
         "GUID:8713a21b18988d64a80416a73699dc20",
         "GUID:2687c067fc80bbd448e188188cdbe214",

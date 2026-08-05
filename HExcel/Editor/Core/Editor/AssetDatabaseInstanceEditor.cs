@@ -18,7 +18,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace HData.NPOI.Core.Editor {
+namespace HExcel.Core.Editor {
     [CustomEditor(typeof(AssetDatabaseInstance<>), true)]
     public class AssetDatabaseInstanceEditor : UnityEditor.Editor {
         public override void OnInspectorGUI() {

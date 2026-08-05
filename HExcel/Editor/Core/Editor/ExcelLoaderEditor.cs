@@ -20,7 +20,7 @@ using HInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace HData.NPOI.Core.Editor {
+namespace HExcel.Core.Editor {
     [CustomEditor(typeof(ExcelLoader<>), true)]
     public class ExcelLoaderEditor : UnityEditor.Editor {
         const float SECTION_GAP = 8f;
@@ -247,7 +247,7 @@ namespace HData.NPOI.Core.Editor {
  * # 변경
  * - 섹션 헤더(boldLabel)를 HTitleDrawer.Draw()로 대체 :: 엑셀 파일 / 시트 선택 / 데이터 출력 경로 / 실행(신설) / 데이터 미리보기 5개 타이틀 블록.
  * - 섹션 간 여백을 SECTION_GAP(8f) 상수로 통일 — 조건부 섹션(시트 선택 등)은 가드 통과 후 여백 삽입 (숨김 시 공백 잔류 방지).
- * - asmdef :: HCUP.HInspector.Editor 참조 추가 — HData.NPOI.Editor → HInspector 패키지 의존 발생.
+ * - asmdef :: HCUP.HInspector.Editor 참조 추가 — HExcel.Editor → HInspector 패키지 의존 발생.
  * - 본 에디터는 ExcelLoader<> 파생 전체(HcupLocalization / HUnityLocalization 등)에 공통 적용됨.
  *
  * =============================================================================

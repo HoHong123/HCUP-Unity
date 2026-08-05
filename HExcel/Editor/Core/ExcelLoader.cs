@@ -63,7 +63,7 @@ using Newtonsoft.Json.Linq;
 using HDiagnosis.Logger;
 #endif
 
-namespace HData.NPOI.Core {
+namespace HExcel.Core {
     [Serializable]
     public abstract class ExcelLoader<Loader> :
         AssetDatabaseInstance<Loader>
@@ -307,12 +307,18 @@ namespace HData.NPOI.Core {
                 }
             }
 
-            string path = EditorUtility.SaveFilePanel("엑셀 파일로 저장하기", "", fileName, "xlsx");
+            try {
+                string path = EditorUtility.SaveFilePanel("엑셀 파일로 저장하기", "", fileName, "xlsx");
+                if (string.IsNullOrEmpty(path)) return;
 
-            HLogger.Log(path);
+                HLogger.Log(path);
 
-            using (var fs = new FileStream(path, FileMode.Create)) {
-                book.Write(fs);
+                using (var fs = new FileStream(path, FileMode.Create)) {
+                    book.Write(fs);
+                }
+            }
+            finally {
+                book.Close();
             }
         }
         #endregion
@@ -329,6 +335,9 @@ namespace HData.NPOI.Core {
 
             if (string.IsNullOrEmpty(path)) return;
 
+            // 이전 워크북을 놓아준다 — XSSF 는 OPCPackage + 전체 시트 인메모리 트리라 누수 비용이 크다.
+            CloseWorkbook();
+
             try {
                 HLogger.Log(path);
                 using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read)) {
@@ -337,15 +346,34 @@ namespace HData.NPOI.Core {
                     } else if (path.EndsWith("xlsx")) {
                         workBook = new XSSFWorkbook(fs);
                     } else {
-                        throw new NotSupportedException();
+                        throw new NotSupportedException($"[ExcelLoader] Unsupported extension :: {path}");
                     }
                 }
             }
             catch (Exception e) {
-                HLogger.Error(e.Message);
+                // 실패를 삼키고 진행하면 사용자는 새 파일을 보고 있다고 믿으며 이전 데이터를
+                // Import 하게 된다 — 워크북/시트를 비워 오염 경로를 차단한다.
+                workBook = null;
+                sheet = null;
+                HLogger.Error($"[ExcelLoader] Load failed :: {path} — {e.Message}");
+                return;
             }
 
             GetSheet();
+        }
+        #endregion
+
+        #region Internal - Workbook Lifetime
+        internal void CloseWorkbook() {
+            if (workBook == null) return;
+            try {
+                workBook.Close();
+            }
+            catch (Exception e) {
+                HLogger.Error($"[ExcelLoader] Workbook close failed :: {e.Message}");
+            }
+            workBook = null;
+            sheet = null;
         }
         #endregion
 

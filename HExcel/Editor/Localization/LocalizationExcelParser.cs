@@ -19,7 +19,7 @@ using Newtonsoft.Json.Linq;
 using HDiagnosis.Logger;
 using HcupLocalization;
 
-namespace HData.NPOI.Localization {
+namespace HExcel.Localization {
     public static class LocalizationExcelParser {
 #if UNITY_EDITOR
         // 엑셀 헤더 규격 단일 소스 — 양 로더의 keys 가 이 배열을 반환

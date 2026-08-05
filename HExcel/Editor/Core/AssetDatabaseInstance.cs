@@ -45,7 +45,7 @@ using System.Linq;
 using UnityEngine;
 using HDiagnosis.Logger;
 
-namespace HData.NPOI.Core {
+namespace HExcel.Core {
     [Serializable]
     public abstract class AssetDatabaseInstance<T> : ScriptableObject
         where T : AssetDatabaseInstance<T>, new() {
