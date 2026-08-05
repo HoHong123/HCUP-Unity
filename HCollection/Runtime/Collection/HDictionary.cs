@@ -104,23 +104,39 @@ namespace HCollection {
         }
 
         public void OnAfterDeserialize() {
-            base.Clear();
+            // 재-deserialize (빌드에서 Instantiate/프리팹 인스턴스화 시 재호출) — entries 가 이미
+            // 해제된 상태라면 복원 소스가 없으므로 현재 Dictionary 상태를 그대로 유지한다.
+            if (entries == null) return;
 
-            if (entries != null && entries.Count > 0) {
-                for (int k = 0; k < entries.Count; k++) {
-                    Entry entry = entries[k];
+            // 로컬 재구축 후 성공 시에만 반영 — 콜백 도중 예외가 나가도 기존 데이터가 파괴되지 않는다.
+            Dictionary<TKey, TValue> rebuilt = new Dictionary<TKey, TValue>(entries.Count, Comparer);
+            for (int k = 0; k < entries.Count; k++) {
+                Entry entry = entries[k];
 
-                    if (ContainsKey(entry.Key)) {
+                if (entry.Key is null) {
 #if UNITY_EDITOR
-                        Debug.LogError(
-                            $"[HDictionary] Duplicate key detected. Key='{entry.Key}' at index={k}. " +
-                            $"Fix duplicate keys before entering play mode, building, or saving the scene.");
+                    Debug.LogError(
+                        $"[HDictionary] Null key detected at index={k}. " +
+                        $"Assign a key before entering play mode, building, or saving the scene.");
 #endif
-                        continue;
-                    }
-
-                    base.Add(entry.Key, entry.Value);
+                    continue;
                 }
+
+                if (rebuilt.ContainsKey(entry.Key)) {
+#if UNITY_EDITOR
+                    Debug.LogError(
+                        $"[HDictionary] Duplicate key detected. Key='{entry.Key}' at index={k}. " +
+                        $"Fix duplicate keys before entering play mode, building, or saving the scene.");
+#endif
+                    continue;
+                }
+
+                rebuilt.Add(entry.Key, entry.Value);
+            }
+
+            base.Clear();
+            foreach (var kv in rebuilt) {
+                base.Add(kv.Key, kv.Value);
             }
 
 #if !UNITY_EDITOR

@@ -18,7 +18,6 @@ using System.Collections.Generic;
 using HDiagnosis.Logger;
 
 namespace HCollection {
-    [Serializable]
     public class CircularList<T> : IEnumerable<T>, IDisposable {
         #region Fields
         int index = 0;
@@ -28,13 +27,16 @@ namespace HCollection {
         #region Properties
         public int Count => list.Count;
         public int Pivot => index;
-        public int NextPivot => (index + 1) % list.Count;
-        public int PrevPivot => (index - 1 + list.Count) % list.Count;
+        // 빈 리스트 가드 — IsAtLast 와 동일 규약. 가드 없이는 Count==0 에서 DivideByZero. [CASE EDGE-3]
+        public int NextPivot => (list.Count > 0) ? (index + 1) % list.Count : 0;
+        public int PrevPivot => (list.Count > 0) ? (index - 1 + list.Count) % list.Count : 0;
         public bool IsAtFirst => index == 0;
         public bool IsAtLast => index == list.Count - 1 && list.Count > 0;
         public bool IsEmpty => list.Count == 0;
-        public T CurrentItem => (list.Count > 0) ? list[index] : default;
-        public List<T> Items => list;
+        // pivot 선지정(deferred) 상태에서 Count <= index 인 동안의 접근을 막는 범위 가드. [CASE COR-2]
+        public T CurrentItem => ((uint)index < (uint)list.Count) ? list[index] : default;
+        // 원본 List 노출 시 외부 제거가 Pivot 보정(_AdjustPivotAfterRemove)을 우회한다. [CASE NEG-3]
+        public IReadOnlyList<T> Items => list;
         #endregion
 
         #region Public - Getters
@@ -52,15 +54,20 @@ namespace HCollection {
         }
         public CircularList(int pivot, IEnumerable<T> list) {
             this.list = new(list);
-            index = pivot;
+            // 요소가 즉시 확정되는 생성자이므로 pivot 을 유효 범위로 clamp. [CASE NEG-2]
+            index = (this.list.Count > 0) ? Math.Clamp(pivot, 0, this.list.Count - 1) : 0;
         }
         public CircularList(CircularList<T> list) {
             this.list = new(list.Items);
             index = list.index;
         }
+        /// <summary>
+        /// pivot 선지정 생성자. size 는 capacity 이며 요소는 이후 Add 로 채운다 — Add 가 pivot
+        /// 이상으로 채워지기 전까지 CurrentItem 은 default 를 반환한다 (ParallexLayer 사용 패턴).
+        /// </summary>
         public CircularList(int pivot, int size) {
             this.list = new(size);
-            index = pivot;
+            index = Math.Max(0, pivot);   // 음수 pivot 만 차단 — 초과 pivot 은 deferred 채움 패턴 허용
         }
         public CircularList(int size) {
             this.list = new(size);
@@ -75,7 +82,7 @@ namespace HCollection {
 
         #region Public - Remove
         public void RemoveCurrent() {
-            if (list.Count == 0) return;
+            if ((uint)index >= (uint)list.Count) return;   // 빈 리스트 + pivot 선지정 상태 방어
             list.RemoveAt(index);
             if (index >= list.Count) index = 0;
         }
@@ -83,11 +90,26 @@ namespace HCollection {
         public void RemoveAt(int index) {
             if (index < 0 || index > list.Count - 1) return;
             list.RemoveAt(index);
-            if (index >= list.Count) this.index = 0;
+            _AdjustPivotAfterRemove(index);
         }
 
         public bool Remove(T item) {
-            return list.Remove(item);
+            int removeIndex = list.IndexOf(item);
+            if (removeIndex < 0) return false;
+            list.RemoveAt(removeIndex);
+            _AdjustPivotAfterRemove(removeIndex);
+            return true;
+        }
+
+        // 제거 위치 기준 Pivot 보정. Pivot 앞이 지워지면 한 칸 당기고,
+        // 보정 후에도 범위를 벗어나면(마지막 요소 제거 등) 0으로 순환.
+        private void _AdjustPivotAfterRemove(int removedIndex) {
+            if (list.Count == 0) {
+                index = 0;
+                return;
+            }
+            if (removedIndex < index) index--;
+            if (index >= list.Count) index = 0;
         }
         #endregion
 
