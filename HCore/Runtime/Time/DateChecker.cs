@@ -16,7 +16,7 @@ using System;
 using System.Text;
 using HData.Encode;
 using HData.Encrypt;
-using HUtil.Data.Load;
+using HCore;
 
 namespace HCore.HTime {
     public sealed class DateChecker {

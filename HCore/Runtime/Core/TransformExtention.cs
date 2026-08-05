@@ -13,11 +13,13 @@ namespace HCore {
         public static void DestroyAllChildren(this Transform parent) {
             if (parent == null) return;
             for (int k = parent.childCount - 1; k >= 0; k--) {
-#if UNITY_EDITOR
-                Object.DestroyImmediate(parent.GetChild(k).gameObject);
-#else
-                Object.Destroy(parent.GetChild(k).gameObject);
-#endif
+                // 컴파일 심볼이 아니라 런타임 판정 — 에디터 "플레이 모드" 에서 DestroyImmediate 를
+                // 쓰면 파괴 시점·OnDestroy 순서가 빌드와 달라져 빌드에서만 재현되는 버그를 만든다.
+                if (Application.isPlaying) {
+                    Object.Destroy(parent.GetChild(k).gameObject);
+                } else {
+                    Object.DestroyImmediate(parent.GetChild(k).gameObject);
+                }
             }
         }
     }

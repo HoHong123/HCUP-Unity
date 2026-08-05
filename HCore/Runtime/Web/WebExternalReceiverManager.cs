@@ -38,10 +38,11 @@ namespace HCore.Web {
             }
         }
 
-        private new void OnDestroy() {
+        protected override void OnDestroy() {
             foreach (var reciver in receivers) {
                 Unregister(reciver);
             }
+            base.OnDestroy();
         }
         #endregion
 
