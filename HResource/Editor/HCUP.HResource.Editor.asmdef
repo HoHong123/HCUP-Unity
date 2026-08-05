@@ -1,12 +1,12 @@
 {
-    "name": "HCUP.HUtil",
-    "rootNamespace": "HUtil",
+    "name": "HCUP.HResource.Editor",
+    "rootNamespace": "HResource",
     "references": [
-        "HCUP.HData",
-        "HCUP.HDiagnosis",
-        "HCUP.HInspector"
+        "HCUP.HResource"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

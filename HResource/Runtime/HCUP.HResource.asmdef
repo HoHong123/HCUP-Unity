@@ -1,10 +1,12 @@
 {
-    "name": "HCUP.HUtil",
-    "rootNamespace": "HUtil",
+    "name": "HCUP.HResource",
+    "rootNamespace": "HResource",
     "references": [
-        "HCUP.HData",
-        "HCUP.HDiagnosis",
-        "HCUP.HInspector"
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Addressables",
+        "HCUP.HDiagnosis"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
