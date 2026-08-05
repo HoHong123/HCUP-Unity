@@ -1,8 +1,9 @@
+using HGame.Map;
 using UnityEngine;
 using HGame.Character;
 using HInspector;
 
-namespace HGame.Map {
+namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class MinimapTrackable : MonoBehaviour {
         [HTitle("Config")]

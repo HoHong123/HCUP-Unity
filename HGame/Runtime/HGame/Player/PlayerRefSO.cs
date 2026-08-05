@@ -25,6 +25,9 @@ namespace HGame.Player {
         public void Clear(PlayerStatus status) {
             if (reference == status) {
                 HDebug.StackTraceLog("Clear Player Status");
+                // reference 를 남기면 Set 의 조기 반환 조건에 걸려 재설정이 영구 불가.
+                // SO 특성상 씬 재진입에도 상태가 남으므로 반드시 함께 비운다.
+                reference = null;
                 ReadOnly = null;
                 Command = null;
             }

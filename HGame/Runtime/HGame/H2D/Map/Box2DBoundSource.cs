@@ -1,18 +1,19 @@
-using HInspector;
+using HGame.Map;
 using UnityEngine;
+using HInspector;
 
 namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
-    public class SpriteRendererBoundsSource : MonoBehaviour, IWorldBoundSource {
+    public class Box2DBoundSource : MonoBehaviour, IWorldBoundSource {
         [HTitle("Boundary")]
         [SerializeField]
-        SpriteRenderer spriteRender;
+        BoxCollider2D box;
 
         public bool TryGetWorldRect(out Rect rect) {
             rect = default;
-            if (!spriteRender) return false;
+            if (!box) return false;
 
-            var b = spriteRender.bounds;
+            var b = box.bounds;
             rect = new Rect(b.min, b.size);
 
             return true;

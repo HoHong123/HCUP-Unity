@@ -98,11 +98,16 @@ namespace HGame.Skill {
             return (SkillRarity)index;
         }
 
+        /// <summary> 스킬 선택 UI 주입 지점. 미설정이면 경고 후 첫 제안을 자동 선택한다. </summary>
+        public Func<List<SkillOffer>, UniTask<int>> ChoiceSelector { get; set; }
+
         private async UniTask<int> _ShowChoicesAsync(List<SkillOffer> offers) {
-            // UI를 통해 스킬 선택
-            //int picked = await ui.SkillSelect.ShowAsync(offers);
-            int picked = -1;
-            return picked; // -1 이면 취소로 간주 가능
+            if (ChoiceSelector != null) return await ChoiceSelector(offers);
+
+            // 선택 UI 미연결 상태에서 항상 -1 을 반환하던 종전 코드는 레벨업 보상을 로그 한 줄
+            // 없이 소실시켰다 — 무음 실패 대신 경고 + 첫 제안 자동 선택으로 대체.
+            Debug.LogWarning("[SkillManager] ChoiceSelector is not set. Auto-picking the first offer.");
+            return 0;
         }
 
         private async UniTaskVoid _ProcessLevelUpQueueAsync() {

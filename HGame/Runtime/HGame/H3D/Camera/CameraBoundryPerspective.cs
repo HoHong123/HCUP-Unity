@@ -1,7 +1,9 @@
 using UnityEngine;
 using HInspector;
+using HGame.Cam;
+using HGame.Map;
 
-namespace HGame.Cam {
+namespace HGame.H3D.Cam {
     [DisallowMultipleComponent]
     public class CameraBoundryPerspective : BaseCameraBoundry {
         #region Fields

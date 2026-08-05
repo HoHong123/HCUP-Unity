@@ -1,21 +1,22 @@
+using HGame.Map;
 using HInspector;
 using UnityEngine;
 
 namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
-    public class CompositeBoundSource : MonoBehaviour, IWorldBoundSource {
+    public class SpriteRendererBoundsSource : MonoBehaviour, IWorldBoundSource {
         [HTitle("Boundary")]
         [SerializeField]
-        CompositeCollider2D composite;
+        SpriteRenderer spriteRender;
 
         public bool TryGetWorldRect(out Rect rect) {
             rect = default;
-            if (!composite) return false;
+            if (!spriteRender) return false;
 
-            var b = composite.bounds;
+            var b = spriteRender.bounds;
             rect = new Rect(b.min, b.size);
 
-            return b.size.x > 0 && b.size.y > 0;
+            return true;
         }
     }
 }

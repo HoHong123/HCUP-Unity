@@ -24,9 +24,8 @@ namespace HGame.World.EventAction {
             return endpoints.Remove(endPoint);
         }
         public void UnregisterAllEndPoint() {
-            foreach (var point in endpoints) {
-                UnregisterEndPoint(point);
-            }
+            // 순회 중 Remove 는 요소가 1개 이상이면 InvalidOperationException — 일괄 비움으로 대체.
+            endpoints.Clear();
         }
 
 

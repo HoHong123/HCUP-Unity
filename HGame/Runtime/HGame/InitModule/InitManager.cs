@@ -39,13 +39,17 @@ namespace HGame.Flow {
 
 
         protected override void Awake() {
+            base.Awake();
+            // base 가 중복 인스턴스를 Destroy 한 경우 초기화를 진행하지 않는다.
+            if (instance != this) return;
             modules.Sort((a, b) => a.Order.CompareTo(b.Order));
         }
 
         protected virtual void OnEnable() { }
 
         protected virtual void Start() {
-            if (autoPrepareOnEnable) GamePrepareAsync();
+            // UniTask 를 버리면 초기화 실패가 로그 없이 사라진다 — Forget 이 예외를 로깅한다.
+            if (autoPrepareOnEnable) GamePrepareAsync().Forget();
         }
 
         protected virtual void OnDisable() {
@@ -74,28 +78,28 @@ namespace HGame.Flow {
             phaseCts = new CancellationTokenSource();
             var ct = phaseCts.Token;
 
-            switch (phase) {
-            case InitPhaseType.Prepare:
-                foreach (var m in modules) await m.OnEnterPrepare(context, ct);
-                break;
-            case InitPhaseType.Start:
-                foreach (var m in modules) await m.OnEnterStart(context, ct);
-                break;
-            case InitPhaseType.Running:
-                foreach (var m in modules) await m.OnEnterRun(context, ct);
-                break;
-            case InitPhaseType.Pause:
-                foreach (var m in modules) await m.OnEnterPause(context, ct);
-                break;
-            case InitPhaseType.Resume:
-                foreach (var m in modules) await m.OnEnterResume(context, ct);
-                break;
-            case InitPhaseType.Over:
-                foreach (var m in modules) await m.OnEnterOver(context, ct);
-                break;
-            case InitPhaseType.Exit:
-                foreach (var m in modules) await m.OnEnterExit(context, ct);
-                break;
+            System.Func<BaseInitModule, UniTask> enterPhase = phase switch {
+                InitPhaseType.Prepare => m => m.OnEnterPrepare(context, ct),
+                InitPhaseType.Start => m => m.OnEnterStart(context, ct),
+                InitPhaseType.Running => m => m.OnEnterRun(context, ct),
+                InitPhaseType.Pause => m => m.OnEnterPause(context, ct),
+                InitPhaseType.Resume => m => m.OnEnterResume(context, ct),
+                InitPhaseType.Over => m => m.OnEnterOver(context, ct),
+                InitPhaseType.Exit => m => m.OnEnterExit(context, ct),
+                _ => null,
+            };
+            if (enterPhase == null) return;
+
+            try {
+                foreach (var m in modules) {
+                    // 이전 페이즈 루프가 새 전환의 Cancel 을 무시하고 계속 주행하면
+                    // 두 상태머신이 동시에 돈다 — 모듈 사이마다 취소를 검사한다.
+                    ct.ThrowIfCancellationRequested();
+                    await enterPhase(m);
+                }
+            }
+            catch (System.OperationCanceledException) {
+                // 새 페이즈 전환에 의해 대체된 루프의 정상 종료 경로 — 상위로 전파하지 않는다.
             }
         }
     }

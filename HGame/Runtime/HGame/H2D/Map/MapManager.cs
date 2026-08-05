@@ -1,3 +1,4 @@
+using HGame.Map;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,7 +9,7 @@ using HUtil.Pooling;
 using HUI.Panel;
 using HInspector;
 
-namespace HGame.Map {
+namespace HGame.H2D.Map {
     [DisallowMultipleComponent]
     public class MapManager : SingletonBehaviour<MapManager> {
         [HTitle("Camera")]
@@ -80,6 +81,14 @@ namespace HGame.Map {
             mapPanel.EndDragEvent += _OnEndDrag;
         }
 
+        private void OnDestroy() {
+            if (mapPanel == null) return;
+            mapPanel.PointerClickEvent -= _OnPointerClick;
+            mapPanel.BeginDragEvent -= _OnBeginDrag;
+            mapPanel.OnDragEvent -= _OnDrag;
+            mapPanel.EndDragEvent -= _OnEndDrag;
+        }
+
         private void OnEnable() {
             _RefreshWorldRect();
             if (autoFitMinimapAspect) {
@@ -114,7 +123,8 @@ namespace HGame.Map {
 
         public void Unregister(MinimapTrackable track) {
             if (track == null) return;
-            markerPool.Return(trackables[track]);
+            if (!trackables.TryGetValue(track, out var marker)) return;
+            markerPool.Return(marker);
             trackables.Remove(track);
         }
         #endregion
