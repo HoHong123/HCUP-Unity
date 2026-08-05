@@ -10,6 +10,7 @@ using HResource.Data;
 using HResource.Subscription;
 using HCore;
 using HInspector;
+using HDiagnosis.Logger;
 using HDiagnosis.HDebug;
 #if UNITY_EDITOR && ODIN_INSPECTOR
 using Sirenix.OdinInspector;

@@ -81,12 +81,16 @@ namespace HGame.H2D.Map {
             mapPanel.EndDragEvent += _OnEndDrag;
         }
 
-        private void OnDestroy() {
-            if (mapPanel == null) return;
-            mapPanel.PointerClickEvent -= _OnPointerClick;
-            mapPanel.BeginDragEvent -= _OnBeginDrag;
-            mapPanel.OnDragEvent -= _OnDrag;
-            mapPanel.EndDragEvent -= _OnEndDrag;
+        // SingletonBehaviour 파생이므로 override + base 호출 — private 선언은 base 의 instance 정리를
+        // 숨겨(CS0114) 싱글톤 해제가 영구 미실행된다. 감사 P1-3 과 동일 결함 유형.
+        protected override void OnDestroy() {
+            if (mapPanel != null) {
+                mapPanel.PointerClickEvent -= _OnPointerClick;
+                mapPanel.BeginDragEvent -= _OnBeginDrag;
+                mapPanel.OnDragEvent -= _OnDrag;
+                mapPanel.EndDragEvent -= _OnEndDrag;
+            }
+            base.OnDestroy();
         }
 
         private void OnEnable() {

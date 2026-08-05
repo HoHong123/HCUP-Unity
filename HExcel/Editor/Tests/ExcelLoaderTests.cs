@@ -31,6 +31,14 @@ using HExcel.Core;
 
 namespace HExcel.Tests {
 
+    // 종전 HData.NPOI.Samples 의 SampleData 를 참조했으나 해당 모듈이 삭제되어 컴파일 불가 상태였다.
+    // 테스트 픽스처 전용 DTO 로 복원 — 아래 ExcelToJson 매핑(id/name/value)이 요구하는 형태 그대로.
+    public class SampleData {
+        public int Id;
+        public string Name;
+        public int Value;
+    }
+
     // AssetDatabase 의존 없이 ImportData 결과를 메모리에 저장하는 테스트 전용 Loader
     public class TestLoader : ExcelLoader<TestLoader> {
         protected override string[] keys => new[] { "id", "name", "value" };
