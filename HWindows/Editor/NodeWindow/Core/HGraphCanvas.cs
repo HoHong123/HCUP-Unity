@@ -86,23 +86,24 @@ namespace HWindows.Editor.NodeWindow {
             _BuildEmptyStateHint();
             graphViewChanged = _OnGraphViewChanged;
 
-            // catalog mutation 이벤트 구독 (Author 호출 + Inspector 직접 수정 watcher 모두 통합).
-            // VisualElement detach 시 unsubscribe 로 메모리 누수 방지.
-            NodeCatalogAuthor.CatalogMutated += _OnCatalogMutated;
-
-            // hash polling fallback: ObjectChangeEvents 가 즉시 발송 안 되는 케이스 대응.
-            // 매 frame hash 비교 후 변경 시에만 Repopulate. 계산 비용 미미 (노드 N=100 ≈ 3μs).
-            EditorApplication.update += _PollCatalogChanges;
-
             // Phase 1-D Cut/Paste 단축키 (사용자 결정 2026-05-08).
             // Ctrl+C / Ctrl+X / Ctrl+V (Mac 은 Cmd) — actionKey 가 platform 추상화.
             RegisterCallback<KeyDownEvent>(_OnKeyDown);
 
-            // Phase 1-E P1E-ε: ShowGrid 변경 시 GridBackground.visible 동기화.
-            NodeWindowSettingsProvider.SnapSettingsChanged += _OnSnapSettingsChanged;
-
-            // Phase 1-F: Undo/Redo 수행 후 canvas 상태 재동기화.
-            Undo.undoRedoPerformed += _OnUndoRedo;
+            // 외부(정적/에디터) 이벤트 구독은 Attach/Detach 짝으로 묶는다.
+            // 생성자 구독 + Detach 해제 비대칭은 재부착(dock 이동, 탭 복원) 시 구독이 죽은 채
+            // 무음으로 기능이 멈추는 원인이었다. Attach 직후 polling hash 비교가 detach 동안의
+            // 변경도 첫 tick 에 흡수한다.
+            // - CatalogMutated: Author 호출 + Inspector 직접 수정 watcher 통합 신호
+            // - EditorApplication.update: hash polling fallback (노드 N=100 ≈ 3μs)
+            // - SnapSettingsChanged: ShowGrid 변경 시 GridBackground 동기화 (Phase 1-E)
+            // - undoRedoPerformed: Undo/Redo 후 canvas 재동기화 (Phase 1-F)
+            RegisterCallback<AttachToPanelEvent>(_ => {
+                NodeCatalogAuthor.CatalogMutated += _OnCatalogMutated;
+                EditorApplication.update += _PollCatalogChanges;
+                NodeWindowSettingsProvider.SnapSettingsChanged += _OnSnapSettingsChanged;
+                Undo.undoRedoPerformed += _OnUndoRedo;
+            });
 
             RegisterCallback<DetachFromPanelEvent>(_ => {
                 NodeCatalogAuthor.CatalogMutated -= _OnCatalogMutated;

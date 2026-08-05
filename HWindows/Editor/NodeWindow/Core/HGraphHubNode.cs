@@ -37,7 +37,8 @@ namespace HWindows.Editor.NodeWindow {
             : base(dataNode, isRoot) {
             AddToClassList("hgraph-hub-node");
             _InitHubBody();
-            dataNode.KeysChanged += _OnKeysChanged;
+            // 재부착 시 구독 복구 — 생성자 구독 + Detach 해제 비대칭 방지.
+            RegisterCallback<AttachToPanelEvent>(_ => dataNode.KeysChanged += _OnKeysChanged);
             RegisterCallback<DetachFromPanelEvent>(_ => dataNode.KeysChanged -= _OnKeysChanged);
         }
         #endregion
