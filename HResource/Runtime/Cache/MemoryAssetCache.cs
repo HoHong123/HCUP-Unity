@@ -238,12 +238,25 @@ namespace HResource.Cache {
         private void _ClearItems() {
             if (table.Count < 1) return;
 
-            var removeItems = new List<KeyValuePair<TKey, Item>>(table);
-            table.Clear();
-            ownerTable.Clear();
+            // OnAssetRemoved 구독자가 알림 도중 Save 를 다시 호출하면 그 항목은 Clear 를
+            // 통과해 살아남는다 (구독자 입장에서는 방금 비운 캐시에 유령이 남는다).
+            // 잔존 항목이 없어질 때까지 반복하고, 폭주는 상한으로 끊는다.
+            const int MAX_CLEAR_PASSES = 8;
+            for (int pass = 0; pass < MAX_CLEAR_PASSES; pass++) {
+                if (table.Count < 1) return;
 
-            foreach (var pair in removeItems) {
-                _NotifyRemoved(pair.Key, pair.Value.Asset);
+                var removeItems = new List<KeyValuePair<TKey, Item>>(table);
+                table.Clear();
+                ownerTable.Clear();
+
+                foreach (var pair in removeItems) {
+                    _NotifyRemoved(pair.Key, pair.Value.Asset);
+                }
+            }
+
+            if (table.Count > 0) {
+                HLogger.Error(
+                    $"[AssetCache] Clear did not converge: {table.Count} item(s) were re-saved during removal notifications.");
             }
         }
         #endregion

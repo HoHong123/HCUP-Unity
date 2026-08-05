@@ -167,7 +167,15 @@ namespace HResource.Provider {
             // asset 을 받아 다른 호출자의 Release 한 번에 조기 해제되는 사고가 난다.
             // (익명 경로 포함 — 등록/해제 짝은 호출자 단위로 1:1)
             if (_IsValidAsset(request.Key, asset)) {
-                _SaveCache(request, asset);
+                // Save 가 거부되면(같은 키에 다른 asset 이 이미 등록됨) 호출자는 등록되지 않은
+                // asset 을 받게 되고, 그 asset 의 로더 핸들은 누구도 해제하지 않는 누수가 된다.
+                if (!_SaveCache(request, asset)) {
+                    HLogger.Error(
+                        $"[AssetProvider] Cache rejected key '{request.Key}'. Releasing the freshly loaded asset to avoid a handle leak.");
+                    // 캐시가 소유하지 않으므로 OnAssetRemoved 연쇄가 돌지 않는다 — 로더에 직접 돌려준다.
+                    _ReleaseAssetLoaders(request.Key);
+                    return default;
+                }
             }
 
             return asset;
@@ -289,12 +297,11 @@ namespace HResource.Provider {
             return assetCache.TryGet(request.Key, out asset);
         }
 
-        private void _SaveCache(AssetRequest<TKey> request, TAsset asset) {
+        private bool _SaveCache(AssetRequest<TKey> request, TAsset asset) {
             if (request.HasOwner) {
-                assetCache.Save(request.Key, asset, request.OwnerId);
-                return;
+                return assetCache.Save(request.Key, asset, request.OwnerId);
             }
-            assetCache.Save(request.Key, asset);
+            return assetCache.Save(request.Key, asset);
         }
 
         private UniTask _SaveStoreAsync(TKey key, TAsset asset) {
