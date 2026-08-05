@@ -15,9 +15,9 @@ namespace HAudio.AddOn {
         [ListDrawerSettings]
 #endif
         [SerializeField]
-        List<SoundCatalogSO> catalogs = new();
+        List<AudioCatalogSO> catalogs = new();
 
-        public IReadOnlyList<SoundCatalogSO> Catalogs => catalogs;
+        public IReadOnlyList<AudioCatalogSO> Catalogs => catalogs;
         #endregion
 
         #region ======== Editor Only ========

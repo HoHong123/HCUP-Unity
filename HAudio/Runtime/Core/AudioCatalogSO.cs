@@ -12,7 +12,7 @@ namespace HAudio.Core {
     [CreateAssetMenu(
         fileName = "SoundCatalog",
         menuName = "HCUP/Sound/Sound Catalog")]
-    public sealed class SoundCatalogSO : ScriptableObject {
+    public sealed class AudioCatalogSO : ScriptableObject {
         #region Private - Const
         const string RESOURCE_ROOT = "Assets/Resources/";
         #endregion
@@ -22,7 +22,7 @@ namespace HAudio.Core {
         public sealed class Entry {
             #region Private - Serialized Fields
             [SerializeField]
-            SoundKey key;
+            AudioKey key;
 
             [HTitle("Load Token")]
             [SerializeField]
@@ -39,7 +39,7 @@ namespace HAudio.Core {
             #endregion
 
             #region Public - Properties
-            public SoundKey Key => key;
+            public AudioKey Key => key;
             public string Token => token;
             public string Path => path;
 #if UNITY_EDITOR
@@ -49,7 +49,7 @@ namespace HAudio.Core {
 
 #if UNITY_EDITOR
             #region Public - Editor
-            public void EditorSetKey(SoundKey value) => key = value;
+            public void EditorSetKey(AudioKey value) => key = value;
             public void EditorSetToken(string value) => token = value;
             public void EditorSetPath(string value) => path = value;
             public void EditorSetClip(AudioClip value) => editorClip = value;
@@ -62,7 +62,7 @@ namespace HAudio.Core {
         [SerializeField]
         List<Entry> entries = new();
 
-        Dictionary<SoundKey, Entry> entryMap;
+        Dictionary<AudioKey, Entry> entryMap;
         #endregion
 
         #region Public - Properties
@@ -71,22 +71,22 @@ namespace HAudio.Core {
 
         #region Public - Cache
         public void BuildCache() {
-            entryMap = new Dictionary<SoundKey, Entry>(entries.Count);
+            entryMap = new Dictionary<AudioKey, Entry>(entries.Count);
 
             for (int k = 0; k < entries.Count; k++) {
                 Entry entry = entries[k];
                 Assert.IsNotNull(entry);
                 Assert.IsFalse(
                     entryMap.ContainsKey(entry.Key),
-                    $"[SoundCatalogSO] Duplicated SoundKey detected. key={entry.Key}, index={k}");
+                    $"[AudioCatalogSO] Duplicated AudioKey detected. key={entry.Key}, index={k}");
                 Assert.IsFalse(
                     string.IsNullOrWhiteSpace(entry.Token),
-                    $"[SoundCatalogSO] Token is empty. key={entry.Key}, index={k}");
+                    $"[AudioCatalogSO] Token is empty. key={entry.Key}, index={k}");
                 entryMap.Add(entry.Key, entry);
             }
         }
 
-        public bool TryGet(in SoundKey key, out Entry entry) {
+        public bool TryGet(in AudioKey key, out Entry entry) {
             if (entryMap == null) BuildCache();
             return entryMap.TryGetValue(key, out entry);
         }
@@ -114,7 +114,7 @@ namespace HAudio.Core {
         }
 
         public void EditorAddEntry(
-            SoundKey key,
+            AudioKey key,
             string token,
             string path,
             AudioClip clip) {

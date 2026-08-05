@@ -19,10 +19,10 @@ namespace HAudio.Catalog {
     public sealed partial class AudioCatalogRegistry {
         #region Nested Types
         sealed class EntrySlot {
-            public SoundCatalogSO.Entry Entry { get; private set; }
+            public AudioCatalogSO.Entry Entry { get; private set; }
             public int RefCount { get; private set; }
 
-            public EntrySlot(SoundCatalogSO.Entry entry) {
+            public EntrySlot(AudioCatalogSO.Entry entry) {
                 Entry = entry;
                 RefCount = 1;
             }
@@ -39,7 +39,7 @@ namespace HAudio.Catalog {
         #endregion
 
         #region Fields
-        readonly Dictionary<SoundCatalogSO, int> catalogRefTable = new();
+        readonly Dictionary<AudioCatalogSO, int> catalogRefTable = new();
         readonly Dictionary<string, EntrySlot> tokenEntryTable = new Dictionary<string, EntrySlot>(StringComparer.Ordinal);
         #endregion
 
@@ -49,7 +49,7 @@ namespace HAudio.Catalog {
         #endregion
 
         #region Public - Catalog
-        public int RegisterCatalog(SoundCatalogSO catalog) {
+        public int RegisterCatalog(AudioCatalogSO catalog) {
             Assert.IsNotNull(catalog, "[SoundCatalogRegistry] catalog is null.");
             if (!catalog) return 0;
 
@@ -70,8 +70,8 @@ namespace HAudio.Catalog {
         }
 
         public int ReleaseCatalog(
-            SoundCatalogSO catalog,
-            List<SoundCatalogSO.Entry> removedEntries = null) {
+            AudioCatalogSO catalog,
+            List<AudioCatalogSO.Entry> removedEntries = null) {
 
             Assert.IsNotNull(catalog, "[SoundCatalogRegistry] catalog is null.");
             if (!catalog) return 0;
@@ -102,7 +102,7 @@ namespace HAudio.Catalog {
         #endregion
 
         #region Public - Lookup
-        public bool TryGetEntry(string token, out SoundCatalogSO.Entry entry) {
+        public bool TryGetEntry(string token, out AudioCatalogSO.Entry entry) {
             entry = null;
 
             string normalizedToken = _NormalizeToken(token);
@@ -121,7 +121,7 @@ namespace HAudio.Catalog {
         #endregion
 
         #region Private - Register
-        private void _RegisterEntry(SoundCatalogSO.Entry entry) {
+        private void _RegisterEntry(AudioCatalogSO.Entry entry) {
             Assert.IsNotNull(entry, "[SoundCatalogRegistry] entry is null.");
             if (entry == null) return;
 
@@ -141,7 +141,7 @@ namespace HAudio.Catalog {
             _RegisterLegacyEntry(entry, normalizedToken, normalizedPath);
         }
 
-        private bool _ReleaseEntry(SoundCatalogSO.Entry entry) {
+        private bool _ReleaseEntry(AudioCatalogSO.Entry entry) {
             Assert.IsNotNull(entry, "[SoundCatalogRegistry] entry is null.");
             if (entry == null) return false;
 
@@ -155,8 +155,8 @@ namespace HAudio.Catalog {
         private void _RetainEntry<TKey>(
             Dictionary<TKey, EntrySlot> table,
             TKey key,
-            SoundCatalogSO.Entry entry,
-            Action<SoundCatalogSO.Entry> assertEquivalent,
+            AudioCatalogSO.Entry entry,
+            Action<AudioCatalogSO.Entry> assertEquivalent,
             Func<TKey, string> duplicateMessageFactory) {
 
             if (table.TryGetValue(key, out var slot)) {
@@ -180,8 +180,8 @@ namespace HAudio.Catalog {
 
         #region Private - Compare
         private void _AssertEquivalentEntry(
-            SoundCatalogSO.Entry existing,
-            SoundCatalogSO.Entry incoming,
+            AudioCatalogSO.Entry existing,
+            AudioCatalogSO.Entry incoming,
             string normalizedIncomingToken,
             string normalizedIncomingPath) {
 
@@ -217,11 +217,11 @@ namespace HAudio.Catalog {
 
         #region Private - Legacy Hooks
         partial void _RegisterLegacyEntry(
-            SoundCatalogSO.Entry entry,
+            AudioCatalogSO.Entry entry,
             string normalizedToken,
             string normalizedPath);
 
-        partial void _ReleaseLegacyEntry(SoundCatalogSO.Entry entry, bool tokenRemoved);
+        partial void _ReleaseLegacyEntry(AudioCatalogSO.Entry entry, bool tokenRemoved);
         partial void _ClearLegacyCache();
         #endregion
     }
@@ -232,7 +232,7 @@ namespace HAudio.Catalog {
  * @Jason - PKH
  * 주요 기능 ::
  * 1. catalog ref count를 관리합니다.
- * 2. token 기준으로 SoundCatalogSO.Entry를 조회합니다.
+ * 2. token 기준으로 AudioCatalogSO.Entry를 조회합니다.
  * 3. legacy partial이 연결될 수 있는 확장 지점을 제공합니다.
  *
  * 사용법 ::

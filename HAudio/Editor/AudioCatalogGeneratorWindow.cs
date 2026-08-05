@@ -11,11 +11,11 @@ using HAudio;
 using HAudio.Core;
 
 namespace HAudio.Editor {
-    public sealed class SoundCatalogGeneratorWindow : EditorWindow {
+    public sealed class AudioCatalogGeneratorWindow : EditorWindow {
         #region ===== Types =====
         struct DiscoveredClip {
             public int Uid;
-            public SoundMajorCategory Major;
+            public AudioMajorCategory Major;
             public string FileName;
             public string AssetPath;
             public string Token;
@@ -31,7 +31,7 @@ namespace HAudio.Editor {
         [SerializeField]
         string outputFileName = "SoundCatalog";
         [SerializeField]
-        SoundCatalogPolicySO policy;
+        AudioCatalogPolicySO policy;
         [SerializeField]
         bool validateUidByPolicy = true;
         [SerializeField]
@@ -64,7 +64,7 @@ namespace HAudio.Editor {
         #region ===== Menu =====
         [MenuItem("HCUP/Audio/Sound Catalog Generator")]
         private static void Open() {
-            GetWindow<SoundCatalogGeneratorWindow>("Sound Catalog Generator");
+            GetWindow<AudioCatalogGeneratorWindow>("Sound Catalog Generator");
         }
         #endregion
 
@@ -98,7 +98,7 @@ namespace HAudio.Editor {
                 outputFolder = (DefaultAsset)EditorGUILayout.ObjectField("Output Folder", outputFolder, typeof(DefaultAsset), false);
                 outputFileName = EditorGUILayout.TextField("File Name", outputFileName);
 
-                if (validateUidByPolicy) policy = (SoundCatalogPolicySO)EditorGUILayout.ObjectField("Policy", policy, typeof(SoundCatalogPolicySO), false);
+                if (validateUidByPolicy) policy = (AudioCatalogPolicySO)EditorGUILayout.ObjectField("Policy", policy, typeof(AudioCatalogPolicySO), false);
                 validateUidByPolicy = EditorGUILayout.Toggle("Validate UID By Policy", validateUidByPolicy);
             }
         }
@@ -195,8 +195,8 @@ namespace HAudio.Editor {
             }
 
             string assetPath = $"{folderPath}/{outputFileName}.asset";
-            var existing = AssetDatabase.LoadAssetAtPath<SoundCatalogSO>(assetPath);
-            SoundCatalogSO catalog;
+            var existing = AssetDatabase.LoadAssetAtPath<AudioCatalogSO>(assetPath);
+            AudioCatalogSO catalog;
 
             if (existing) {
                 catalog = existing;
@@ -204,7 +204,7 @@ namespace HAudio.Editor {
                 Undo.RecordObject(catalog, "Update SoundCatalog");
             }
             else {
-                catalog = CreateInstance<SoundCatalogSO>();
+                catalog = CreateInstance<AudioCatalogSO>();
                 AssetDatabase.CreateAsset(catalog, assetPath);
                 logs.Add($"[Generate] Create :: {assetPath}");
             }
@@ -216,7 +216,7 @@ namespace HAudio.Editor {
                     logs.Add($"[Warn] Empty token. Skip :: {discover.AssetPath}");
                     continue;
                 }
-                var key = new SoundKey(discover.Major, discover.Uid);
+                var key = new AudioKey(discover.Major, discover.Uid);
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(discover.AssetPath);
                 catalog.EditorAddEntry(key, discover.Token, discover.Path, clip);
             }
@@ -451,15 +451,15 @@ namespace HAudio.Editor {
             return idx > 0 && int.TryParse(name.Substring(0, idx), out uid);
         }
 
-        private SoundMajorCategory _InferMajor(string path) {
+        private AudioMajorCategory _InferMajor(string path) {
             path = path.ToLowerInvariant();
-            if (path.Contains("/ui/")) return SoundMajorCategory.UI;
-            if (path.Contains("/bgm/")) return SoundMajorCategory.BGM;
-            if (path.Contains("/voice/")) return SoundMajorCategory.Voice;
-            return SoundMajorCategory.SFX;
+            if (path.Contains("/ui/")) return AudioMajorCategory.UI;
+            if (path.Contains("/bgm/")) return AudioMajorCategory.BGM;
+            if (path.Contains("/voice/")) return AudioMajorCategory.Voice;
+            return AudioMajorCategory.SFX;
         }
 
-        private bool _IsUidValidByPolicy(SoundMajorCategory major, int uid) {
+        private bool _IsUidValidByPolicy(AudioMajorCategory major, int uid) {
             if (!policy) return true;
             if (!policy.TryGetUidRange(major, out var range)) return true;
             return range.Contains(uid);

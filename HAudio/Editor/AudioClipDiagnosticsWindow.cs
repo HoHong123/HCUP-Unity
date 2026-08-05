@@ -22,7 +22,7 @@ using UnityEditor;
 using UnityEngine;
 
 namespace HAudio.Editor {
-    public sealed class SoundClipDiagnosticsWindow : EditorWindow {
+    public sealed class AudioClipDiagnosticsWindow : EditorWindow {
         Vector2 scroll;
 
         string search = string.Empty;
@@ -40,7 +40,7 @@ namespace HAudio.Editor {
 
         [MenuItem("HCUP/Audio/Data Diagnostics")]
         public static void Open() {
-            var window = GetWindow<SoundClipDiagnosticsWindow>();
+            var window = GetWindow<AudioClipDiagnosticsWindow>();
             window.titleContent = new GUIContent("Data Diagnostics");
             window.Show();
         }

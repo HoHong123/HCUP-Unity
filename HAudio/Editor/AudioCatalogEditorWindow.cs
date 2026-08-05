@@ -9,13 +9,13 @@ using HDiagnosis.Logger;
 using HAudio.Core;
 
 namespace HAudio.Editor {
-    public sealed class SoundCatalogEditorWindow : EditorWindow {
+    public sealed class AudioCatalogEditorWindow : EditorWindow {
         #region Nested Class
         public sealed class Row {
             public int Index;
-            public SoundKey Key;
+            public AudioKey Key;
             public AudioClip Clip;
-            public SoundCatalogSO Catalog;
+            public AudioCatalogSO Catalog;
             public string Token;
             public string Path;
         }
@@ -26,7 +26,7 @@ namespace HAudio.Editor {
         bool catalogsFoldout = true;
 
         [SerializeField]
-        List<SoundCatalogSO> catalogs = new();
+        List<AudioCatalogSO> catalogs = new();
 
         [SerializeField]
         bool showOnlyMissingClip;
@@ -52,13 +52,13 @@ namespace HAudio.Editor {
         bool searchByPath = true;
         bool searchByClip = true;
 
-        Dictionary<SoundCatalogSO, bool> catalogFoldouts = new();
+        Dictionary<AudioCatalogSO, bool> catalogFoldouts = new();
         #endregion
 
         #region Menu
         [MenuItem("HCUP/Audio/Sound Catalog Editor")]
         public static void Open() {
-            var window = GetWindow<SoundCatalogEditorWindow>();
+            var window = GetWindow<AudioCatalogEditorWindow>();
             window.titleContent = new GUIContent("Sound Catalogs");
             window.Show();
         }
@@ -137,7 +137,7 @@ namespace HAudio.Editor {
 
             Rect dropArea = GUILayoutUtility.GetRect(0f, 48f, GUILayout.ExpandWidth(true));
 
-            GUI.Box(dropArea, "Drag & Drop SoundCatalogSO here (Multiple supported)", EditorStyles.helpBox);
+            GUI.Box(dropArea, "Drag & Drop AudioCatalogSO here (Multiple supported)", EditorStyles.helpBox);
 
             Event evt = Event.current;
             if (!dropArea.Contains(evt.mousePosition)) return;
@@ -148,7 +148,7 @@ namespace HAudio.Editor {
                     bool hasValid = false;
 
                     foreach (var obj in DragAndDrop.objectReferences) {
-                        if (obj is SoundCatalogSO) {
+                        if (obj is AudioCatalogSO) {
                             hasValid = true;
                             break;
                         }
@@ -165,7 +165,7 @@ namespace HAudio.Editor {
                         bool added = false;
 
                         foreach (var obj in DragAndDrop.objectReferences) {
-                            if (obj is not SoundCatalogSO catalog) continue;
+                            if (obj is not AudioCatalogSO catalog) continue;
                             if (catalogs.Contains(catalog)) continue;
 
                             catalogs.Add(catalog);
@@ -232,7 +232,7 @@ namespace HAudio.Editor {
 
                 for (int k = 0; k < catalogs.Count; k++) {
                     using (new EditorGUILayout.HorizontalScope()) {
-                        var next = (SoundCatalogSO)EditorGUILayout.ObjectField(catalogs[k], typeof(SoundCatalogSO), false);
+                        var next = (AudioCatalogSO)EditorGUILayout.ObjectField(catalogs[k], typeof(AudioCatalogSO), false);
 
                         if (next != catalogs[k]) {
                             catalogs[k] = next;
@@ -283,7 +283,7 @@ namespace HAudio.Editor {
                 return;
             }
 
-            SoundCatalogSO currentCatalog = null;
+            AudioCatalogSO currentCatalog = null;
             bool currentFoldout = true;
 
             for (int k = 0; k < rows.Count; k++) {
@@ -364,7 +364,7 @@ namespace HAudio.Editor {
                 using (new EditorGUILayout.HorizontalScope()) {
                     EditorGUILayout.LabelField("ResKey", GUILayout.Width(42));
                     EditorGUILayout.SelectableLabel(
-                        SoundCatalogSO.BuildResourcesLoadKey(row.Path, row.Token),
+                        AudioCatalogSO.BuildResourcesLoadKey(row.Path, row.Token),
                         EditorStyles.textField,
                         GUILayout.Height(18));
                 }
@@ -481,7 +481,7 @@ namespace HAudio.Editor {
             AssetDatabase.SaveAssets();
         }
 
-        private AudioClip _TryGetEditorClip(SoundCatalogSO.Entry entry) {
+        private AudioClip _TryGetEditorClip(AudioCatalogSO.Entry entry) {
             try {
                 var prop = entry.GetType().GetProperty("EditorClip");
                 if (prop != null) return prop.GetValue(entry) as AudioClip;
@@ -491,7 +491,7 @@ namespace HAudio.Editor {
             return null;
         }
 
-        private void _SetEditorClip(SoundCatalogSO catalog, int index, AudioClip clip) {
+        private void _SetEditorClip(AudioCatalogSO catalog, int index, AudioClip clip) {
             Assert.IsNotNull(catalog);
             if (!catalog) return;
 
@@ -514,7 +514,7 @@ namespace HAudio.Editor {
         private void _TryPreviewClip(AudioClip clip) {
             if (!clip) return;
             if (!EditorAudioPreview.CanUse) {
-                HLogger.Warning("[SoundCatalogEditorWindow] EditorAudioPreview is not available on this Unity version.");
+                HLogger.Warning("[AudioCatalogEditorWindow] EditorAudioPreview is not available on this Unity version.");
                 return;
             }
             EditorAudioPreview.Play(clip, loop: false, single: true);
@@ -525,7 +525,7 @@ namespace HAudio.Editor {
             EditorAudioPreview.StopAll();
         }
 
-        private bool _GetCatalogFoldout(SoundCatalogSO catalog) {
+        private bool _GetCatalogFoldout(AudioCatalogSO catalog) {
             if (!catalog) return true;
 
             if (!catalogFoldouts.TryGetValue(catalog, out bool opened)) {
@@ -536,7 +536,7 @@ namespace HAudio.Editor {
             return opened;
         }
 
-        private void _SetCatalogFoldout(SoundCatalogSO catalog, bool opened) {
+        private void _SetCatalogFoldout(AudioCatalogSO catalog, bool opened) {
             if (!catalog) return;
             catalogFoldouts[catalog] = opened;
         }

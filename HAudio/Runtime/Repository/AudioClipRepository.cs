@@ -4,9 +4,9 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using HAudio.Catalog;
 using HAudio.Core;
-using HUtil.AssetHandler.Data;
-using HUtil.AssetHandler.Provider;
-using HUtil.AssetHandler.Subscription;
+using HResource.Data;
+using HResource.Provider;
+using HResource.Subscription;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -78,7 +78,7 @@ namespace HAudio.Repository {
         }
 
         public async UniTask PrewarmCatalogAsync(
-            SoundCatalogSO catalog,
+            AudioCatalogSO catalog,
             AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
@@ -108,15 +108,15 @@ namespace HAudio.Repository {
             return assetProvider.Release(loadKey, ownerId);
         }
 
-        public void ReleaseCatalog(SoundCatalogSO catalog) {
+        public void ReleaseCatalog(AudioCatalogSO catalog) {
             ReleaseCatalog(catalog, default);
         }
 
-        public void ReleaseCatalog(SoundCatalogSO catalog, AssetOwnerId ownerId) {
+        public void ReleaseCatalog(AudioCatalogSO catalog, AssetOwnerId ownerId) {
             Assert.IsNotNull(catalog, "[SoundClipRepository] catalog is null.");
             if (!catalog) return;
 
-            List<SoundCatalogSO.Entry> removedEntries = new List<SoundCatalogSO.Entry>();
+            List<AudioCatalogSO.Entry> removedEntries = new List<AudioCatalogSO.Entry>();
             int refCount = catalogRegistry.ReleaseCatalog(catalog, removedEntries);
             if (refCount > 0) return;
 
@@ -148,7 +148,7 @@ namespace HAudio.Repository {
 
             string normalizedToken = _NormalizeToken(token);
             if (string.IsNullOrWhiteSpace(normalizedToken)) return false;
-            if (catalogRegistry.TryGetEntry(normalizedToken, out SoundCatalogSO.Entry entry)) {
+            if (catalogRegistry.TryGetEntry(normalizedToken, out AudioCatalogSO.Entry entry)) {
                 loadKey = _ResolveLoadKey(entry);
                 return !string.IsNullOrWhiteSpace(loadKey);
             }
@@ -158,17 +158,17 @@ namespace HAudio.Repository {
             return true;
         }
 
-        private string _ResolveLoadKey(SoundCatalogSO.Entry entry) {
+        private string _ResolveLoadKey(AudioCatalogSO.Entry entry) {
             if (entry == null) return string.Empty;
 
             return LoadMode switch {
-                AssetLoadMode.Resources => SoundCatalogSO.BuildResourcesLoadKey(entry.Path, entry.Token),
+                AssetLoadMode.Resources => AudioCatalogSO.BuildResourcesLoadKey(entry.Path, entry.Token),
                 AssetLoadMode.Addressable => _ResolveAddressableLoadKey(entry),
                 _ => string.Empty
             };
         }
 
-        private string _ResolveAddressableLoadKey(SoundCatalogSO.Entry entry) {
+        private string _ResolveAddressableLoadKey(AudioCatalogSO.Entry entry) {
             if (entry == null) return string.Empty;
             return _NormalizeToken(entry.Token);
         }

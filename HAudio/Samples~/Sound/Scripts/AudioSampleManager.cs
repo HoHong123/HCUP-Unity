@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 namespace HAudio.Sample.Sound {
-    public class SoundSampleManager : MonoBehaviour {
+    public class AudioSampleManager : MonoBehaviour {
         [System.Serializable]
         private struct SoundEntry {
             public TMP_InputField Input;
@@ -14,7 +14,7 @@ namespace HAudio.Sample.Sound {
 
         [HTitle("Test Catalog")]
         [SerializeField]
-        SoundCatalogSO testCatalog;
+        AudioCatalogSO testCatalog;
         [SerializeField]
         Button registerBtn;
         [SerializeField]

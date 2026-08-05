@@ -21,17 +21,18 @@
 
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using HUtil.Data;
 using HInspector;
 using HDiagnosis.Logger;
 using HDiagnosis.HDebug;
 
 namespace HAudio.AddOn {
-    public class SfxAgent : MonoBehaviour, IDataSubscriber {
+    public class SfxAgent : MonoBehaviour {
         #region Fields
         [HTitle("Clips")]
         [SerializeField]
         SfxView preloadUids = new();
+
+        UniTask prewarmTask = UniTask.CompletedTask;
         #endregion
 
         #region Properties
@@ -47,13 +48,13 @@ namespace HAudio.AddOn {
 
         private void Start() {
             if (!AudioManager.HasInstance) return;
-            _PrewarmViews().Forget();
+            prewarmTask = _PrewarmViews();
         }
 
         private void OnDestroy() {
             if (!Application.isPlaying) return;
             if (!AudioManager.HasInstance) return;
-            _ReleaseViews();
+            _ReleaseViewsAfterPrewarm().Forget();
         }
         #endregion
 
@@ -107,7 +108,7 @@ namespace HAudio.AddOn {
         #endregion
 
         #region Private - Prewarm
-        private async UniTaskVoid _PrewarmViews() {
+        private async UniTask _PrewarmViews() {
             try {
                 await AudioManager.Instance.PrewarmSfxView(preloadUids);
             }
@@ -117,7 +118,11 @@ namespace HAudio.AddOn {
             }
         }
 
-        private void _ReleaseViews() {
+        private async UniTaskVoid _ReleaseViewsAfterPrewarm() {
+            // prewarm 이 in-flight 인 채로 release 가 먼저 실행되면 등록이 뒤늦게 도착해
+            // registry refCount 가 영구 잔류한다 — 완료를 기다린 뒤 해제한다.
+            await prewarmTask;
+            if (!AudioManager.HasInstance) return;
             AudioManager.Instance.ReleaseSfxView(preloadUids);
         }
         #endregion

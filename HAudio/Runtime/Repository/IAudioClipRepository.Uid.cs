@@ -1,7 +1,7 @@
 ﻿using Cysharp.Threading.Tasks;
 using UnityEngine;
-using HUtil.AssetHandler.Data;
-using HUtil.AssetHandler.Subscription;
+using HResource.Data;
+using HResource.Subscription;
 
 #if UNITY_EDITOR
 /* =========================================================

@@ -6,7 +6,7 @@ using HUtil.Pooling;
 using HInspector;
 
 namespace HAudio.AddOn {
-    public class SoundSpatialPool : MonoBehaviour {
+    public class AudioSpatialPool : MonoBehaviour {
         [HTitle("Pool Setup")]
         [SerializeField]
         int poolSize = 0;

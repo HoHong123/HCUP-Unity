@@ -16,7 +16,7 @@ using HAudio.Core;
 
 namespace HAudio {
     public sealed partial class AudioManager {
-        readonly Dictionary<SoundCatalogSO, int> previewCatalogRefs = new Dictionary<SoundCatalogSO, int>();
+        readonly Dictionary<AudioCatalogSO, int> previewCatalogRefs = new Dictionary<AudioCatalogSO, int>();
         readonly HashSet<string> previewTokens = new HashSet<string>(StringComparer.Ordinal);
 
         #region Public - Preview
@@ -30,7 +30,7 @@ namespace HAudio {
             Dictionary<string, List<string>> tokenToCatalogs = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
             foreach (var pair in previewCatalogRefs) {
-                SoundCatalogSO catalog = pair.Key;
+                AudioCatalogSO catalog = pair.Key;
                 if (!catalog) continue;
 
                 int loadedCount = 0;
@@ -88,7 +88,7 @@ namespace HAudio {
             previewTokens.Add(token);
         }
 
-        private void _TrackPreviewCatalog(SoundCatalogSO catalog) {
+        private void _TrackPreviewCatalog(AudioCatalogSO catalog) {
             if (!catalog) return;
 
             if (previewCatalogRefs.TryGetValue(catalog, out int refCount)) {
@@ -105,7 +105,7 @@ namespace HAudio {
             }
         }
 
-        private void _ReleasePreviewCatalog(SoundCatalogSO catalog) {
+        private void _ReleasePreviewCatalog(AudioCatalogSO catalog) {
             if (!catalog) return;
             if (!previewCatalogRefs.TryGetValue(catalog, out int refCount)) return;
 

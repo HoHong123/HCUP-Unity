@@ -7,10 +7,9 @@ using HAudio.Catalog;
 using HAudio.Repository;
 using HAudio.AddOn;
 using HAudio.Core;
-using HUtil.AssetHandler.Data;
-using HUtil.AssetHandler.Subscription;
+using HResource.Data;
+using HResource.Subscription;
 using HCore;
-using HUtil.Data.Load;
 using HInspector;
 using HDiagnosis.HDebug;
 #if UNITY_EDITOR && ODIN_INSPECTOR
@@ -86,7 +85,7 @@ namespace HAudio {
         [SerializeField]
         AudioSource uiAudio;
         [SerializeField]
-        SoundSpatialPool spatialPool;
+        AudioSpatialPool spatialPool;
         #endregion
 
         #region Properties
@@ -110,10 +109,11 @@ namespace HAudio {
             _CheckPlayerPrefs();
         }
 
-        private new void OnDestroy() {
+        protected override void OnDestroy() {
             if (instance != this) return;
             clipRepository?.ReleaseOwner(ownerId);
             AssetOwnerIdGenerator.NotifyReleased(ownerId);
+            base.OnDestroy();
         }
         #endregion
 
@@ -162,7 +162,7 @@ namespace HAudio {
             }
         }
 
-        public UniTask PrewarmCatalog(SoundCatalogSO catalog) {
+        public UniTask PrewarmCatalog(AudioCatalogSO catalog) {
 #if UNITY_EDITOR
             _TrackPreviewCatalog(catalog);
 #endif
@@ -177,7 +177,7 @@ namespace HAudio {
             await UniTask.WhenAll(tasks);
         }
 
-        public async UniTask PrewarmCatalogs(IEnumerable<SoundCatalogSO> catalogs) {
+        public async UniTask PrewarmCatalogs(IEnumerable<AudioCatalogSO> catalogs) {
             List<UniTask> tasks = new List<UniTask>();
             foreach (var catalog in catalogs) {
                 tasks.Add(PrewarmCatalog(catalog));
@@ -201,7 +201,7 @@ namespace HAudio {
             }
         }
 
-        public void ReleaseCatalog(SoundCatalogSO catalog) {
+        public void ReleaseCatalog(AudioCatalogSO catalog) {
 #if UNITY_EDITOR
             _ReleasePreviewCatalog(catalog);
 #endif

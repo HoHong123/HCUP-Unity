@@ -1,8 +1,8 @@
 ﻿using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HAudio.Core;
-using HUtil.AssetHandler.Data;
-using HUtil.AssetHandler.Subscription;
+using HResource.Data;
+using HResource.Subscription;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -33,14 +33,14 @@ namespace HAudio.Repository {
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         UniTask PrewarmCatalogAsync(
-            SoundCatalogSO catalog,
+            AudioCatalogSO catalog,
             AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         bool Release(string token);
         bool Release(string token, AssetOwnerId ownerId);
-        void ReleaseCatalog(SoundCatalogSO catalog);
-        void ReleaseCatalog(SoundCatalogSO catalog, AssetOwnerId ownerId);
+        void ReleaseCatalog(AudioCatalogSO catalog);
+        void ReleaseCatalog(AudioCatalogSO catalog, AssetOwnerId ownerId);
         int ReleaseOwner(AssetOwnerId ownerId);
         void ReleaseAll();
     }

@@ -21,7 +21,7 @@ namespace HAudio.Catalog {
         #endregion
 
         #region Public - Legacy Lookup
-        public bool TryGetEntry(int legacyId, out SoundCatalogSO.Entry entry) {
+        public bool TryGetEntry(int legacyId, out AudioCatalogSO.Entry entry) {
             entry = null;
             if (!legacyIdEntryTable.TryGetValue(legacyId, out var slot)) return false;
 
@@ -41,7 +41,7 @@ namespace HAudio.Catalog {
 
         #region Private - Legacy Hooks
         partial void _RegisterLegacyEntry(
-            SoundCatalogSO.Entry entry,
+            AudioCatalogSO.Entry entry,
             string normalizedToken,
             string normalizedPath) {
 
@@ -53,7 +53,7 @@ namespace HAudio.Catalog {
                 duplicateKey => $"[AudioCatalogRegistry] Legacy id collision detected. id={duplicateKey}");
         }
 
-        partial void _ReleaseLegacyEntry(SoundCatalogSO.Entry entry, bool tokenRemoved) {
+        partial void _ReleaseLegacyEntry(AudioCatalogSO.Entry entry, bool tokenRemoved) {
             bool legacyRemoved = _ReleaseEntry(legacyIdEntryTable, entry.Key.Id);
             Assert.AreEqual(
                 tokenRemoved,

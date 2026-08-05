@@ -6,11 +6,11 @@ namespace HAudio.Core {
     [CreateAssetMenu(
         menuName = "HCUP/Audio/Sound Catalog Policy",
         fileName = "SoundCatalogPolicy")]
-    public sealed class SoundCatalogPolicySO : ScriptableObject {
+    public sealed class AudioCatalogPolicySO : ScriptableObject {
         #region Nested
         [Serializable]
         public struct UidRange {
-            public SoundMajorCategory Major;
+            public AudioMajorCategory Major;
             public int MinInclusive;
             public int MaxExclusive;
 
@@ -19,7 +19,7 @@ namespace HAudio.Core {
 
         [Serializable]
         public struct FolderMidMapping {
-            public SoundMajorCategory Major;
+            public AudioMajorCategory Major;
             public string FolderName;
         }
         #endregion
@@ -37,7 +37,7 @@ namespace HAudio.Core {
         #endregion
 
         #region Public API
-        public bool TryGetUidRange(SoundMajorCategory major, out UidRange range) {
+        public bool TryGetUidRange(AudioMajorCategory major, out UidRange range) {
             for (int k = 0; k < uidRanges.Count; k++) {
                 if (uidRanges[k].Major != major) continue;
                 range = uidRanges[k];
