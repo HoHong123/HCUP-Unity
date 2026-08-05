@@ -17,7 +17,7 @@ namespace HUtil.Animation {
     public class AnimatorStateIkRouter : BaseAnimatorStateRouter<IAnimatorStateIkHandler> {
         #region State Handler
         public override void OnStateIK(Animator animator, AnimatorStateInfo stateInfo, int layerIndex) {
-            InitHandler(animator);
+            if (!TryInitHandler(animator)) return;
             if (!IsTargetState(stateInfo)) return;
             handler.OnAnimatorStateIK(animator, stateInfo, layerIndex);
         }

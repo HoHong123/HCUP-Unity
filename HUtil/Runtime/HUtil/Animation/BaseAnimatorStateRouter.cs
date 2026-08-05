@@ -24,10 +24,23 @@ namespace HUtil.Animation {
         protected string targetStateName;
 
         protected AniHandler handler;
+        bool missingHandlerWarned;
 
-        protected void InitHandler(Animator animator) {
-            if (handler != null) return;
+        /// <summary> Handler 확보 시도. 없으면 1회 경고 후 false — 호출측은 즉시 return 할 것. </summary>
+        protected bool TryInitHandler(Animator animator) {
+            if (handler != null) return true;
             handler = animator.GetComponent<AniHandler>();
+            if (handler != null) return true;
+
+            // Handler 부재 시 매 이벤트(Update 라우터는 매 프레임) NRE 를 던지던 결함 —
+            // 경고 1회 후 조용히 무시하는 대신 스팸 없이 원인을 남긴다.
+            if (!missingHandlerWarned) {
+                missingHandlerWarned = true;
+                Debug.LogError(
+                    $"[{GetType().Name}] {typeof(AniHandler).Name} component not found on '{animator.gameObject.name}'. Router events will be ignored.",
+                    animator);
+            }
+            return false;
         }
 
         protected bool IsTargetState(AnimatorStateInfo stateInfo) {

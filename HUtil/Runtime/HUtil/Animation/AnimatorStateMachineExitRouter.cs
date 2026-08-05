@@ -17,7 +17,7 @@ namespace HUtil.Animation {
     public class AnimatorStateMachineExitRouter : BaseAnimatorStateRouter<IAnimatorStateMachineExitHandler> {
         #region State Machine Handler
         public override void OnStateMachineExit(Animator animator, int stateMachinePathHash) {
-            InitHandler(animator);
+            if (!TryInitHandler(animator)) return;
             handler.OnAnimatorStateMachineExit(animator, stateMachinePathHash);
         }
         #endregion
