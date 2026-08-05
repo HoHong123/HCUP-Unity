@@ -84,7 +84,19 @@ namespace HCollection {
         public void OnBeforeSerialize() {
 #if UNITY_EDITOR
             // entries 는 에디터에서 항상 살아있으므로 lazy 재할당 불필요.
-            // Dictionary 에만 존재하는 신규 키만 append (Public API 우회 경로의 safety net).
+            // base 업캐스팅 경로로 삭제된 키는 Dictionary 에서만 사라지고 entries 에 고아로 남아,
+            // 다음 역직렬화에서 그대로 부활했다. 고아 행을 정리한다.
+            // 단, null 키 행은 "아직 키를 입력하지 않은 편집 중인 행" 이므로 지우지 않는다.
+            for (int k = entries.Count - 1; k >= 0; k--) {
+                TKey entryKey = entries[k].Key;
+                if (entryKey is null) continue;
+                if (ContainsKey(entryKey)) continue;
+                Debug.LogWarning(
+                    $"[HDictionary] Dropping orphan entry (key='{entryKey}') that no longer exists in the dictionary. "
+                    + $"This happens when the dictionary is modified through a base Dictionary<K,V> reference.");
+                entries.RemoveAt(k);
+            }
+
             HashSet<TKey> existingKeys = new HashSet<TKey>(entries.Count, Comparer);
             for (int k = 0; k < entries.Count; k++) {
                 existingKeys.Add(entries[k].Key);
@@ -121,6 +133,17 @@ namespace HCollection {
 #endif
                     continue;
                 }
+
+#if UNITY_EDITOR
+                // 값 타입 TKey 에서는 "비어 있음" 이 null 이 아니라 default 다 — `is null` 로는 잡히지 않아
+                // 미배정 행 1개가 무경고로 정상 키가 됐다.
+                if (typeof(TKey).IsValueType
+                    && EqualityComparer<TKey>.Default.Equals(entry.Key, default)) {
+                    Debug.LogWarning(
+                        $"[HDictionary] Default-valued key at index={k}. " +
+                        $"This is usually an unassigned inspector row.");
+                }
+#endif
 
                 if (rebuilt.ContainsKey(entry.Key)) {
 #if UNITY_EDITOR
@@ -208,13 +231,13 @@ namespace HCollection {
         #region Public - Remove
         public new bool Remove(TKey key) {
             if (!base.Remove(key)) return false;
-            _RemoveFirstEntryByKey(key);
+            _RemoveAllEntriesByKey(key);
             return true;
         }
 
         public new bool Remove(TKey key, out TValue value) {
             if (!base.Remove(key, out value)) return false;
-            _RemoveFirstEntryByKey(key);
+            _RemoveAllEntriesByKey(key);
             return true;
         }
         #endregion
@@ -244,6 +267,14 @@ namespace HCollection {
         }
 
         public void ForceSyncEntriesFromDictionary() {
+            // 중복 키 정책은 "하드 에러 + first-wins" 인데, 이 함수는 사용자 데이터를 조용히
+            // 지워서 오류를 없앴다. 무엇이 사라지는지 반드시 알린다.
+            if (entries != null && entries.Count > Count) {
+                Debug.LogWarning(
+                    $"[HDictionary] ForceSyncEntriesFromDictionary discards {entries.Count - Count} entry row(s) "
+                    + $"(duplicates and/or orphans). Fix duplicate keys before syncing if they were intentional.");
+            }
+
             if (entries == null) entries = new List<Entry>(Count);
             else entries.Clear();
 
@@ -312,6 +343,8 @@ namespace HCollection {
 
             for (int k = 0; k < entries.Count; k++) {
                 TKey key = entries[k].Key;
+                // Dictionary.TryGetValue 는 null 키에 ArgumentNullException 을 던진다 — 먼저 걸러낸다.
+                if (key is null) return true;
                 if (!seen.Add(key)) return true;
                 if (!TryGetValue(key, out TValue dictValue)) return true;
                 if (!valueComparer.Equals(dictValue, entries[k].Value)) return true;
@@ -342,12 +375,12 @@ namespace HCollection {
             }
         }
 
-        private void _RemoveFirstEntryByKey(TKey key) {
+        // 종전에는 첫 행만 제거해, 중복 키 상태에서 Remove 하면 둘째 행이 승격되어
+        // "삭제했는데 값이 바뀐 채 살아있는" 결과가 나왔다. 키가 사라지면 그 키의 모든 행이 사라져야 한다.
+        private void _RemoveAllEntriesByKey(TKey key) {
             IEqualityComparer<TKey> comparer = Comparer;
-            for (int k = 0; k < entries.Count; k++) {
-                if (!comparer.Equals(entries[k].Key, key)) continue;
-                entries.RemoveAt(k);
-                return;
+            for (int k = entries.Count - 1; k >= 0; k--) {
+                if (comparer.Equals(entries[k].Key, key)) entries.RemoveAt(k);
             }
         }
         #endregion
