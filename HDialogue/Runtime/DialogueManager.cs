@@ -112,6 +112,8 @@ namespace HDialogue {
             get => director.AutoAdvanceDelay;
             set => director.AutoAdvanceDelay = value;
         }
+        // 게터는 이제 "실제 적용되는 지연" 을 반환한다 — auto 모드 on/off 판정은 이 쪽을 쓴다.
+        public bool IsAutoAdvanceOn => director.HasAutoAdvanceOverride;
         #endregion
 
         #region Unity Life Cycle
@@ -313,7 +315,9 @@ namespace HDialogue {
         private void _OnInputSkip() => _OnUiSkip();
         private void _OnInputHistoryToggle() => historyController?.ToggleHistory();
         private void _OnInputAutoToggle() {
-            bool newIsOn = director.AutoAdvanceDelay < 0f;
+            // 종전에는 AutoAdvanceDelay < 0f 로 off 를 판정했으나, 게터가 유효값을 반환하도록
+            // 바뀌어 항상 false 가 된다 — 재정의 여부를 직접 묻는다.
+            bool newIsOn = !director.HasAutoAdvanceOverride;
             director.AutoAdvanceDelay = newIsOn ? autoModeDelay : -1f;
             uiController.SetAutoToggle(newIsOn);
         }

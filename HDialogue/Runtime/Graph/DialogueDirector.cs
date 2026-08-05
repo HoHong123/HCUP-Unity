@@ -57,9 +57,14 @@ namespace HDialogue {
 
         bool hasWarnedNullController;
 
+        // WaitNode 에 도달하기 전에 도착한 조건 신호는 종전에 소실됐고, 이후 WaitNode 는
+        // 이미 보내진 신호를 영원히 기다렸다 (탈출구는 Stop() 뿐). 래치로 한 번 보관한다.
+        bool waitConditionLatched;
+
         // 그래프 순회 폭주 방어. Branch→Branch 순환은 await 없이 완전 동기로 돌아
         // 메인 스레드를 하드 프리즈시킨다 (검증기 W002 는 에디터 수동 실행이라 런타임 방어 불가).
         const int MAX_NODE_TRANSITIONS = 10000;
+        const string ERROR_EXIT_KEY = "Error";
         const int SYNC_YIELD_INTERVAL = 32;
 
         float autoAdvanceOverride = -1f;
@@ -78,10 +83,15 @@ namespace HDialogue {
         public DialogueDirectorState State => state;
         public DialogueCatalogSO CurrentCatalog => currentCatalog;
         public BaseNode CurrentNode => currentNode;
+        // 게터가 override 원본(-1 = 미설정)을 그대로 반환해, 설정 UI 가 읽으면 -1 이 표시됐다.
+        // 실제 적용되는 유효값을 반환하고, 해제는 별도 API 로 분리한다.
         public float AutoAdvanceDelay {
-            get => autoAdvanceOverride;
+            get => autoAdvanceOverride >= 0f ? autoAdvanceOverride : autoAdvanceDelay;
             set => autoAdvanceOverride = value;
         }
+
+        public bool HasAutoAdvanceOverride => autoAdvanceOverride >= 0f;
+        public void ClearAutoAdvanceOverride() => autoAdvanceOverride = -1f;
         public bool IsSkipping {
             get => isSkipping;
             set => isSkipping = value;
@@ -123,14 +133,18 @@ namespace HDialogue {
 
             _CancelCurrentCatalog("Replaced");
             cts = new CancellationTokenSource();
+            // 토큰을 지역으로 캡처한다 — OnCatalogStart 구독자가 PlayCatalog 를 재호출하면
+            // cts 필드가 교체되어, 이 카탈로그의 시작 노드가 남의 토큰으로 실행됐다.
+            var token = cts.Token;
             isSkipping = false;
 
             currentCatalog = catalog;
             currentNode = startNode;
             state = DialogueDirectorState.Idle;
 
+            // 루프를 먼저 기동한 뒤 알린다 — 구독자 재진입이 기동 자체를 오염시키지 않게 한다.
+            _PlayCatalogAsync(startNode, token).Forget();
             OnCatalogStart?.Invoke(catalog);
-            _PlayCatalogAsync(startNode, cts.Token).Forget();
         }
 
         public void Stop() {
@@ -150,7 +164,11 @@ namespace HDialogue {
         }
 
         public void NotifyWaitConditionMet() {
-            waitConditionTcs?.TrySetResult();
+            if (waitConditionTcs != null) {
+                waitConditionTcs.TrySetResult();
+                return;
+            }
+            waitConditionLatched = true;
         }
         #endregion
 
@@ -161,9 +179,8 @@ namespace HDialogue {
             try {
                 while (currentNode != null && state != DialogueDirectorState.Finished) {
                     if (++transitionCount > MAX_NODE_TRANSITIONS) {
-                        HLogger.Error(
-                            $"[DialogueDirector] Node transition limit ({MAX_NODE_TRANSITIONS}) exceeded — probable graph cycle at '{currentNode.Title}'. Finishing.");
-                        state = DialogueDirectorState.Finished;
+                        _FinishWithError(
+                            $"Node transition limit ({MAX_NODE_TRANSITIONS}) exceeded at '{currentNode.Title}' — probable graph cycle, or an unusually long catalog.");
                         break;
                     }
 
@@ -179,7 +196,12 @@ namespace HDialogue {
                 }
             } catch (OperationCanceledException) {
             } catch (System.Exception e) {
+                // 로그만 남기면 state 가 예외 시점 값에 고정되고 종료 이벤트도 발행되지 않아
+                // 대화 UI 가 열린 채 좀비 상태가 된다.
                 HLogger.Error($"[DialogueDirector] Unexpected exception in _PlayCatalogAsync: {e}");
+                _FinishWithError("Unhandled exception during catalog playback.");
+            } finally {
+                _ReleaseFinishedCts();
             }
         }
 
@@ -217,6 +239,13 @@ namespace HDialogue {
             }
         }
 
+        private bool _HasHubEdge(BaseNode node, string hubKey) {
+            foreach (BaseNodeEdge edge in currentCatalog.GetOutgoingEdges(node.UID)) {
+                if (edge is HubNodeEdge hubEdge && hubEdge.BranchPortKey == hubKey) return true;
+            }
+            return false;
+        }
+
         private BaseNode _ResolveNextNode(BaseNode node, string hubKey) {
             if (node is HubNode && hubKey != null) {
                 foreach (BaseNodeEdge edge in currentCatalog.GetOutgoingEdges(node.UID)) {
@@ -225,19 +254,22 @@ namespace HDialogue {
                         return hubNext;
                     }
                 }
-                HLogger.Warning($"[DialogueDirector] No hub edge matching key '{hubKey}' from node '{node.Title}'. Finishing.");
-                state = DialogueDirectorState.Finished;
+                _FinishWithError($"No hub edge matching key '{hubKey}' from node '{node.Title}'.");
                 return null;
             }
 
             foreach (BaseNodeEdge edge in currentCatalog.GetOutgoingEdges(node.UID)) {
-                currentCatalog.Nodes.TryGetValue(edge.LeafUID, out BaseNode next);
+                // 종전에는 TryGetValue 실패를 무시하고 null 을 반환해, 경고도 종료 이벤트도 없이
+                // 루프가 빠져나갔다 (구독자 입장에서는 대화가 영원히 진행 중).
+                if (!currentCatalog.Nodes.TryGetValue(edge.LeafUID, out BaseNode next) || next == null) {
+                    _FinishWithError($"Edge target '{edge.LeafUID}' from node '{node.Title}' is missing in the catalog.");
+                    return null;
+                }
                 return next;
             }
 
             if (!(node is DialogueExitNode)) {
-                HLogger.Warning($"[DialogueDirector] Node '{node.Title}' ({node.GetType().Name}) has no outgoing edges. Finishing.");
-                state = DialogueDirectorState.Finished;
+                _FinishWithError($"Node '{node.Title}' ({node.GetType().Name}) has no outgoing edges.");
             }
             return null;
         }
@@ -253,6 +285,12 @@ namespace HDialogue {
             if (node.ClearStageOnExit) stageDirector?.ClearAll();
             state = DialogueDirectorState.Finished;
             return UniTask.CompletedTask;
+        }
+
+        // 정상 종료도 CTS 를 해제해야 다음 PlayCatalog 까지 떠 있지 않는다.
+        private void _ReleaseFinishedCts() {
+            if (state != DialogueDirectorState.Finished) return;
+            _CancelAndDisposeCts();
         }
 
         private async UniTask _ProcessLineNode(DialogueLineNode node, CancellationToken ct) {
@@ -314,10 +352,15 @@ namespace HDialogue {
 
             if (validChoices.Count == 0) {
                 if (!string.IsNullOrEmpty(node.FallbackChoiceKey)) {
+                    // 검증 없이 넘기면 진단이 허브 엣지 쪽으로 어긋난다 — 원인은 ChoiceNode 설정이다.
+                    if (!_HasHubEdge(node, node.FallbackChoiceKey)) {
+                        _FinishWithError(
+                            $"ChoiceNode '{node.Title}' fallback key '{node.FallbackChoiceKey}' has no matching hub edge.");
+                        return null;
+                    }
                     return node.FallbackChoiceKey;
                 }
-                HLogger.Warning($"[DialogueDirector] ChoiceNode '{node.Title}' has no valid choices and no fallback. Finishing.");
-                state = DialogueDirectorState.Finished;
+                _FinishWithError($"ChoiceNode '{node.Title}' has no valid choices and no fallback.");
                 return null;
             }
 
@@ -327,12 +370,16 @@ namespace HDialogue {
             state = DialogueDirectorState.WaitingForChoice;
             OnChoicePresent?.Invoke(node, validChoices);
 
-            choiceTcs = new UniTaskCompletionSource<string>();
+            var myChoiceTcs = new UniTaskCompletionSource<string>();
+            choiceTcs = myChoiceTcs;
             try {
-                return await choiceTcs.Task.AttachExternalCancellation(ct);
+                return await myChoiceTcs.Task.AttachExternalCancellation(ct);
             } finally {
-                choiceTcs = null;
-                validChoiceKeys.Clear();
+                // 구 루프의 취소 연속이 뒤늦게 도착해도 신 루프의 대기 채널을 지우지 않는다.
+                if (ReferenceEquals(choiceTcs, myChoiceTcs)) {
+                    choiceTcs = null;
+                    validChoiceKeys.Clear();
+                }
             }
         }
 
@@ -349,8 +396,7 @@ namespace HDialogue {
                 }
                 case BranchMode.IntRange: {
                     if (!variables.TryGetInt(node.ConditionKey, out int intVal)) {
-                        HLogger.Warning($"[DialogueDirector] BranchNode '{node.Title}' — key '{node.ConditionKey}' not found. Finishing.");
-                        state = DialogueDirectorState.Finished;
+                        _FinishWithError($"BranchNode '{node.Title}' — int key '{node.ConditionKey}' not found.");
                         return null;
                     }
                     foreach (HubNode.HubPortEntry entry in node.Entries) {
@@ -362,21 +408,18 @@ namespace HDialogue {
                             return entry.Key;
                         }
                     }
-                    HLogger.Warning($"[DialogueDirector] BranchNode '{node.Title}' — int value {intVal} matched no IntRange port. Finishing.");
-                    state = DialogueDirectorState.Finished;
+                    _FinishWithError($"BranchNode '{node.Title}' — int value {intVal} matched no IntRange port.");
                     return null;
                 }
                 case BranchMode.Switch: {
                     if (!variables.TryGetString(node.ConditionKey, out string strVal)) {
-                        HLogger.Warning($"[DialogueDirector] BranchNode '{node.Title}' — key '{node.ConditionKey}' not found. Finishing.");
-                        state = DialogueDirectorState.Finished;
+                        _FinishWithError($"BranchNode '{node.Title}' — string key '{node.ConditionKey}' not found.");
                         return null;
                     }
                     return strVal;
                 }
                 default:
-                    HLogger.Warning($"[DialogueDirector] BranchNode '{node.Title}' — unknown BranchMode. Finishing.");
-                    state = DialogueDirectorState.Finished;
+                    _FinishWithError($"BranchNode '{node.Title}' — unknown BranchMode.");
                     return null;
             }
         }
@@ -438,11 +481,18 @@ namespace HDialogue {
                     await UniTask.WaitForSeconds(node.Seconds, ignoreTimeScale: true, cancellationToken: ct);
                     break;
                 case WaitMode.Condition:
-                    waitConditionTcs = new UniTaskCompletionSource();
+                    if (waitConditionLatched) {
+                        waitConditionLatched = false;
+                        await UniTask.NextFrame(cancellationToken: ct);
+                        break;
+                    }
+                    var conditionTcs = new UniTaskCompletionSource();
+                    waitConditionTcs = conditionTcs;
                     try {
-                        await waitConditionTcs.Task.AttachExternalCancellation(ct);
+                        await conditionTcs.Task.AttachExternalCancellation(ct);
                     } finally {
-                        waitConditionTcs = null;
+                        // 소유권 확인 없이 필드를 지우면 새 카탈로그 루프의 대기 채널을 없앨 수 있다.
+                        if (ReferenceEquals(waitConditionTcs, conditionTcs)) waitConditionTcs = null;
                     }
                     break;
                 case WaitMode.UserInput:
@@ -492,10 +542,26 @@ namespace HDialogue {
         #endregion
 
         #region Private — Util
+        // 비정상 종료 경로가 state 만 바꾸고 OnCatalogExit 를 발행하지 않아,
+        // 종료를 이벤트로 구독하는 UI 가 닫히지 않았다. 실패 종료를 한 곳으로 모은다.
+        private void _FinishWithError(string reason) {
+            HLogger.Warning($"[DialogueDirector] {reason} Finishing.");
+            if (state != DialogueDirectorState.Finished) {
+                state = DialogueDirectorState.Finished;
+                OnCatalogExit?.Invoke(currentCatalog, ERROR_EXIT_KEY);
+            }
+        }
+
         private void _CancelCurrentCatalog(string exitKey) {
-            if (state != DialogueDirectorState.Idle && currentCatalog != null)
+            // Finished 는 이미 종료 이벤트를 발행한 상태다 — 종전에는 여기서 한 번 더 발행되어
+            // 보상 지급 같은 구독자가 두 번 실행됐다.
+            if (state != DialogueDirectorState.Idle
+                && state != DialogueDirectorState.Finished
+                && currentCatalog != null) {
                 OnCatalogExit?.Invoke(currentCatalog, exitKey);
+            }
             _CancelAndDisposeCts();
+            waitConditionLatched = false;
             state = DialogueDirectorState.Idle;
         }
 
