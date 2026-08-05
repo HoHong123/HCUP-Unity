@@ -2,7 +2,7 @@
     "name": "HCUP.HUnityLocalization.Editor",
     "rootNamespace": "HUnityLocalization",
     "references": [
-        "HCUP.HData.NPOI.Editor",
+        "HCUP.HExcel.Editor",
         "HCUP.HcupLocalization",
         "HCUP.HDiagnosis",
         "Unity.Localization",

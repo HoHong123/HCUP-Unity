@@ -25,9 +25,8 @@ using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HCore;
-using HUtil.AssetHandler.Data;
-using HUtil.AssetHandler.Provider;
-using HUtil.Data.Load;
+using HResource.Data;
+using HResource.Provider;
 using HDiagnosis.Logger;
 using HUI.TextUI;
 

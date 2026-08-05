@@ -10,7 +10,8 @@
         "HCUP.HUtil",
         "HCUP.HCollection",
         "HCUP.HDiagnosis",
-        "HCUP.HUI"
+        "HCUP.HUI",
+        "HCUP.HResource"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

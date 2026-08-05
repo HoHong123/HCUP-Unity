@@ -32,8 +32,8 @@ using UnityEngine.Localization.Tables;
 using UnityEditor.Localization;
 using Newtonsoft.Json.Linq;
 using HDiagnosis.Logger;
-using HData.NPOI.Core;
-using HData.NPOI.Localization;
+using HExcel.Core;
+using HExcel.Localization;
 using HcupLocalization;
 
 namespace HUnityLocalization {
