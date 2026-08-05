@@ -28,10 +28,9 @@ using UnityEngine;
 using TMPro;
 using HCore;
 using HCore.Scene;
-using HInspector;
-#if UNITY_EDITOR
 using System.Text;
-#endif
+using HDiagnosis.Logger;
+using HInspector;
 
 namespace HUI.Spinner {
     public class SpinnerManager : SingletonBehaviour<SpinnerManager> {
@@ -47,7 +46,7 @@ namespace HUI.Spinner {
 
         public bool IsVisible { get; private set; } = false;
 
-#if UNITY_EDITOR
+        // 고착(Hide 누락)은 실제로 빌드에서 발생한다 — 진단 경로를 에디터 전용으로 두면 조사할 수 없다.
         public IReadOnlyDictionary<object, int> ActiveCallers => callers;
         public string GetCallerData() {
             if (callers.Count == 0) {
@@ -59,21 +58,47 @@ namespace HUI.Spinner {
             }
             return sb.ToString();
         }
-#endif
 
-        private void _ShowSpinner() => spinner.SetActive(true);
-        private void _HideSpinner() => spinner.SetActive(false);
+        private void _ShowSpinner() {
+            if (spinner == null) {
+                HLogger.Error("[Spinner] 'spinner' GameObject is not assigned.");
+                return;
+            }
+            spinner.SetActive(true);
+        }
+
+        private void _HideSpinner() {
+            if (spinner == null) return;
+            spinner.SetActive(false);
+        }
 
 
         protected override void Awake() {
             base.Awake();
+            // base 가 중복 인스턴스를 Destroy 한 경우 정적 이벤트를 구독하면 유령 구독자가 남는다.
+            if (instance != this) return;
             SceneLoader.OnSceneLoaded += CleanUp;
             SceneLoader.OnSceneUnloaded += CleanUp;
         }
 
+        // SceneLoader 의 이벤트는 정적이라 구독자를 강참조로 붙잡는다. 해제하지 않으면
+        // 파괴된 인스턴스가 씬 전환마다 CleanUp 을 받아 spinner.SetActive 에서 MissingReferenceException 을 던진다.
+        protected override void OnDestroy() {
+            SceneLoader.OnSceneLoaded -= CleanUp;
+            SceneLoader.OnSceneUnloaded -= CleanUp;
+            base.OnDestroy();
+        }
+
         #region Public - Show
         public void Show(object caller, string toolTip = null) {
-            toolTipTxt.text = toolTip ?? string.Empty;
+            if (caller == null) {
+                HLogger.Error("[Spinner] Show called with a null caller. Ignored.");
+                return;
+            }
+
+            // 종전에는 후행 호출이 toolTip 을 지정하지 않으면 선행 호출자의 안내 문구를 지웠다.
+            // 참조 카운팅되는 다른 상태와 규약을 맞춰, 명시된 경우에만 갱신한다.
+            if (toolTip != null && toolTipTxt != null) toolTipTxt.text = toolTip;
 
             if (callers.ContainsKey(caller)) {
                 callers[caller]++;
@@ -102,7 +127,7 @@ namespace HUI.Spinner {
                     cancellationToken: ct);
             }
             finally {
-                Hide(caller);   // 취소 시에도 스피너 고착 방지 — 다른 오버로드와 동일 규약
+                _HideSafely(caller);   // 취소 시에도 스피너 고착 방지 — 다른 오버로드와 동일 규약
             }
         }
 
@@ -120,7 +145,7 @@ namespace HUI.Spinner {
                     cancellationToken: ct);
             }
             finally {
-                Hide(caller);   // 취소 시에도 스피너 고착 방지
+                _HideSafely(caller);   // 취소 시에도 스피너 고착 방지
             }
         }
 
@@ -130,7 +155,7 @@ namespace HUI.Spinner {
                 await taskFunc();
             }
             finally {
-                Hide(caller);
+                _HideSafely(caller);
             }
         }
 
@@ -140,7 +165,7 @@ namespace HUI.Spinner {
                 await task;
             }
             finally {
-                Hide(caller);
+                _HideSafely(caller);
             }
         }
 
@@ -150,7 +175,7 @@ namespace HUI.Spinner {
                 return await task;
             }
             finally {
-                Hide(caller);
+                _HideSafely(caller);
             }
         }
         #endregion
@@ -167,6 +192,18 @@ namespace HUI.Spinner {
             if (callers.Count == 0 && IsVisible) {
                 IsVisible = false;
                 _HideSpinner();
+            }
+        }
+        #endregion
+
+        #region Private - Safe Hide
+        // finally 안에서 던져진 예외는 원본 예외를 대체한다 — 작업 실패 원인이 사라지는 것을 막는다.
+        private void _HideSafely(object caller) {
+            try {
+                Hide(caller);
+            }
+            catch (System.Exception e) {
+                HLogger.Error($"[Spinner] Hide failed while unwinding: {e}");
             }
         }
         #endregion
