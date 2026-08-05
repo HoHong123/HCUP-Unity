@@ -76,6 +76,14 @@ namespace HDiagnosis.Logger {
         #region Log
 #if !UNITY_EDITOR
         readonly static Queue<LogEntry> logQue = new();
+
+        // Domain Reload 비활성(Enter Play Mode Options) 시 정적 구독·큐가 플레이 세션을 넘어
+        // 잔존하는 것을 차단한다.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void _ResetStatics() {
+            OnLogPublished = null;
+            logQue.Clear();
+        }
 #endif
         #endregion
 

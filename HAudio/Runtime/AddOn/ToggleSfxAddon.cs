@@ -11,7 +11,10 @@ namespace HAudio.AddOn {
         #region Unity Life Cycle
         private void Start() {
             toggle = GetComponent<Toggle>();
-            UnityEngine.Assertions.Assert.IsNotNull(toggle);
+            if (toggle == null) {
+                HDiagnosis.Logger.HLogger.Error($"[ToggleSfxAddon] Toggle not found on '{gameObject.name}'.", gameObject);
+                return;
+            }
 
             toggle.onValueChanged.RemoveListener(_ToggleHandler);
             toggle.onValueChanged.AddListener(_ToggleHandler);

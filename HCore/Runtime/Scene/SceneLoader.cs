@@ -14,7 +14,6 @@
 using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
 using HDiagnosis.Logger;
 
@@ -91,9 +90,15 @@ namespace HCore.Scene {
 
         #region Init
         public static void Initialize(SceneCatalogSO baseRef, SceneCatalogSO overrideRef = null) {
-            Assert.IsFalse(isInitialized, "[SceneLoader] Initialize() must be called only once per play session.");
-            Assert.IsNotNull(baseRef, "[SceneLoader] baseRef must not be null.");
-            if (isInitialized == true) return;
+            // Assert 는 릴리즈 빌드에서 통째로 제거된다 — 방어는 런타임 검사로 유지한다.
+            if (isInitialized) {
+                HLogger.Error("[SceneLoader] Initialize() must be called only once per play session.");
+                return;
+            }
+            if (baseRef == null) {
+                HLogger.Throw(new ArgumentNullException(nameof(baseRef), "[SceneLoader] baseRef must not be null."));
+                return;
+            }
             baseCatalog = baseRef;
             overrideCatalog = overrideRef;
             isInitialized = true;
@@ -108,6 +113,9 @@ namespace HCore.Scene {
             baseCatalog = null;
             overrideCatalog = null;
             isInitialized = false;
+            OnSceneLoaded = null;      // Domain Reload 비활성 시 이전 플레이의 구독 잔존 방지
+            OnSceneUnloaded = null;
+            LoadProgress = 0f;
         }
         #endregion
 
@@ -119,6 +127,7 @@ namespace HCore.Scene {
             Action onComplete = null,
             SceneKey? loadingKey = null) {
             var sceneName = _ResolveSceneName(key);
+            if (sceneName == null) return UniTask.CompletedTask;   // 매핑 실패가 LoadSceneAsync(null) 로 진행되지 않도록 차단
             var loadingSceneName = loadingKey.HasValue ? _ResolveSceneName(loadingKey.Value) : null;
             return LoadSceneAsync(sceneName, mode, onProgress, onComplete, loadingSceneName);
         }
@@ -128,6 +137,7 @@ namespace HCore.Scene {
             Action<float> onProgress = null,
             Action onComplete = null) {
             var sceneName = _ResolveSceneName(key);
+            if (sceneName == null) return UniTask.CompletedTask;
             return UnloadSceneAsync(sceneName, onProgress, onComplete);
         }
 
@@ -181,7 +191,10 @@ namespace HCore.Scene {
         #region Private
         private static string _ResolveSceneName(SceneKey key) {
             // 프로젝트 표준 API(SceneKey)를 쓰려면, BaseCatalog는 "반드시" 있어야 정상 플로우가 성립함.
-            Assert.IsNotNull(BaseCatalog, "[SceneLoader] BaseCatalog must be assigned before using SceneKey APIs.");
+            if (BaseCatalog == null) {
+                HLogger.Error("[SceneLoader] BaseCatalog must be assigned before using SceneKey APIs.");
+                return null;
+            }
 
             if (OverrideCatalog != null && OverrideCatalog.TryResolve(key, out var overrideName))
                 return overrideName;
@@ -189,7 +202,7 @@ namespace HCore.Scene {
             if (BaseCatalog.TryResolve(key, out var baseName))
                 return baseName;
 
-            Assert.IsTrue(false, $"[SceneLoader] SceneKey '{key}' is not mapped in catalogs.");
+            HLogger.Error($"[SceneLoader] SceneKey '{key}' is not mapped in catalogs.");
             return null;
         }
         #endregion

@@ -20,7 +20,7 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using UnityEngine.Assertions;
+using HDiagnosis.Logger;
 
 namespace HResource.Load {
     public sealed class SharedAssetLoadGate<TKey, TAsset> : IAssetLoadGate<TKey, TAsset> {
@@ -30,7 +30,9 @@ namespace HResource.Load {
 
         #region Public - Run
         public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
-            Assert.IsNotNull(factory, "[SharedAssetLoadGate] factory is null.");
+            if (factory == null) {
+                HLogger.Throw(new ArgumentNullException(nameof(factory), "[SharedAssetLoadGate] factory is null."));
+            }
 
             if (loadingTable.TryGetValue(key, out var runningTask)) {
                 return await runningTask;

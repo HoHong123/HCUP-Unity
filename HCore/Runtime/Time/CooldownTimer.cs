@@ -17,7 +17,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
-using UnityEngine.Assertions;
+using HDiagnosis.Logger;
 
 namespace HCore.HTime {
     public enum CancelBehavior {
@@ -55,7 +55,9 @@ namespace HCore.HTime {
 
         #region Public - Constructors 
         public CooldownTimer(MonoBehaviour runner, float tickIntervalSeconds = 0.1f) {
-            Assert.IsNotNull(runner);
+            if (runner == null) {
+                HLogger.Throw(new ArgumentNullException(nameof(runner), "[CooldownTimer] runner is null."));
+            }
 
             this.runner = runner;
             this.tickIntervalSeconds = Mathf.Max(0f, tickIntervalSeconds);
@@ -64,7 +66,7 @@ namespace HCore.HTime {
 
         #region Public - Start Countdown
         public void Start(TimeSpan duration, CancelBehavior cancelBehavior = CancelBehavior.InvokeCanceled) {
-            Assert.IsTrue(!isDisposed);
+            _ThrowIfDisposed();
 
             if (duration < TimeSpan.Zero) duration = TimeSpan.Zero;
 
@@ -73,7 +75,7 @@ namespace HCore.HTime {
         }
 
         public void StartWithEndTicks(long endUtcTicks, CancelBehavior cancelBehavior = CancelBehavior.InvokeCanceled) {
-            Assert.IsTrue(!isDisposed);
+            _ThrowIfDisposed();
 
             StopSilently();
 
@@ -86,9 +88,14 @@ namespace HCore.HTime {
         }
         #endregion
 
+        // Assert 는 릴리즈에서 제거된다 — dispose 후 사용은 릴리즈에서도 fail-fast.
+        private void _ThrowIfDisposed() {
+            if (isDisposed) HLogger.Throw(new ObjectDisposedException(nameof(CooldownTimer)));
+        }
+
         #region Public - Cancellation
         public void Cancel(CancelBehavior behavior) {
-            Assert.IsTrue(!isDisposed);
+            _ThrowIfDisposed();
 
             if (!isRunning) return;
 

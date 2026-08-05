@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Assertions;
+using HDiagnosis.Logger;
 using HAudio.Catalog;
 using HAudio.Core;
 using HResource.Data;
@@ -37,10 +37,12 @@ namespace HAudio.Repository {
             AudioCatalogRegistry catalogRegistry,
             IAssetProvider<string, AudioClip> assetProvider = null) {
 
-            Assert.IsNotNull(catalogRegistry, "[SoundClipRepository] catalogRegistry is null.");
-            Assert.IsTrue(
-                loadMode == AssetLoadMode.Resources || loadMode == AssetLoadMode.Addressable,
-                $"[SoundClipRepository] Unsupported load mode. loadMode={loadMode}");
+            if (catalogRegistry == null) {
+                HLogger.Throw(new System.ArgumentNullException(nameof(catalogRegistry), "[AudioClipRepository] catalogRegistry is null."));
+            }
+            if (loadMode != AssetLoadMode.Resources && loadMode != AssetLoadMode.Addressable) {
+                HLogger.Throw(new System.ArgumentException($"[AudioClipRepository] Unsupported load mode. loadMode={loadMode}", nameof(loadMode)));
+            }
 
             LoadMode = loadMode;
             this.catalogRegistry = catalogRegistry;
@@ -82,8 +84,7 @@ namespace HAudio.Repository {
             AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
-            Assert.IsNotNull(catalog, "[SoundClipRepository] catalog is null.");
-            if (!catalog) return;
+            if (!catalog) return;   // null/파괴 가드 — Assert 는 릴리즈에서 제거되므로 런타임 가드만 유지
 
             catalogRegistry.RegisterCatalog(catalog);
 
@@ -113,7 +114,6 @@ namespace HAudio.Repository {
         }
 
         public void ReleaseCatalog(AudioCatalogSO catalog, AssetOwnerId ownerId) {
-            Assert.IsNotNull(catalog, "[SoundClipRepository] catalog is null.");
             if (!catalog) return;
 
             List<AudioCatalogSO.Entry> removedEntries = new List<AudioCatalogSO.Entry>();

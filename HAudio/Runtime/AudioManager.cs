@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
-using UnityEngine.Assertions;
 using HAudio.Catalog;
 using HAudio.Repository;
 using HAudio.AddOn;
@@ -135,13 +134,12 @@ namespace HAudio {
         }
 
         private void _BuildRepository() {
-#if UNITY_ASSERTIONS
-            Assert.IsNotNull(audioMix, "[AudioManager] Mixer is null.");
-            Assert.IsNotNull(sfxAudio, "[AudioManager] sfxAudio is null.");
-            Assert.IsNotNull(bgmAudio, "[AudioManager] bgmAudio is null.");
-            Assert.IsNotNull(uiAudio, "[AudioManager] uiAudio is null.");
-            Assert.IsNotNull(spatialPool, "[AudioManager] spatialPool is null.");
-#endif
+            // Assert 는 릴리즈에서 제거되어 무방비가 된다 — 필드 누락은 릴리즈에서도 로그로 드러낸다.
+            if (audioMix == null) HLogger.Error("[AudioManager] Mixer is null.");
+            if (sfxAudio == null) HLogger.Error("[AudioManager] sfxAudio is null.");
+            if (bgmAudio == null) HLogger.Error("[AudioManager] bgmAudio is null.");
+            if (uiAudio == null) HLogger.Error("[AudioManager] uiAudio is null.");
+            if (spatialPool == null) HLogger.Error("[AudioManager] spatialPool is null.");
             catalogRegistry = new AudioCatalogRegistry();
             clipRepository = new AudioClipRepository(loadMode, catalogRegistry);
         }
@@ -271,7 +269,11 @@ namespace HAudio {
 
         #region Private - Clip
         private bool _TryGetLoadedClip(string token, out AudioClip clip) {
-            Assert.IsNotNull(clipRepository, "[AudioManager] clipRepository is null.");
+            if (clipRepository == null) {
+                HLogger.Error("[AudioManager] clipRepository is null.");
+                clip = null;
+                return false;
+            }
             string normalizedToken = _NormalizeToken(token);
 #if UNITY_EDITOR
             _TrackPreviewToken(normalizedToken);

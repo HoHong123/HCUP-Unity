@@ -21,7 +21,7 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Assertions;
+using HDiagnosis.Logger;
 using HResource.Cache;
 using HResource.Load;
 using HResource.Store;
@@ -52,7 +52,9 @@ namespace HResource.Provider {
             IAssetStore<string, TAsset> assetStore = null)
             where TAsset : Object {
 
-            Assert.IsNotNull(assetLoaders, "[AssetProviderFactory] assetLoaders is null.");
+            if (assetLoaders == null) {
+                HLogger.Throw(new System.ArgumentNullException(nameof(assetLoaders), "[AssetProviderFactory] assetLoaders is null."));
+            }
 
             return new AssetProvider<string, TAsset>(
                 assetLoaders: assetLoaders,

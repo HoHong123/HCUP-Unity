@@ -21,6 +21,13 @@ public static class UiEvent {
 
     private static object dragOwner = null;
 
+    // Domain Reload 비활성 시 드래그 잠금이 이전 플레이에서 잔존하면 전 UI 드래그가 무음 불능이 된다.
+    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void _ResetStatics() {
+        dragOwner = null;
+        IsDragging = false;
+    }
+
 
     public static bool LockDrag(object owner) {
         if (dragOwner != null) return false;

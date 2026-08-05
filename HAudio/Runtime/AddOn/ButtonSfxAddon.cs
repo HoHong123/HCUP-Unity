@@ -11,7 +11,10 @@ namespace HAudio.AddOn {
         #region Unity Life Cycle
         private void Start() {
             btn = GetComponent<DelegateButton>();
-            UnityEngine.Assertions.Assert.IsNotNull(btn);
+            if (btn == null) {
+                HDiagnosis.Logger.HLogger.Error($"[ButtonSfxAddon] DelegateButton not found on '{gameObject.name}'.", gameObject);
+                return;
+            }
 
             btn.OnPointUp -= _HandleClick;
             btn.OnPointUp += _HandleClick;

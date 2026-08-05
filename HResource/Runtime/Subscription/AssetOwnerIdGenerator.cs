@@ -30,6 +30,14 @@ namespace HResource.Subscription {
         #region Events
         public static event System.Action<AssetOwnerId, object> OnIdCreated;
         public static event System.Action<AssetOwnerId> OnIdReleased;
+
+        // Domain Reload 비활성 시 id 카운터·구독이 플레이 세션을 넘어 잔존하는 것을 차단.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void _ResetStatics() {
+            nextId = 0;
+            OnIdCreated = null;
+            OnIdReleased = null;
+        }
         #endregion
 
         #region Public - Generate

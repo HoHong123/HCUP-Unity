@@ -1,5 +1,5 @@
 using Cysharp.Threading.Tasks;
-using UnityEngine.Assertions;
+using HDiagnosis.Logger;
 using HResource.Data;
 using HResource.Provider;
 
@@ -63,7 +63,9 @@ namespace HResource.Subscription {
 
         #region Public - Constructors
         public AssetLeaseManager(IAssetProvider<TKey, TAsset> assetProvider) {
-            Assert.IsNotNull(assetProvider, "[AssetLeaseManager] assetProvider is null.");
+            if (assetProvider == null) {
+                HLogger.Throw(new System.ArgumentNullException(nameof(assetProvider), "[AssetLeaseManager] assetProvider is null."));
+            }
             this.assetProvider = assetProvider;
         }
         #endregion
@@ -75,7 +77,9 @@ namespace HResource.Subscription {
             AssetLoadMode loadMode,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
-            Assert.IsNotNull(owner, "[AssetLeaseManager] owner is null.");
+            if (owner == null) {
+                HLogger.Throw(new System.ArgumentNullException(nameof(owner), "[AssetLeaseManager] owner is null."));
+            }
             return AcquireAsync(owner.OwnerId, key, loadMode, fetchMode);
         }
 
@@ -85,7 +89,9 @@ namespace HResource.Subscription {
             AssetLoadMode loadMode,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
-            Assert.IsTrue(ownerId.IsValid, "[AssetLeaseManager] ownerId is invalid.");
+            if (!ownerId.IsValid) {
+                HLogger.Throw(new System.ArgumentException("[AssetLeaseManager] ownerId is invalid.", nameof(ownerId)));
+            }
 
             var asset = await assetProvider.GetAsync(
                 key: key,
