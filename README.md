@@ -1,213 +1,189 @@
-# Hong's Custom Utility - Unity (HCUP)
+# HCUP-Unity — Hong's Custom Utility
 
-> 공용 유틸리티, UI, 게임 로직, 오디오, 에디터 윈도우 패키지를 함께 관리하는 Unity 패키지 저장소입니다. (업데이트: 2026-05-12, 문서 기준 버전 1.1.1)
-
----
-
-## 1.1.1 릴리스 하이라이트
-
-- `HWindows` 패키지 신설 — GraphView 기반 `NodeWindow` 에디터 서브모듈 도입. 메인 UPM 패키지가 4개에서 5개로 증가했습니다.
-- NodeWindow: `NodeCatalogSO`(그래프 컨테이너 SO) + 3 노드 타입(Simple / Hub / Catalog) + Undo/Redo + Cut/Paste(JSON 클립보드) + Search + 메뉴바([View▾][Edit▾]).
-- Unity 2022.3 LTS ~ 6000.3.11f1 호환 확인. C# 9 상한 준수 (`#if UNITY_6000_0_OR_NEWER` 분기 적용).
-
----
-
-## 1.0.3 릴리스 하이라이트
-
-- HGame 의 오디오 도메인 (Audio/Sound) 을 `HCUP.HAudio` 패키지로 분리했습니다. 메인 UPM 패키지가 3개에서 4개로 증가했습니다.
-- namespace 를 `HGame.Audio.*` / `HGame.Sound.*` 에서 `HAudio.*` 단일 트리로 평탄화했습니다.
-- audio 분리 후 dead 가 된 `HGame/Editor/`, `HGame/Odin/` asmdef 폴더를 삭제했습니다.
-
----
-
-## 1.0.2 릴리스 하이라이트
-
-- 어셈블리 식별자 prefix 를 `HCUP.*` 로 통일했습니다 (이전: `Hohong123.*`).
-- 패키지 디렉토리 구조를 평탄화했습니다 (`HoHong123/X` → `X`). HoHong123 컨테이너 폴더가 제거되었습니다.
-- 1.0.1 어셈블리 분리 — HUtil 에 묶여 있던 `HCollection`, `HCore`, `HData`, `HDiagnosis`, `HInspector` 5개 도메인이 별도 어셈블리로 분리되었습니다.
-- 1.0.2 Custom Inspector 치환 — Sound/Skill/Camera/World/Game 계층 33+ 클래스를 Odin → HInspector 로 치환했습니다.
-- HCollection.Odin.Editor 어셈블리 신설 — HDictionary 의 커스텀 드로어가 Odin 환경에서 강제됩니다.
-- AssetHandler / HUI.Scrollview §11 헤더 형틀 정리 — Cache/Data/Load/Provider/Store/Subscription/Validation + Scrollview 핵심 클래스 31개 일관 적용.
-- Popup/SoundManager 등 생명주기 누수 4건 수정.
-- HUtil/HUI/HGame 메인 패키지 1.0.0 → 1.0.2.
+> 저장소: Unity 공용 모듈 15개 폴더 / 어셈블리 30개 / 비샘플 소스 405파일
+> 사용 방식: **저장소를 통째로 가져다 쓴다** (git 서브모듈 또는 폴더 복사). 개별 UPM 설치는 현재 동작하지 않는다 — 아래 "설치" 참조
+> 이 문서의 성격: **모듈 지도와 진입점**. 각 어셈블리의 내부 구조·플로우는 해당 어셈블리의 README 로 간다
 
 ---
 
 ## 개요
 
-이 저장소는 반복 구현되던 Unity 기능을 다섯 메인 패키지 + 다섯 어셈블리로 분리해 재사용하기 쉽게 정리한 묶음입니다.
+반복 구현되던 Unity 기능을 도메인별 어셈블리로 쪼개 재사용하기 쉽게 정리한 묶음이다.
+범용 엔진이 아니라 **실제 프로젝트에서 반복 사용된 구조를 유지보수하기 쉽게 모듈화한 것**에 가깝다.
 
-### 메인 UPM 패키지 (5개)
-- `HUtil`: 공용 기반 계층 (AssetHandler / Pooling / Animation / Font)
-- `HUI`: UI 계층 (Button / Toggle / DropDown / Popup / Panel / Scrollview / DebugConsole)
-- `HGame`: 게임 로직 계층 (InitModule / Player / Skill / World / Camera / 2D / Character)
-- `HAudio`: 오디오 계층 (token 기반 AudioManager / Catalog / Repository / AddOn / Load)
-- `HWindows`: 에디터 윈도우 계층 (Editor-only. NodeWindow 서브모듈 포함)
+설계상 지키는 규약이 셋 있다.
 
-### 분리 어셈블리 (5개, sibling)
-- `HCollection`: HDictionary / IHDictionary / EnumArray / CircularList
-- `HCore`: SingletonBehaviour / Scene 관리 / TransformExtention / CooldownTimer
-- `HData`: Encode / Encrypt / Mathx / Primitives 보조
-- `HDiagnosis`: HLogger / HDebug / ComponentActivationWatcher
-- `HInspector`: 커스텀 IMGUI 인스펙터 attribute 군 (HTitle / HShowIf / HListDrawer / HRequired / HButton 등 20+)
-
-구조상 `HGame`, `HUI`, `HAudio` 는 `HUtil` 및 위 어셈블리들을 기반으로 사용합니다. 범용 엔진을 지향한 저장소가 아니라, 실제 프로젝트에서 반복 사용된 구조를 유지보수하기 쉽게 모듈화한 저장소에 가깝습니다.
+1. **역방향 참조 금지.** 기반 계층(`HData`·`HDiagnosis`·`HInspector`)은 아무것도 참조하지 않는다.
+   상위 계층이 하위를 참조할 뿐, 그 반대는 없다.
+2. **에디터 코드는 별도 어셈블리로 분리한다.** `*.Editor` asmdef 가 `includePlatforms: ["Editor"]`
+   를 갖고, 런타임 어셈블리는 에디터 API 를 참조하지 않는다.
+3. **선택 의존은 `defineConstraints` 로 격리한다.** Odin 브릿지 3종이 `ODIN_INSPECTOR` 로 묶여 있다.
+   (`USE_DOTWEEN` 은 빈 어셈블리에만 걸려 있어 현재 무효 — 아래 "주의할 점" 참조)
 
 ---
 
-## 패키지 구성
+## 모듈 지도
 
-### HUtil
-- 역할: 에셋 로드, 캐시, 풀링, 애니메이션 라우터, 폰트 보조 등 공용 기반 기능을 담당합니다.
-- 핵심 축: `AssetHandler`, `Animation`, `Pooling`, `Font`, (선택) `Odin`, (선택) `Tween`
-- 문서: `HUtil/README.md`, `HUtil/docs/CHANGELOG.md`
+| 모듈 | 소스 | 역할 | 어셈블리 문서 |
+|---|---|---|---|
+| `HData` | 9 | 인코딩·암호화·문자열/벡터 유틸. 참조 0 | [Runtime](HData/Runtime/README.md) |
+| `HDiagnosis` | 4 | `HLogger` / `HDebug`. 참조 0 | [Runtime](HDiagnosis/Runtime/README.md) |
+| `HInspector` | 32 | 커스텀 인스펙터 어트리뷰트 23종 + IMGUI 렌더러 | [Runtime](HInspector/Runtime/README.md) · [Editor](HInspector/Editor/README.md) |
+| `HCollection` | 8 | `HDictionary`(직렬화 딕셔너리) / `CircularList` / `EnumArray` | [Runtime](HCollection/Runtime/README.md) · [Editor](HCollection/Editor/README.md) |
+| `HResource` | 30 | 에셋 로드·캐시·소유권. Addressables/Resources 양쪽 | [Runtime](HResource/Runtime/README.md) · [Editor](HResource/Editor/README.md) |
+| `HUtil` | 23 | Animator 상태 라우터 / 오브젝트 풀링 / 폰트 외곽선 | [Runtime](HUtil/Runtime/README.md) · [Editor](HUtil/Editor/README.md) |
+| `HCore` | 17 | `SingletonBehaviour` / 씬 로드 / 쿨다운·시간 / WebGL 수신 | [Runtime](HCore/Runtime/README.md) |
+| `HUI` | 68 | 버튼·토글·드롭다운·팝업·스피너·재활용 스크롤뷰·디버그 콘솔 | [Runtime](HUI/Runtime/README.md) · [Editor](HUI/Editor/README.md) |
+| `HAudio` | 19 | token 기반 오디오 재생·카탈로그·소유권 해제 | [Runtime](HAudio/Runtime/README.md) |
+| `HGame` | 44 | 게임 페이즈 초기화 / 플레이어 / 스킬 / 맵 / 카메라 / 월드 이벤트 | [Runtime](HGame/Runtime/README.md) |
+| `HDialogue` | 75 | 노드 그래프 대화 엔진 + 포트레이트 연출 + 저작 에디터 | [Runtime](HDialogue/Runtime/README.md) · [Editor](HDialogue/Editor/README.md) |
+| `HLocalization` | 5 | 자체 구현(`HcupLocalization`) / Unity Localization 연동 2종 | [Hcup](HLocalization/HcupLocalization/Runtime/README.md) · [Unity](HLocalization/HUnityLocalization/Editor/README.md) |
+| `HWindows` | 24 | GraphView 기반 노드 그래프 에디터 + 노드 데이터 계약 | [Runtime](HWindows/Runtime/NodeWindow/README.md) · [Editor](HWindows/Editor/NodeWindow/README.md) |
+| `HExcel` | 11 | NPOI 기반 엑셀 임포트 (에디터 전용) | [Editor](HExcel/Editor/README.md) |
+| `HDeploy` | 11 | WebGL 빌드 → 배포 레포 push → Vercel 자동 배포 (에디터 전용) | [Editor](HDeploy/Editor/README.md) |
 
-### HUI
-- 역할: 버튼, 토글, 드롭다운, 팝업, 패널, 재활용 스크롤뷰, 디버그 콘솔 등 UI 계층을 담당합니다.
-- 핵심 축: `Scrollview`, `Popup`, `DropDown`, `DebugConsole`, `Button`, `Toggle`
-- 문서: `HUI/README.md`, `HUI/docs/CHANGELOG.md`
-
-### HGame
-- 역할: 게임 진행 흐름, 플레이어, 스킬, 월드, 카메라, 2D 관련 게임 로직 계층을 담당합니다.
-- 핵심 축: `InitModule`, `Player`, `Skill`, `World`, `Camera`, `2D`
-- 문서: `HGame/README.md`, `HGame/doc/CHANGELOG.md`
-
-### HAudio
-- 역할: token 기반 오디오 재생, 카탈로그 관리, sfx addon, 로드 시퀀스 등 오디오 계층을 담당합니다.
-- 핵심 축: `AudioManager`, `Catalog`, `Repository`, `AddOn`, `Load`, `Core`
-- 문서: `HAudio/README.md`, `HAudio/doc/CHANGELOG.md`
-
-### HWindows
-- 역할: GraphView 기반 커스텀 에디터 윈도우 계층을 담당합니다. 현재 활성 서브모듈은 `NodeWindow`이며, `FileBrowser` 등 추가 서브모듈은 별도 asmdef로 확장 가능합니다.
-- 핵심 축: `NodeCatalogSO`(그래프 컨테이너), `BaseNode`(노드 데이터), `NodeCatalogAuthor`(단일 mutation 게이트), `HGraphCanvas`(GraphView 어댑터), `HGraphWindow`(EditorWindow 진입점)
-- 의존: `HUtil`, `HCollection`, `HInspector` (`HGame`, `HUI` 역방향 참조 금지)
-- 문서: `HWindows/README.md`
+각 모듈 폴더의 `README.md`(이 문서와 같은 층)는 **패키지 카드**다 — 설치·요구 조건·구성 어셈블리만
+담는다. 코드를 고치러 왔다면 위 표의 어셈블리 문서로 바로 가는 편이 빠르다.
 
 ---
 
-## 디렉토리 맵
+## 의존 계층
 
-### `HUtil` (UPM 패키지)
-- `Runtime/HUtil`
-  - `Animation(15)`, `AssetHandler(28)`, `Data(26)`, `Font(1)`, `Pooling(9)`
-- `Runtime/Odin`, `Runtime/Tween` (선택 의존, defineConstraints gate)
-- `Editor`: Addressables 이름 정리, Owner 추적, 커스텀 인스펙터 보조
-- `Samples~`: `AddressableSequence`, `OwnerTracking`, `SceneUtil`
+```mermaid
+flowchart TD
+    subgraph L0["기반 — 참조 0"]
+    D["HData"]
+    G["HDiagnosis"]
+    I["HInspector"]
+    end
+    subgraph L1["자료구조 · 리소스"]
+    C["HCollection"]
+    R["HResource"]
+    U["HUtil"]
+    end
+    subgraph L2["엔진 기반"]
+    CO["HCore"]
+    W["HWindows.NodeWindow"]
+    end
+    subgraph L3["표현 · 도메인"]
+    UI["HUI"]
+    A["HAudio"]
+    L["HcupLocalization"]
+    end
+    subgraph L4["게임 계층"]
+    GA["HGame"]
+    DI["HDialogue"]
+    end
+    subgraph LE["에디터 전용"]
+    EX["HExcel"]
+    DE["HDeploy"]
+    end
 
-### `HUI` (UPM 패키지)
-- `Runtime/HUI`
-  - `Button(8)`, `DebugConsole(6)`, `DropDown(6)`, `Entity(6)`, `Graphic(1)`, `Image(1)`, `Panel(3)`, `Popup(7)`, `Scrollview(10)`, `Spinner(2)`, `Toggle(6)`
-- `Editor`: `HImage` 인스펙터 확장
-- `Samples~`: `Button`, `Console`, `Dropdown`, `Popup`, `Scrollview`
+    C --> G
+    R --> G
+    U --> D
+    U --> G
+    U --> I
+    CO --> U
+    W --> C
+    W --> I
+    UI --> U
+    UI --> CO
+    UI --> R
+    A --> UI
+    A --> R
+    L --> R
+    L --> UI
+    GA --> UI
+    GA --> CO
+    DI --> A
+    DI --> W
+    DI --> L
+    EX --> L
+    DE --> I
+```
 
-### `HGame` (UPM 패키지)
-- `Runtime/HGame`
-  - `2D(9)`, `Camera(6)`, `Character(3)`, `InitModule(5)`, `Player(6)`, `Skill(8)`, `World(7)`
-- `Samples~`: `InitModule`, `Player`, `Skill`, `World2D`
+**계층이 갈리는 지점은 `HResource` 다.** 그 위쪽(`HUI`·`HAudio`·`HDialogue`)은 "무엇을 쓸지"만
+알고, 그 에셋이 언제 로드되고 언제 풀리는지는 전부 `HResource` 의 `AssetProvider` 가 소유한다.
+`AssetOwnerId` 하나로 소유자별 일괄 반납이 되는 것도 이 경계 덕분이다.
 
-### `HAudio` (UPM 패키지)
-- `Runtime/New`
-  - `AddOn(6)`, `Catalog(1)`, `Core(3)`, `Enum(2)`, `Load(8)`, `Repository(2)` + 루트 `AudioManager` partial 3
-- `Runtime/Legacy`
-  - 구 `SoundManager` 클래스 + 4 partial 호환 파일
-- `Editor`: 사운드 카탈로그 생성/편집/미리보기/디버그 윈도우 4
-- `Samples~`: `Sound` (token 기반 재생 샘플)
-
-### `HWindows` (UPM 패키지)
-- `Editor/NodeWindow/`
-  - `Core(8)`: HGraphWindow, HGraphCanvas, HGraphNode, HGraphCatalogNode, HGraphHubNode, HGraphEdge, HGraphClipboard, HGraphNodeStyles
-  - `NodeCatalog/Authoring(2)`: NodeCatalogAuthor, NodeCatalogObjectChangeWatcher
-  - `NodeCatalog/Identity(1)`: NodeUIDDrawer
-  - `Settings(3)`: NodeSnapSettings, NodeWindowSettingsProvider, SnapMode
-  - `UI(2)`: HGraphWindow.uss, HGraphNode.uss
-- `Runtime/NodeWindow/`
-  - `NodeCatalog(8)`: NodeCatalogSO, BaseNode, SimpleNode, HubNode, CatalogNode, BaseNodeEdge, SimpleNodeEdge, HubNodeEdge
-  - `Identity(1)`: NodeUID
-
-### `HCollection` / `HCore` / `HData` / `HDiagnosis` / `HInspector` (sibling 어셈블리)
-- 별도 UPM 패키지가 아니라 같은 repo 안의 sibling 폴더입니다.
-- 메인 패키지를 import 시 같은 sub-tree 안에 함께 가져갑니다.
-- 자세한 폴더 구성은 각 폴더의 .asmdef 와 README/doc 을 참조하십시오.
-
----
-
-## 기술 전제
-
-- Unity `2021.3+`
-- `UniTask`, `UniTask.Addressables`
-- `Unity Addressables`, `Unity ResourceManager`
-- `TextMeshPro`
-- 선택 의존: `Odin Inspector` (defineConstraints `ODIN_INSPECTOR`), `DOTween` (defineConstraints `USE_DOTWEEN`)
-
-패키지별 실제 의존성은 각 asmdef 와 package 문서를 기준으로 다시 확인하는 편이 안전합니다.
-
----
-
-## 사용 순서
-
-1. 공용 기반이 필요한 경우 `HUtil` 부터 확인하십시오.
-2. UI 작업이 목적이면 `HUI` 를 확인하고, `Scrollview` 와 `Popup` 샘플부터 보는 편이 빠릅니다.
-3. 게임 진행 흐름이 목적이면 `HGame` 의 `InitModule` 부터 확인하십시오.
-4. 오디오 재생 / 카탈로그 / sfx addon 이 목적이면 `HAudio` 의 `AudioManager` 와 `Catalog` 부터 확인하십시오.
-5. 노드 그래프 에디터 / 데이터 시각화가 목적이면 `HWindows` 의 `NodeWindow` 와 `NodeCatalogSO` 부터 확인하십시오.
-6. 샘플은 참고용입니다. 실제 프로젝트에는 그대로 복사하지 말고 입력 체계, 네임스페이스, 초기화 순서에 맞게 다시 감싸서 넣으십시오.
+> [!NOTE]
+> 위 그림은 주요 간선만 그렸다. 전체 참조 목록은 각 `.asmdef` 의 `references` 배열이 정본이다.
 
 ---
 
-## 1.0.0 / 1.0.1 → 1.0.2 마이그레이션
+## 설치
 
-- consumer 측 `.asmdef` 의 `references` 필드에서 `Hohong123.X` 를 `HCUP.X` 로 일괄 치환하십시오.
-- prefab/scene/asset 의 yaml 안에 박힌 `Hohong123.X::...` 또는 `..., Hohong123.X]]` 패턴도 함께 갱신해야 type lookup 이 동작합니다.
-- import 경로가 `Assets/.../HoHong123/X/...` 였다면 `Assets/.../X/...` 로 갱신해야 합니다.
-- `package.json` 의 `name`(com.hohong123.*) 과 `displayName` 은 UPM 식별자 호환을 위해 유지되었습니다.
+**저장소를 통째로 가져간다.** 이 프로젝트에서는 git 서브모듈로 `Assets/01_Scripts/HCUP-Unity`
+에 붙여 쓴다.
 
----
+개별 UPM 설치(`?path=/HAudio` 형태)는 **현재 동작하지 않는다.** 근거:
 
-## 주의 사항
+- `package.json` 이 있는 모듈은 9개뿐이다 (`HAudio`, `HData`, `HDialogue`, `HGame`, `HUI`,
+  `HUtil`, `HWindows`, `HcupLocalization`, `HUnityLocalization`).
+- 그런데 `HCUP.HAudio.asmdef` 는 `HCUP.HResource`·`HCore`·`HInspector`·`HDiagnosis`·`HCollection`
+  을 참조하고, **이 다섯에는 `package.json` 이 없다.**
+- 게다가 9개 `package.json` 전부 `dependencies` 가 비어 있다.
 
-- 이 저장소는 편의상 직접 호출하는 구조보다, 계층을 나눠 책임을 분리하는 쪽에 무게가 실려 있습니다. 구조를 무시하고 바로 접근하면 장점이 사라집니다.
-- 에셋 로드와 해제는 `HUtil` 의 Provider/Lease 흐름을 무시하면 다시 꼬입니다.
-- UI 계층은 빈번한 갱신 시 `Canvas Rebuild/Repaint` 비용이 커집니다. 성능 문제는 감으로 보지 말고 프로파일링해야 합니다.
-- 게임 계층은 상태 전환과 샘플 흐름이 얽혀 있으므로 초기화 순서를 무시하면 바로 불안정해집니다.
-- 오디오 계층은 token preload 후 재생을 전제로 합니다. preload 누락 시 첫 재생이 무음이 되거나 비동기 hitch 가 발생할 수 있습니다.
-- `Samples~` 는 참고용입니다. 실제 배포 빌드에는 포함하지 않거나 별도 패키지로 분리하는 편이 맞습니다.
-- HWindows 는 Editor-only 패키지입니다. Runtime 어셈블리(`HCUP.HWindows.NodeWindow`)는 노드 데이터 계약(ScriptableObject)만 포함하며 빌드에 포함되어도 무방하지만, Editor 어셈블리는 에디터 전용입니다.
+즉 `HAudio` 만 설치하면 참조 어셈블리를 찾지 못해 컴파일이 실패한다. 개별 배포를 되살리려면
+누락된 `package.json` 생성과 `dependencies` 선언이 선행되어야 한다.
 
----
+### 요구 사항
 
-## UPM 설치 경로
-
-- `HUtil`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HUtil`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HUtil#HUtil-1.0.2`
-- `HUI`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HUI`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HUI#HUI-1.0.2`
-- `HGame`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HGame`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HGame#HGame-1.0.3`
-- `HAudio`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HAudio`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HAudio#HAudio-1.0.0`
-- `HWindows`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HWindows`
-  - `https://github.com/HoHong123/HCUP-Unity.git?path=/HWindows#HWindows-1.0.0`
-
-태그 컨벤션은 `{어셈블리}-{버전}` 형식입니다 (예: `HUtil-1.0.2`, `v1.0.2` umbrella). 분리 어셈블리도 동일 패턴(`HCollection-1.0.2` 등)으로 태그가 부여되어 있습니다.
+| 항목 | 비고 |
+|---|---|
+| Unity | 이 프로젝트 기준 6000.3.18f1. `EditorUtility.EntityIdToObject` 사용처가 있어 2022.3 에서는 컴파일되지 않는다 (`NodeCatalogObjectChangeWatcher.cs:18`) |
+| UniTask | 런타임 다수가 참조. `UniTask.Addressables`, `UniTask.TextMeshPro` 포함 |
+| Addressables / ResourceManager | `HResource`, `HCore`, `HcupLocalization`, `HDialogue.Editor` |
+| TextMeshPro | `HUI`, `HDialogue` |
+| Input System | `HDialogue` |
+| DOTween | `HUI` 가 `DOTween.Modules` 를 asmdef 로 직접 참조 — **선택이 아니라 필수다** |
+| Odin Inspector | 선택. `ODIN_INSPECTOR` 정의 시 브릿지 3종이 컴파일된다 |
+| Unity Localization | 선택. `HCUP_UNITY_LOCALIZATION` 정의 시 `HUnityLocalization.Editor` 활성 |
+| NPOI / Newtonsoft.Json | `HExcel` (GUID 참조) |
 
 ---
 
-## 참고 문서
+## 진입점
 
-- 패키지 README: `HUtil/README.md`, `HUI/README.md`, `HGame/README.md`, `HAudio/README.md`, `HWindows/README.md`
-- 패키지 CHANGELOG: `HUtil/docs/CHANGELOG.md`, `HUI/docs/CHANGELOG.md`, `HGame/doc/CHANGELOG.md`, `HAudio/doc/CHANGELOG.md`
-- 파일별 변경 이력 (HWindows): `docs/history/HWindows/Editor/NodeWindow/`
-- 릴리즈 노트: `docs/ReleaseNote/v1.1.1.md`, `docs/ReleaseNote/v1.0.2.md`, `docs/ReleaseNote/HWindows-1.0.0.md` 등
-- 릴리즈 워크플로우: `RELEASE_WORKFLOW.md`
+목적별로 어디부터 읽으면 되는지다.
+
+1. **게임 실행 흐름** → [`HGame/docs/InitModule.md`](HGame/docs/InitModule.md) — 페이즈 전환 상태머신
+2. **에셋 로드·해제** → [`HResource/Runtime/README.md`](HResource/Runtime/README.md) — 이 저장소에서 가장 많이 얽히는 축
+3. **UI 컴포넌트** → [`HUI/Runtime/README.md`](HUI/Runtime/README.md) 의 시스템 목록에서 필요한 것만
+4. **대화 시스템** → [`HDialogue/docs/Graph.md`](HDialogue/docs/Graph.md) — 순회 엔진부터
+5. **오디오** → [`HAudio/Runtime/README.md`](HAudio/Runtime/README.md) — prewarm/play 분리 규약이 핵심
+6. **싱글톤 계약** → [`HCore/docs/SingletonBehaviour.md`](HCore/docs/SingletonBehaviour.md) — 이 규약 위반이 이 저장소의 반복 결함 원인이었다
 
 ---
 
-## 문의
+## 주의할 점
 
-- GitHub: `https://github.com/HoHong123`
-- 특정 패키지나 폴더를 지정하면, 해당 영역 기준으로 더 세부적인 문서 정리나 사용 예시 정리는 바로 이어서 할 수 있습니다.
+1. **`Samples~` 는 Unity 가 컴파일하지 않는다.** 호출처 집계에서 빠지므로, 샘플만 쓰는 API 는
+   "사용처 0건"으로 보인다. 샘플을 고칠 때는 컴파일러가 잡아주지 않으니 grep 으로 직접 확인해야 한다.
+2. **`USE_DOTWEEN` 제약은 무효다.** 이 심볼이 걸린 `HCUP.Util.Tween` 어셈블리에는 `.cs` 가 0개고,
+   실제 DOTween 사용처인 `HUI` 의 asmdef 는 `defineConstraints: []` 에 `DOTween.Modules` 를 직접
+   참조한다. 심볼을 정의하든 말든 동작이 같다.
+3. **빈 어셈블리 2개.** `HCUP.Util.Odin`, `HCUP.Util.Tween` 은 `.cs` 가 0개이며 이름 규약
+   (`HCUP.HUtil.*`)에서도 벗어나 있다. 삭제 대상이다.
+4. **`HCore` 의 asmdef 참조 4건이 코드 근거 0건이다** — `Unity.Addressables`,
+   `Unity.ResourceManager`, `UniTask.Addressables`, `HCUP.HUtil`. `HCore` 를 참조하는 모든
+   어셈블리에 Addressables 의존이 전파된다.
+5. **`HCore/Runtime/Scene/Demo/` 가 런타임 asmdef 안에 있다.** 테스트 씬 3개와 `SceneTester.cs`
+   가 플레이어 빌드에 포함된다.
+6. **문서화 과정에서 발견한 코드 결함 목록**은 저장소 밖 `Docs/Code/CodeReview/` 에 있다
+   (이 저장소는 서브모듈이라 상위 프로젝트 경로다).
+
+---
+
+## 저장소 안의 다른 문서
+
+| 위치 | 내용 |
+|---|---|
+| `{모듈}/README.md` | 패키지 카드 — 설치·요구 조건·구성 어셈블리 |
+| `{모듈}/{Runtime,Editor}/README.md` | **어셈블리 문서** — 목적·참조·플로우. 코드를 고칠 때 읽는다 |
+| `{모듈}/docs/*.md` | 시스템 문서 — 어셈블리가 커서 쪼갠 것 (HDialogue 8, HUI 8, HGame 6, HResource 4, HWindows 3, HCore 2, HCollection 1) |
+| `docs/ReleaseNote/` | 릴리스 노트 (1.0.2 / 1.1.1 시점 — 현행 코드와 어긋난 항목이 있다) |
+| `docs/history/` | 파일별 변경 이력 |
+| `docs/2026-08-04_ModuleStatus.md` | 모듈 현황 메모 |
+| `pull_request_template.md` | PR 템플릿 |
