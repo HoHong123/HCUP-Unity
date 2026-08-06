@@ -34,7 +34,10 @@ namespace HExcel.Core {
         UnityEditor.Editor cachedEditor;
         Vector2 sidebarScroll;
         Vector2 contentScroll;
-        GUIStyle sidebarItemStyle; // 좌측 정렬 사이드바 버튼 (OnGUI 시점 lazy 생성 — EditorStyles는 OnGUI 밖 접근 불가)
+        GUIStyle sidebarItemStyle;   // 좌측 정렬 사이드바 버튼 (OnGUI 시점 lazy 생성 — EditorStyles는 OnGUI 밖 접근 불가)
+        bool sidebarItemStyleProSkin; // 스타일을 만들 때의 에디터 테마. 테마가 바뀌면 스타일을 다시 만든다.
+
+        static readonly Color SELECTED_TINT = new Color(0.24f, 0.49f, 0.91f);
 
         #region Private - Editor Window Control
         [MenuItem("HCUP/Windows/Data Editor Window")]
@@ -88,24 +91,66 @@ namespace HExcel.Core {
 
             _DrawSearchBar();
 
-            string query = searchQuery.ToLowerInvariant();
-            for (int k = 0; k < entries.Count; k++) {
-                string label = entries[k].label;
-                if (!string.IsNullOrEmpty(query) && !label.ToLowerInvariant().Contains(query))
-                    continue;
+            // _BuildEntries 가 실패해도 OnGUI 는 계속 호출된다.
+            if (entries != null) {
+                GUIStyle itemStyle = _GetSidebarItemStyle();
+                string query = searchQuery.ToLowerInvariant();
 
-                sidebarItemStyle ??= new GUIStyle(EditorStyles.toolbarButton) { alignment = TextAnchor.MiddleLeft };
+                // 종전에는 매 항목마다 Color.white 로 되돌려, 바깥 컨텍스트의 배경색을 덮어썼다.
+                Color previousBackground = GUI.backgroundColor;
 
-                bool isSelected = k == selectedIndex;
-                if (isSelected) GUI.backgroundColor = new Color(0.24f, 0.49f, 0.91f);
-                if (GUILayout.Button(label, sidebarItemStyle, GUILayout.ExpandWidth(true))) {
-                    _SelectEntry(k);
+                for (int k = 0; k < entries.Count; k++) {
+                    string label = entries[k].label;
+                    if (!string.IsNullOrEmpty(query) && !label.ToLowerInvariant().Contains(query))
+                        continue;
+
+                    GUI.backgroundColor = (k == selectedIndex) ? SELECTED_TINT : previousBackground;
+                    if (GUILayout.Button(label, itemStyle, GUILayout.ExpandWidth(true))) {
+                        _SelectEntry(k);
+                    }
                 }
-                GUI.backgroundColor = Color.white;
+
+                GUI.backgroundColor = previousBackground;
             }
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
+        }
+
+        // 두 가지를 같이 고친다.
+        //
+        // (1) 형태 :: EditorStyles.toolbarButton 은 툴바 스트립 안에서만 배경이 그려지는 납작한 스타일이다.
+        //     목록 행으로 쓰면 버튼 크롬이 없어 라벨처럼 보이고, normal 배경 텍스처가 사실상 비어 있어
+        //     GUI.backgroundColor 선택 틴트도 곱해질 대상이 없어 표시되지 않는다.
+        //     프로젝트의 다른 창들은 toolbarButton 을 전부 툴바 안에서만 쓴다 — 여기만 예외였다.
+        //
+        // (2) 색 :: EditorStyles 는 에디터 테마가 바뀌면 통째로 재생성되는데, 종전 코드는 ??= 로 한 번만
+        //     캐싱해 무효화 경로가 없었다. 테마를 바꾼 뒤에는 옛 스킨의 textColor 를 그대로 그린다.
+        //     테마를 추적해 재생성하고, 상태별 textColor 를 명시해 스킨 상태에 기대지 않는다.
+        private GUIStyle _GetSidebarItemStyle() {
+            if (sidebarItemStyle != null && sidebarItemStyleProSkin == EditorGUIUtility.isProSkin)
+                return sidebarItemStyle;
+
+            sidebarItemStyleProSkin = EditorGUIUtility.isProSkin;
+
+            sidebarItemStyle = new GUIStyle(GUI.skin.button) {
+                alignment = TextAnchor.MiddleLeft,
+                padding   = new RectOffset(8, 8, 4, 4),
+                margin    = new RectOffset(2, 2, 1, 1),
+                fixedHeight = 22f,
+                wordWrap  = false,
+            };
+
+            Color textColor = sidebarItemStyleProSkin
+                ? new Color(0.83f, 0.83f, 0.83f)
+                : new Color(0.10f, 0.10f, 0.10f);
+
+            sidebarItemStyle.normal.textColor  = textColor;
+            sidebarItemStyle.hover.textColor   = textColor;
+            sidebarItemStyle.focused.textColor = textColor;
+            sidebarItemStyle.active.textColor  = textColor;
+
+            return sidebarItemStyle;
         }
 
         private void _DrawVerticalSeparator() {
@@ -181,6 +226,24 @@ namespace HExcel.Core {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.05 사이드바 항목이 버튼으로 보이지 않고 글자색이 스킨과 어긋나던 문제 수정
+
+ * # 원인
+ * - 형태 :: 항목 스타일의 기반이 EditorStyles.toolbarButton 이었다. 이 스타일은 툴바 스트립
+ *   안에서만 배경이 그려지는 납작한 스타일이라, 목록 행으로 쓰면 버튼 크롬이 없어 라벨처럼
+ *   보인다. normal 배경 텍스처가 비어 있어 GUI.backgroundColor 선택 틴트도 표시되지 않았다.
+ *   (프로젝트의 다른 창들은 toolbarButton 을 전부 툴바 안에서만 사용 — 이 지점만 예외)
+ * - 색 :: sidebarItemStyle 을 ??= 로 한 번만 캐싱해 무효화 경로가 없었다. EditorStyles 는
+ *   에디터 테마 변경 시 통째로 재생성되므로, 테마를 바꾼 뒤에는 옛 스킨의 textColor 가 남는다.
+
+ * # 변경
+ * - _GetSidebarItemStyle() 신설. 기반을 GUI.skin.button 으로 교체하고 좌측 정렬·패딩·행 높이 지정.
+ * - EditorGUIUtility.isProSkin 을 추적해 테마가 바뀌면 스타일을 재생성.
+ * - normal/hover/focused/active 의 textColor 를 명시해 스킨 상태에 기대지 않도록 고정.
+ * - 선택 틴트를 SELECTED_TINT 상수로 분리. 매 항목 Color.white 대입 대신 이전 배경색을 저장·복원.
+ * - entries null 가드 추가 (_BuildEntries 실패 시에도 OnGUI 는 계속 호출된다).
+
  * =============================================================================
  * @Jason - PKH 2026.07.04 사이드바 라벨 좌측 정렬
  *
