@@ -15,6 +15,7 @@
  * 주의 ::
  * NewId / NotifyReleased 짝을 맞추는 것이 좋음. 미짝맞춤 시 OnIdReleased 가 안 발생해
  * 외부 추적 도구가 owner 수명을 놓침.
+ * 정적 이벤트는 플레이 진입 시 리셋된다 — 구독자는 재구독 경로를 스스로 가져야 함.
  * =========================================================
  */
 #endif
@@ -32,6 +33,10 @@ namespace HResource.Subscription {
         public static event System.Action<AssetOwnerId> OnIdReleased;
 
         // Domain Reload 비활성 시 id 카운터·구독이 플레이 세션을 넘어 잔존하는 것을 차단.
+        //
+        // 주의 :: 여기서 이벤트를 비우면 [InitializeOnLoad] 로 붙는 구독자는 스스로 복구하지 못한다.
+        // 에디터 워처(AssetOwnerIdWatchRegistry)는 AfterAssembliesLoaded 에서 재구독하도록 짝을 맞춰 두었다.
+        // 이 리셋의 시점(SubsystemRegistration)을 바꾸면 그 순서 보장이 깨지므로 함께 검토할 것.
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void _ResetStatics() {
             nextId = 0;
