@@ -644,9 +644,14 @@ namespace HWindows.Editor.NodeWindow.Authoring {
             return true;
         }
 
+        // 루트 자동 이전용 후보 탐색. CatalogNode는 SetRoot 타입 가드로 루트 지정이 금지된
+        // 노드라, 여기서 걸러내지 않으면 RemoveNode/PurgeNullNodes가 InternalSetRoot를
+        // 직접 호출해 그 가드를 우회하게 된다 (LOG-20260511-3 참고).
         static NodeUID _FindAnyOtherNode(NodeCatalogSO catalog, NodeUID exclude) {
-            foreach (NodeUID uid in catalog.Nodes.Keys) {
-                if (uid != exclude) return uid;
+            foreach (var pair in catalog.Nodes) {
+                if (pair.Key == exclude) continue;
+                if (pair.Value is CatalogNode) continue;
+                return pair.Key;
             }
             return NodeUID.None;
         }
@@ -658,9 +663,9 @@ namespace HWindows.Editor.NodeWindow.Authoring {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
+ * [LOG-20260807-1] _FindAnyOtherNode 루트 이전 후보에서 CatalogNode 제외
  * [LOG-20260512-1] PurgeNullNodes + _ValidateEdgeCreation null 가드
  * [LOG-20260511-3] CatalogNode 루트 설정 제약 (SetRoot 타입 가드 + 자동 루트 스킵)
- * [LOG-20260511-2] CreateCatalogNodeAt 순방향 중복 거부 추가
  * → 전체 이력: docs/history/HWindows/Editor/NodeWindow/NodeCatalog/Authoring/NodeCatalogAuthor.md
  * =============================================================================
  */

@@ -15,7 +15,12 @@ namespace HWindows.Editor.NodeWindow.Authoring {
                 if (kind != ObjectChangeKind.ChangeAssetObjectProperties) continue;
 
                 stream.GetChangeAssetObjectPropertiesEvent(k, out ChangeAssetObjectPropertiesEventArgs data);
+#if UNITY_6000_3_OR_NEWER
                 Object obj = EditorUtility.EntityIdToObject(data.instanceId);
+#else
+                // 2022 LTS ~ 6000.2: 기존 API
+                Object obj = EditorUtility.InstanceIDToObject(data.instanceId);
+#endif
                 if (obj is NodeCatalogSO catalog) {
                     NodeCatalogAuthor.NotifyExternalMutation(catalog);
                 }
