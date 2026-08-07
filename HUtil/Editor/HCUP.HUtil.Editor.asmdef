@@ -2,8 +2,6 @@
     "name": "HCUP.HUtil.Editor",
     "rootNamespace": "HUtil.Editor",
     "references": [
-        "Unity.TextMeshPro",
-        "Unity.TextMeshPro.Editor",
         "Unity.Addressables.Editor",
         "HCUP.HUtil",
         "HCUP.HDiagnosis"

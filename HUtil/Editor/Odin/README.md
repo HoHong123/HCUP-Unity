@@ -1,7 +1,7 @@
 # HCUP.HUtil.Odin.Editor
 
 > 어셈블리: `HCUP.HUtil.Odin.Editor` (파일명은 `Editor/Odin/HCUP.Util.Odin.Editor.asmdef` — **파일명과 어셈블리명 불일치**, rootNamespace `HUtil.Odin.Editor`, `includePlatforms: ["Editor"]`)
-> 의존: `HCUP.HUtil`, `HCUP.HDiagnosis`
+> 의존: `HCUP.HDiagnosis`
 > 컴파일 조건: `defineConstraints: ["ODIN_INSPECTOR"]`
 > 동반 어셈블리: `HCUP.HUtil`(런타임), `HCUP.HUtil.Editor`
 
@@ -115,9 +115,10 @@ var types = AppDomain.CurrentDomain.GetAssemblies()
 6. **asmdef 파일명과 어셈블리명이 불일치한다.** 파일은 `HCUP.Util.Odin.Editor.asmdef`,
    내부 `name` 은 `HCUP.HUtil.Odin.Editor` 다. 같은 문제가 `HUtil/Runtime/Odin`
    (`HCUP.Util.Odin`)에도 있다.
-7. **`HCUP.HUtil` 참조가 쓰이지 않는다.** `FileBrowser` 의 `using` 은 `System`,
+7. ~~`HCUP.HUtil` 참조가 쓰이지 않는다.~~ `FileBrowser` 의 `using` 은 `System`,
    `System.Linq`, `System.Collections.Generic`, `UnityEditor`, `UnityEngine`,
-   `Sirenix.*`, `HDiagnosis.Logger` 뿐이다. `HCUP.HDiagnosis` 만 실제 의존이다.
+   `Sirenix.*`, `HDiagnosis.Logger` 뿐이라 asmdef 에서 제거, `HCUP.HDiagnosis` 만
+   남김 (2026-08-07 반영).
 8. **네임스페이스가 rootNamespace 와 다르다.** 파일은 `namespace HUtil.Editor` (`:20`)
    인데 asmdef `rootNamespace` 는 `HUtil.Odin.Editor` 다. 결과적으로
    `HCUP.HUtil.Editor` 어셈블리의 `HUtil.Editor` 네임스페이스와 같은 이름 공간을

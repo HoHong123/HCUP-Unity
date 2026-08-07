@@ -11,6 +11,7 @@
 #endif
 
 using UnityEngine;
+using HDiagnosis.Logger;
 
 namespace HUtil.Pooling {
     public class ParticlePoolingSystem : MonoBehaviour {
@@ -28,6 +29,10 @@ namespace HUtil.Pooling {
         #region Private - Unity Life Cycle
         private void Awake() {
             if (!particle) particle = GetComponent<ParticleSystem>();
+            if (!particle) {
+                HLogger.Error($"[ParticlePoolingSystem] '{gameObject.name}' 에 ParticleSystem 컴포넌트가 없습니다.");
+                return;
+            }
             var main = particle.main;
             main.stopAction = ParticleSystemStopAction.Callback;
         }
@@ -41,6 +46,13 @@ namespace HUtil.Pooling {
 
 #if UNITY_EDITOR
 /* =========================================================
+ * @Jason - PKH 2026.08.07 ParticleSystem 미부착 시 NRE 가드 추가
+ *
+ * # 변경
+ * - Awake: GetComponent<ParticleSystem>() 결과가 null 이면 경고 로그 후 조기 반환
+ *   (기존에는 다음 줄 particle.main 에서 NullReferenceException 발생)
+ *
+ * =========================================================
  * @Jason - PKH 2026.03.10
  *
  * 주요 기능 ::

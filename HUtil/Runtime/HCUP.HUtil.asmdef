@@ -2,9 +2,7 @@
     "name": "HCUP.HUtil",
     "rootNamespace": "HUtil",
     "references": [
-        "HCUP.HData",
-        "HCUP.HDiagnosis",
-        "HCUP.HInspector"
+        "HCUP.HDiagnosis"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -2,7 +2,7 @@
   "name": "HCUP.HUtil.Odin.Editor",
   "rootNamespace": "HUtil.Odin.Editor",
   "includePlatforms": [ "Editor" ],
-  "references": [ "HCUP.HUtil", "HCUP.HDiagnosis" ],
+  "references": [ "HCUP.HDiagnosis" ],
   "defineConstraints": [
 		"ODIN_INSPECTOR"
 	]

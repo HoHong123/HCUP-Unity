@@ -5,7 +5,7 @@
  * 특징 ::
  * Unity 기본 Outline은 4방향 Shadow만 사용합니다.
  *
- * 본 구현은 8방향 Shadow + 4방향 Shadow 총 12개 Shadow를 사용하여 외곽선을 생성합니다.
+ * 본 구현은 대각선 4방향 + 상하좌우 4방향, 총 8개 Shadow를 사용하여 외곽선을 생성합니다.
  *
  * 참고 ::
  * 본 코드는 외부 소스에서 가져온 코드입니다.
@@ -21,7 +21,10 @@ namespace HUtil.Font {
     [RequireComponent(typeof(Text))]
     public class BetterOutline : Shadow {
         #region Fields
+        private static readonly Shader fancyTextShader = Shader.Find("Text Effects/Fancy Text");
+
         private List<UIVertex> m_Verts = new List<UIVertex>();
+        private Text cachedText;
         #endregion
 
 #if UNITY_EDITOR
@@ -73,7 +76,8 @@ namespace HUtil.Font {
             ApplyShadowZeroAlloc(m_Verts, effectColor, start, m_Verts.Count, 0, effectDistance.y);
 
 
-            if (GetComponent<Text>().material.shader == Shader.Find("Text Effects/Fancy Text")) {
+            if (!cachedText) cachedText = GetComponent<Text>();
+            if (cachedText.material.shader == fancyTextShader) {
                 for (int k = 0; k < m_Verts.Count - initialVertexCount; k++) {
                     UIVertex vert = m_Verts[k];
                     vert.uv1 = new Vector2(0, 0);
@@ -90,6 +94,14 @@ namespace HUtil.Font {
 
 #if UNITY_EDITOR
 /* =========================================================
+ * @Jason - PKH 2026.08.07 UI 리빌드 비용 절감 + 헤더 Shadow 개수 정정
+ *
+ * # 변경
+ * - Shader.Find("Text Effects/Fancy Text") 를 static readonly 필드로 1회 캐싱
+ * - GetComponent<Text>() 를 cachedText 필드로 캐싱 (최초 1회만 조회)
+ * - 헤더 주석 "12개 Shadow" → 실제 개수인 "8개 Shadow" 로 정정
+ *
+ * =========================================================
  * @Jason - PKH
  *
  * 주요 기능 ::

@@ -1,7 +1,7 @@
 # HCUP.HUtil.Editor
 
 > 어셈블리: `HCUP.HUtil.Editor` (`Editor/HCUP.HUtil.Editor.asmdef`, rootNamespace `HUtil.Editor`, `includePlatforms: ["Editor"]`)
-> 의존: `Unity.TextMeshPro`, `Unity.TextMeshPro.Editor`, `Unity.Addressables.Editor`, `HCUP.HUtil`, `HCUP.HDiagnosis`
+> 의존: `Unity.Addressables.Editor`, `HCUP.HUtil`, `HCUP.HDiagnosis`
 > 동반 어셈블리: `HCUP.HUtil`(런타임), `HCUP.HUtil.Odin.Editor`(`ODIN_INSPECTOR` 조건부)
 
 ---
@@ -94,10 +94,10 @@ AddressableBatchRenameTool.RenameAllAddressesToFileName();
    `HCUP/Addressables/...` 다 (`:25`). 어셈블리 prefix 가 `HCUP.*` 로 통일되기 전의 잔재다.
 6. **주석 템플릿이 채워지지 않은 채 남아 있다.** "변수 설명 ::" 아래가 `X` / `XX` /
    `XXX` 다 (`:108-111`).
-7. **`Unity.TextMeshPro` / `Unity.TextMeshPro.Editor` 참조가 쓰이지 않는다.** 이
-   어셈블리의 유일한 파일은 TMP 를 참조하지 않는다 (`using` 은 `System`, `System.IO`,
+7. ~~`Unity.TextMeshPro` / `Unity.TextMeshPro.Editor` 참조가 쓰이지 않는다.~~ 이
+   어셈블리의 유일한 파일이 TMP 를 참조하지 않아(`using` 은 `System`, `System.IO`,
    `System.Collections.Generic`, `UnityEditor`, `UnityEditor.AddressableAssets*`,
-   `HDiagnosis.Logger`). asmdef 정리 대상이다.
+   `HDiagnosis.Logger`) asmdef 에서 두 참조 모두 제거 (2026-08-07 반영).
 8. **폴더 구조가 내용과 맞지 않는다.** 경로가 `Editor/Inspector/Addressables/` 인데
    인스펙터 코드가 아니다. `Editor/Addressables/` 가 맞다.
 
