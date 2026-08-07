@@ -31,7 +31,9 @@ using Sirenix.OdinInspector;
 namespace HAudio {
     public sealed partial class AudioManager : SingletonBehaviour<AudioManager> {
         #region Const
-        const string DEFAULT_CLICK_KEY = "Audio.DefaultClickToken";
+        // 값 타입이 문자열 → 정수로 바뀌었으므로 키도 바꾼다. 같은 키를 쓰면 기존 설치본의
+        // PlayerPrefs 에 남은 문자열을 GetInt 로 읽어 0 이 되고, 조용히 기본 클릭음이 사라진다.
+        const string DEFAULT_CLICK_KEY = "Audio.DefaultClickUid";
 
         const float MIN_DB = -80f;
         const float MAX_DB = 0f;
@@ -48,13 +50,14 @@ namespace HAudio {
         #endregion
 
         #region Static
-        static string privateDefaultClickToken = string.Empty;
+        static int privateDefaultClickUid;
 
-        public static string DefaultClickToken => privateDefaultClickToken;
+        public static int DefaultClickUid => privateDefaultClickUid;
 
-        public static void SetGlobalClickToken(string token) {
-            privateDefaultClickToken = _NormalizeToken(token);
-            PlayerPrefsHandler.SetString(DEFAULT_CLICK_KEY, privateDefaultClickToken);
+        /// <summary> 전역 기본 클릭음을 uid 로 지정한다. 0 이면 기본 클릭음 없음. </summary>
+        public static void SetGlobalClickUid(int uid) {
+            privateDefaultClickUid = uid;
+            PlayerPrefsHandler.SetInt(DEFAULT_CLICK_KEY, uid);
         }
         #endregion
 
@@ -63,13 +66,17 @@ namespace HAudio {
         [SerializeField]
         AssetLoadMode loadMode = AssetLoadMode.Resources;
 
-        [HTitle("Default Token")]
+        [HTitle("Default Click")]
+        [HDropdown(AudioCatalogSO.DROPDOWN_SOURCE_ID)]
         [SerializeField]
-        string initialDefaultClickToken = string.Empty;
+        int initialDefaultClickUid;
 
         AudioCatalogRegistry catalogRegistry;
         IAudioClipRepository clipRepository;
         AssetOwnerId ownerId;
+
+        int inFlightPrewarmCount; // (케이스 리포트 07 RACE-2).
+        bool isDestroyed;
 
         [HTitle("Audio Mixer")]
         [SerializeField]
@@ -111,9 +118,77 @@ namespace HAudio {
 
         protected override void OnDestroy() {
             if (instance != this) return;
-            clipRepository?.ReleaseOwner(ownerId);
+            isDestroyed = true;
+
+            // 저장소를 만든 쪽이 폐기까지 책임진다. 대기할 prewarm 이 없는 평시에는 여기서
+            // 동기로 끝낸다 — 플레이 모드 종료로 파괴되는 경우 PlayerLoop 가 멈춰 비동기
+            // 연속이 재개되지 않을 수 있어서, 흔한 경로를 비동기에 맡기지 않는다.
+            if (inFlightPrewarmCount < 1) {
+                _DisposeRepository();
+            }
+            else {
+                // in-flight prewarm 이 남았으면 완료를 기다린 뒤 폐기한다 (케이스 리포트 07 RACE-2).
+                // OnDestroy 는 await 할 수 없으므로 분리한다.
+                _DisposeRepositoryAfterPrewarmAsync().Forget();
+            }
+
             AssetOwnerIdGenerator.NotifyReleased(ownerId);
             base.OnDestroy();
+        }
+        #endregion
+
+        #region Private - Teardown
+        // OnDestroy 직후 곧바로 폐기하면, 아직 await 중인 prewarm 이 뒤늦게 캐시에 등록되어
+        // 로더 핸들이 영구 잔존한다 (케이스 리포트 07 RACE-2). SfxAgent 가 쓰는 "완료 대기 후
+        // 해제" 패턴을 매니저 자신에게도 적용한다. 무한 대기를 막기 위해 프레임 상한을 둔다.
+        private async UniTaskVoid _DisposeRepositoryAfterPrewarmAsync() {
+            const int MAX_WAIT_FRAMES = 600;   // 60fps 기준 약 10초
+
+            int waited = 0;
+            while (inFlightPrewarmCount > 0 && waited < MAX_WAIT_FRAMES) {
+                await UniTask.Yield();
+                waited++;
+            }
+
+            if (inFlightPrewarmCount > 0) {
+                HLogger.Warning(
+                    $"[AudioManager] Disposing with {inFlightPrewarmCount} prewarm task(s) still in flight after {MAX_WAIT_FRAMES} frames.");
+            }
+
+            _DisposeRepository();
+        }
+
+        // 두 경로(동기 즉시 / prewarm 대기 후)가 같은 정리를 쓰도록 분리한다. 멱등하다.
+        private void _DisposeRepository() {
+            var repository = clipRepository;
+            clipRepository = null;
+            if (repository == null) return;
+
+            repository.ReleaseOwner(ownerId);
+            // ReleaseOwner 는 이 매니저가 잡은 몫만 내려놓는다. 남은 익명 점유와 provider 의
+            // cache 구독은 Dispose 가 마감한다.
+            repository.Dispose();
+        }
+
+        // prewarm 진입점 2곳(PrewarmToken / PrewarmCatalog)을 감싸 진행 중 건수를 센다.
+        // 나머지 prewarm API 는 전부 이 둘로 합류하므로 여기만 덮으면 전 경로가 추적된다.
+        private async UniTask _TrackPrewarmAsync(UniTask inner) {
+            inFlightPrewarmCount++;
+            try {
+                await inner;
+            }
+            finally {
+                inFlightPrewarmCount--;
+            }
+        }
+
+        // 파괴 이후의 prewarm 요청은 폐기 대기 루프가 끝나지 않게 만들 뿐이므로 진입을 막는다.
+        // clipRepository 는 폐기 완료 시점에 null 이 되므로 그 경로의 NRE 도 함께 닫힌다.
+        private bool _RejectPrewarmIfDestroyed(string apiName) {
+            if (!isDestroyed && clipRepository != null) return false;
+
+            HLogger.Warning($"[AudioManager] {apiName} called after destroy. The request is ignored.");
+            return true;
         }
         #endregion
 
@@ -124,14 +199,14 @@ namespace HAudio {
             SetUiVolume(PlayerPrefsHandler.GetFloat(PREF_UI, 1f), save: false);
             SetBgmVolume(PlayerPrefsHandler.GetFloat(PREF_BGM, 1f), save: false);
 
-            string fallbackToken = _NormalizeToken(initialDefaultClickToken);
+            int fallbackUid = initialDefaultClickUid;
             if (!PlayerPrefsHandler.HasKey(DEFAULT_CLICK_KEY)) {
-                PlayerPrefsHandler.SetString(DEFAULT_CLICK_KEY, fallbackToken);
-                privateDefaultClickToken = fallbackToken;
+                PlayerPrefsHandler.SetInt(DEFAULT_CLICK_KEY, fallbackUid);
+                privateDefaultClickUid = fallbackUid;
                 return;
             }
 
-            privateDefaultClickToken = _NormalizeToken(PlayerPrefsHandler.GetString(DEFAULT_CLICK_KEY, fallbackToken));
+            privateDefaultClickUid = PlayerPrefsHandler.GetInt(DEFAULT_CLICK_KEY, fallbackUid);
         }
 
         private void _BuildRepository() {
@@ -147,12 +222,19 @@ namespace HAudio {
         #endregion
 
         #region Public - Prewarm
+        public UniTask PrewarmToken(int uid) {
+            if (_RejectPrewarmIfDestroyed(nameof(PrewarmToken))) return UniTask.CompletedTask;
+            return _TrackPrewarmAsync(clipRepository.PrewarmTokenAsync(uid, ownerId));
+        }
+
         public UniTask PrewarmToken(string token) {
+            if (_RejectPrewarmIfDestroyed(nameof(PrewarmToken))) return UniTask.CompletedTask;
+
             string normalizedToken = _NormalizeToken(token);
 #if UNITY_EDITOR
             _TrackPreviewToken(normalizedToken);
 #endif
-            return clipRepository.PrewarmTokenAsync(normalizedToken, ownerId);
+            return _TrackPrewarmAsync(clipRepository.PrewarmTokenAsync(normalizedToken, ownerId));
         }
 
         public async UniTask PrewarmSfxView(SfxView view) {
@@ -162,10 +244,12 @@ namespace HAudio {
         }
 
         public UniTask PrewarmCatalog(AudioCatalogSO catalog) {
+            if (_RejectPrewarmIfDestroyed(nameof(PrewarmCatalog))) return UniTask.CompletedTask;
+
 #if UNITY_EDITOR
             _TrackPreviewCatalog(catalog);
 #endif
-            return clipRepository.PrewarmCatalogAsync(catalog, ownerId);
+            return _TrackPrewarmAsync(clipRepository.PrewarmCatalogAsync(catalog, ownerId));
         }
 
         public async UniTask PrewarmTokens(IEnumerable<string> tokens) {
@@ -186,7 +270,16 @@ namespace HAudio {
         #endregion
 
         #region Public - Release
+        public bool ReleaseToken(int uid) {
+            if (_RejectReleaseIfDisposed(nameof(ReleaseToken))) return false;
+            return clipRepository.Release(uid, ownerId);
+        }
+
         public bool ReleaseToken(string token) {
+            // SfxAgent 는 prewarm 완료를 기다린 뒤 해제하므로, 매니저가 이미 파괴된 뒤에
+            // 이 경로로 들어올 수 있다. clipRepository 가 null 이면 NRE 가 된다.
+            if (_RejectReleaseIfDisposed(nameof(ReleaseToken))) return false;
+
             string normalizedToken = _NormalizeToken(token);
 #if UNITY_EDITOR
             _TrackPreviewToken(normalizedToken);
@@ -201,6 +294,8 @@ namespace HAudio {
         }
 
         public void ReleaseCatalog(AudioCatalogSO catalog) {
+            if (_RejectReleaseIfDisposed(nameof(ReleaseCatalog))) return;
+
 #if UNITY_EDITOR
             _ReleasePreviewCatalog(catalog);
 #endif
@@ -208,14 +303,57 @@ namespace HAudio {
         }
 
         public void ReleaseAllManaged() {
+            if (_RejectReleaseIfDisposed(nameof(ReleaseAllManaged))) return;
             clipRepository.ReleaseOwner(ownerId);
+        }
+
+        // 폐기 완료 후 clipRepository 는 null 이다. 그 시점의 해제 요청은 이미 ReleaseOwner /
+        // Dispose 로 회수가 끝난 뒤라 할 일이 없다 — NRE 대신 조용히 무시하되 흔적은 남긴다.
+        private bool _RejectReleaseIfDisposed(string apiName) {
+            if (clipRepository != null) return false;
+
+            HLogger.Warning(
+                $"[AudioManager] {apiName} called after the repository was disposed. Nothing to release.");
+            return true;
         }
         #endregion
 
-        #region Public - Play
+        #region Public - Play (uid)
+        // 재생의 기본 축이다. 게임 쪽 AudioClips enum 이 이 오버로드로 합류한다
+        // (생성된 확장 메서드가 (int) 캐스팅만 수행 — 런타임 비용 0).
+        public void PlayUI(int uid) {
+            if (!_TryGetLoadedClip(uid, out var clip)) return;
+            uiAudio.PlayOneShot(clip);
+        }
+
+        public void Play(int uid) {
+            if (!_TryGetLoadedClip(uid, out var clip)) return;
+            sfxAudio.PlayOneShot(clip);
+        }
+
+        public void Play3D(int uid, Transform parent) {
+            if (!_TryGetLoadedClip(uid, out var clip)) return;
+            spatialPool.PlayAt(clip, parent, sfxAudio.volume);
+        }
+
+        public void Play3D(int uid, Vector3 worldPos) {
+            if (!_TryGetLoadedClip(uid, out var clip)) return;
+            spatialPool.PlayAt(clip, worldPos, sfxAudio.volume);
+        }
+
+        public void PlayBGM(int uid, bool ignoreSameClip = true) {
+            if (!_TryGetLoadedClip(uid, out var clip)) return;
+            if (ignoreSameClip && bgmAudio.isPlaying && bgmAudio.clip == clip) return;
+
+            bgmAudio.clip = clip;
+            bgmAudio.Play();
+        }
+        #endregion
+
+        #region Public - Play (token)
         public void PlayClick() {
-            if (string.IsNullOrWhiteSpace(privateDefaultClickToken)) return;
-            PlayUI(privateDefaultClickToken);
+            if (privateDefaultClickUid == 0) return;
+            PlayUI(privateDefaultClickUid);
         }
 
         public void PlayUI(string token) {
@@ -269,6 +407,22 @@ namespace HAudio {
         #endregion
 
         #region Private - Clip
+        private bool _TryGetLoadedClip(int uid, out AudioClip clip) {
+            clip = null;
+            if (clipRepository == null) {
+                HLogger.Error("[AudioManager] clipRepository is null.");
+                return false;
+            }
+
+            if (clipRepository.TryGet(uid, out clip) && clip) return true;
+#if UNITY_EDITOR
+            HDebug.StackTraceError($"[AudioManager] Clip not loaded yet. Prewarm required. uid={uid}", 10);
+#endif
+
+            clip = null;
+            return false;
+        }
+
         private bool _TryGetLoadedClip(string token, out AudioClip clip) {
             if (clipRepository == null) {
                 HLogger.Error("[AudioManager] clipRepository is null.");
@@ -363,7 +517,9 @@ namespace HAudio {
  *
  * 이벤트 ::
  * 1. Awake에서 repository와 owner를 초기화합니다.
- * 2. OnDestroy에서 owner 기준으로 관리 중인 asset을 해제합니다.
+ * 2. OnDestroy에서 in-flight prewarm 완료를 기다린 뒤 owner 해제 + repository 폐기를 수행합니다.
+ *    (OnDestroy는 await할 수 없어 _DisposeRepositoryAfterPrewarmAsync로 분리했습니다.)
+ * 3. 폐기 이후의 prewarm/release 요청은 경고와 함께 무시됩니다.
  *
  * 기타 ::
  * 1. 기준 키는 string token 단일 체계입니다. int/enum 진입점은 없습니다.
