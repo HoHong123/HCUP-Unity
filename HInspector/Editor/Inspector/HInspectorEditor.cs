@@ -68,6 +68,10 @@ namespace HInspector.Editor {
         // 도메인 리로드 시 Type 인스턴스와 함께 무효화되므로 별도 리셋 훅이 필요 없다.
         static readonly Dictionary<Type, List<(MemberInfo member, HShowInInspectorAttribute attribute)>> _showInInspectorCache = new();
         static readonly Dictionary<Type, List<(MethodInfo method, HButtonAttribute attribute)>> _buttonMethodCache = new();
+
+        // _GetTitle/_GetGroupInfo가 가시 프로퍼티마다 _FindField로 타입 계층을 재순회한다.
+        // FieldInfo는 (타입, 필드명) 쌍의 정적 메타데이터이므로 쌍당 1회만 계산한다.
+        static readonly Dictionary<(Type type, string fieldName), FieldInfo> _fieldLookupCache = new();
         #endregion
 
         #region Fields
@@ -189,6 +193,13 @@ namespace HInspector.Editor {
 
                 // 버튼이 대상 오브젝트를 바꾸는 것이 정상 사용이다. Undo 등록과 SetDirty 가 없으면
                 // 변경이 되돌릴 수도, 저장될 수도 없다 (씬/프리팹이 더티로 표시되지 않는다).
+                //
+                // 규약(케이스 리포트 08 COR-2) :: RecordObjects 는 대상의 "직렬화 필드 스냅샷"만
+                // 기록한다. [HButton] 메서드가 Instantiate/DestroyImmediate/컴포넌트 추가처럼
+                // 계층을 바꾸면 그 변경은 Undo 스택에 남지 않는다 — 계층을 바꾸는 버튼 메서드는
+                // 스스로 Undo.RegisterCreatedObjectUndo / Undo.DestroyObjectImmediate 를 불러야
+                // 한다. 여기서 일괄 처리하지 않는 이유는 무엇을 생성·파괴했는지가 메서드 내부
+                // 로직에만 있어 이 지점에서는 알 수 없기 때문이다.
                 Undo.RecordObjects(targets, label);
 
                 for (int j = 0; j < targets.Length; j++) {
@@ -422,14 +433,19 @@ namespace HInspector.Editor {
         }
 
         private FieldInfo _FindField(Type targetType, string fieldName) {
+            var key = (targetType, fieldName);
+            if (_fieldLookupCache.TryGetValue(key, out FieldInfo cached)) return cached;
+
+            FieldInfo found = null;
             Type current = targetType;
             while (current != null && current != typeof(object)) {
-                FieldInfo field = current.GetField(fieldName, MEMBER_FLAGS);
-                if (field != null) return field;
+                found = current.GetField(fieldName, MEMBER_FLAGS);
+                if (found != null) break;
                 current = current.BaseType;
             }
 
-            return null;
+            _fieldLookupCache[key] = found;
+            return found;
         }
 
         private bool _HasAnyHInspectorAttribute(Type type) {
@@ -477,4 +493,36 @@ namespace HInspector.Editor {
         #endregion
     }
 }
+#endif
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 [HButton] 계층 변경 Undo 규약 문서화 (케이스 리포트 08 COR-2)
+ *
+ * # 변경
+ * - `_DrawButtons` 의 `Undo.RecordObjects` 호출부에 규약 주석 추가. 코드 동작은 변경 없음
+ *
+ * # 이유
+ * - 근거: `Docs/Code/CaseReport/08_HInspector-에디터-캐시.md` COR-2 — `RecordObjects` 는
+ *   직렬화 필드 스냅샷만 기록해 버튼이 오브젝트를 생성/삭제하면 Undo 가 포착하지 못한다
+ * - 이 지점에서 무엇이 생성·파괴됐는지 알 수 없어(버튼 메서드 내부 로직) 여기서 일괄
+ *   `RegisterCreatedObjectUndo` 를 부를 수 없다 — 계층 변경 책임을 버튼 메서드 쪽 규약으로 명문화
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 _FindField 캐싱 추가
+ *
+ * # 변경
+ * - _FindField(Type, string) : (타입, 필드명) 쌍을 키로 하는 static Dictionary 캐시 추가.
+ *   최초 1회만 BaseType 계층을 순회하고 이후 재조회는 캐시 히트.
+ *
+ * # 이유
+ * - _GetTitle / _GetGroupInfo 가 가시 프로퍼티마다 _FindField 를 호출해, 필드 N개면
+ *   프레임(OnInspectorGUI 는 Layout/Repaint 로 프레임당 2회 이상 호출)당 2N 회 이상의
+ *   계층 리플렉션 순회가 발생했다. _CollectButtonMethods / _CollectShowInInspectorMembers
+ *   는 이미 타입 단위 캐시가 있었으나 이 경로는 빠져 있었다.
+ *
+ * =============================================================================
+ */
 #endif

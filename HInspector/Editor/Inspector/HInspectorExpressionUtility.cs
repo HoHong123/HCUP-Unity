@@ -8,6 +8,13 @@ namespace HInspector.Editor {
         // 파싱 실패 경고는 표현식당 1회 — OnGUI 에서 프레임당 2회 파싱되므로 스팸 방지가 필수.
         static readonly HashSet<string> warnedExpressions = new HashSet<string>();
 
+        // Parser 가 던지는 예외는 전부 토큰 구조 문제(괄호 불일치·잘못된 숫자·예상 밖 토큰)이며
+        // targetObject 에 의존하지 않는다 — 멤버 미해석은 HInspectorPropertyUtility 가 내부에서
+        // 삼키고 IdentifierLiteral 로 흘려보내므로 여기서는 절대 예외로 나오지 않는다. 즉 이
+        // 예외는 대상과 무관하게 항상 재현되므로, 표현식 문자열만으로 캐시해 리페인트마다
+        // 재파싱·재throw 하는 비용을 없앤다.
+        static readonly HashSet<string> parseFailureCache = new HashSet<string>();
+
         // 토큰화는 표현식 문자열만의 함수다 (대상 오브젝트와 무관). GetPropertyHeight + OnGUI 가
         // 프레임당 각각 도는 경로라, 캐시가 없으면 같은 문자열을 리페인트마다 두 번 재스캔하며
         // List<Token> 을 새로 할당한다. 토큰 리스트는 Parser 가 읽기만 하므로 공유해도 안전하다.
@@ -321,6 +328,11 @@ namespace HInspector.Editor {
             if (targetObject == null || string.IsNullOrEmpty(expression))
                 return false;
 
+            if (parseFailureCache.Contains(expression)) {
+                // 이전에 구조적으로(대상 무관) 파싱 실패한 표현식 — 재시도하지 않는다.
+                return false;
+            }
+
             try {
                 List<Token> tokens = _GetTokens(expression);
                 if (tokens == null) {
@@ -334,6 +346,7 @@ namespace HInspector.Editor {
             }
             catch (Exception e) {
                 // 무음 삼킴은 멤버 오타·문법 오류 시 인스펙터 필드가 이유 없이 사라지게 만든다.
+                parseFailureCache.Add(expression);
                 if (warnedExpressions.Add(expression)) {
                     UnityEngine.Debug.LogWarning(
                         $"[HInspector] Expression evaluation failed — field will be hidden. expression='{expression}' :: {e.Message}");
@@ -519,4 +532,29 @@ namespace HInspector.Editor {
         #endregion
     }
 }
+#endif
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 파싱 실패 negative 캐시 추가 (케이스 리포트 08 WST-2)
+ *
+ * # 변경
+ * - `parseFailureCache`(HashSet<string>) 신설. `TryEvaluate` 진입 시 먼저 조회해
+ *   히트하면 파싱을 재시도하지 않고 즉시 false 반환
+ *
+ * # 이유
+ * - 근거: `Docs/Code/CaseReport/08_HInspector-에디터-캐시.md` WST-2 — 문법 오류
+ *   표현식은 대상과 무관하게 항상 실패하는데도 리페인트마다 예외를 다시 던졌다
+ * - `Parser` 가 던지는 모든 예외는 토큰 구조(괄호 불일치·잘못된 숫자·예상 밖 토큰)에서만
+ *   나온다 — 멤버 미해석은 `HInspectorPropertyUtility._TryGetMemberValue` 가 내부에서
+ *   삼키고 `IdentifierLiteral` 로 흘려보내므로 예외로 나오지 않는다. 즉 이 예외는
+ *   targetObject 와 무관하게 결정적이라 표현식 문자열만으로 캐시해도 안전하다
+ *
+ * # 주의
+ * - `tokenCache` 와 별개 캐시다 — 토큰화는 성공(`"@"` 등도 `[End]` 하나로 토큰화된다)하고
+ *   파싱 단계에서만 실패하는 표현식이 대상이라 기존 `_GetTokens` null 캐싱으로는 막히지 않는다
+ * =============================================================================
+ */
 #endif
