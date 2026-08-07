@@ -9,14 +9,14 @@ namespace HGame.Skill {
 
         public const int SKILL_CHOICE_COUNT = 3;
 
-        // ±‚∫ª ¡ı∞®(Ω∫≈√¥Á)
+        // Í∏∞Î≥∏ Ï¶ùÍ∞ê(Ïä§ÌÉùÎãπ)
         public const float ATK_MULT_STACK = 0.1f; // +10%
         public const float ATK_SPEED_MULT_STACK = 0.05f; // +5%
-        public const float ULT_COOLDOWN_STACK = 0.02f; // -2% (∞ˆø¨ªÍ)
+        public const float ULT_COOLDOWN_STACK = 0.02f; // -2% (Í≥±Ïó∞ÏÇ∞)
         public const float KNOCKBACK_MULT_STACK = 0.5f; // +5%
 
         public const float EXPLODE_CHANCE_STACK = 0.01f; // +1%p
-        public const float EXPLODE_DMG_STACK = 0.1f; // +10% (∞ˆø¨ªÍ)
-        public const float EXPLODE_RADIUS_STACK = 0.05f; // +5% (∞ˆø¨ªÍ)
+        public const float EXPLODE_DMG_STACK = 0.1f; // +10% (Í≥±Ïó∞ÏÇ∞)
+        public const float EXPLODE_RADIUS_STACK = 0.05f; // +5% (Í≥±Ïó∞ÏÇ∞)
     }
 }
