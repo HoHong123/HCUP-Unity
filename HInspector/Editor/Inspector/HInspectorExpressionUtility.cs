@@ -8,6 +8,13 @@ namespace HInspector.Editor {
         // 파싱 실패 경고는 표현식당 1회 — OnGUI 에서 프레임당 2회 파싱되므로 스팸 방지가 필수.
         static readonly HashSet<string> warnedExpressions = new HashSet<string>();
 
+        // 토큰화는 표현식 문자열만의 함수다 (대상 오브젝트와 무관). GetPropertyHeight + OnGUI 가
+        // 프레임당 각각 도는 경로라, 캐시가 없으면 같은 문자열을 리페인트마다 두 번 재스캔하며
+        // List<Token> 을 새로 할당한다. 토큰 리스트는 Parser 가 읽기만 하므로 공유해도 안전하다.
+        // 실패한 문자열은 null 을 캐시해 재시도 자체를 막는다 (문법 오류는 대상과 무관하게 항상 실패).
+        // 파싱(멤버 해석)은 대상 오브젝트에 따라 결과가 달라지므로 캐시하지 않는다.
+        static readonly Dictionary<string, List<Token>> tokenCache = new Dictionary<string, List<Token>>();
+
         sealed class IdentifierLiteral {
             public string Text { get; }
 
@@ -315,8 +322,12 @@ namespace HInspector.Editor {
                 return false;
 
             try {
-                string body = expression[0] == '@' ? expression.Substring(1) : expression;
-                List<Token> tokens = _Tokenize(body);
+                List<Token> tokens = _GetTokens(expression);
+                if (tokens == null) {
+                    // 토큰화 단계에서 이미 실패로 판정된 문자열 — 경고는 최초 1회에 남았다.
+                    return false;
+                }
+
                 Parser parser = new Parser(targetObject, tokens);
                 result = parser.Parse();
                 return true;
@@ -334,6 +345,26 @@ namespace HInspector.Editor {
         #endregion
 
         #region Private Functions
+        // 성공하면 토큰 리스트, 문법 오류면 null 을 캐시한다 (둘 다 표현식 문자열만의 함수).
+        static List<Token> _GetTokens(string expression) {
+            if (tokenCache.TryGetValue(expression, out var cached)) return cached;
+
+            List<Token> tokens = null;
+            try {
+                string body = expression[0] == '@' ? expression.Substring(1) : expression;
+                tokens = _Tokenize(body);
+            }
+            catch (Exception e) {
+                if (warnedExpressions.Add(expression)) {
+                    UnityEngine.Debug.LogWarning(
+                        $"[HInspector] Expression tokenization failed — field will be hidden. expression='{expression}' :: {e.Message}");
+                }
+            }
+
+            tokenCache[expression] = tokens;
+            return tokens;
+        }
+
         static List<Token> _Tokenize(string expression) {
             List<Token> tokens = new List<Token>();
             int index = 0;
