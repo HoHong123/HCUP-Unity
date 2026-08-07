@@ -58,12 +58,11 @@ flowchart TD
 
 ## 주의할 점
 
-1. **namespace 가 어셈블리와 어긋난다.** 두 파일 모두 `HUtil.Editor.Subscription` 인데
-   asmdef 의 `rootNamespace` 는 `HResource` 다(`AssetOwnerIdWatchRegistry.cs:8`,
-   `AssetOwnerIdWatcherWindow.cs:8`, `HCUP.HResource.Editor.asmdef`). HUtil 에서 분리될 때
-   남은 잔재로 보인다 — 컴파일은 되지만 `HResource.*` 로 찾으면 나오지 않는다.
-2. **메뉴 경로가 `HCUP/Data/Owner Watcher` 다**(`AssetOwnerIdWatcherWindow.cs:18`).
-   모듈명(`Resource`)과 맞지 않는다.
+1. ~~namespace 가 어셈블리와 어긋난다.~~ → 2026-08-06 해소. 두 파일 모두
+   `HResource.Editor.Subscription` 으로 정정(`AssetOwnerIdWatchRegistry.cs:8`,
+   `AssetOwnerIdWatcherWindow.cs:8`).
+2. ~~메뉴 경로가 `HCUP/Data/Owner Watcher` 다.~~ → 2026-08-06 `HCUP/Resource/Owner Watcher`
+   로 정정(`AssetOwnerIdWatcherWindow.cs:18`).
 3. **`Register` / `Unregister` public API 는 호출처가 0건이다**
    (`AssetOwnerIdWatchRegistry.cs:68-69`, 전역 grep). 이벤트 구독으로 같은 일을 하고 있어
    수동 등록 경로가 필요하지 않다.

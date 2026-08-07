@@ -51,9 +51,18 @@ namespace HResource.Provider {
         readonly IAssetStore<TKey, TAsset> assetStore;
         readonly IAssetValidator<TKey, TAsset> assetValidator;
         readonly IAssetLoadGate<TKey, TAsset> assetLoadGate;
-        readonly List<IAssetReleasableLoader<TKey, TAsset>> releasableLoaders = new();
         readonly Dictionary<AssetLoadMode, IAssetLoader<TKey, TAsset>> loaderTable = new();
+        // key 를 실제로 로드한 releasable loader 만 기록한다. 등록 시점은 캐시 Save 성공 직후
+        // (사용법은 _TrackReleasableLoader 참조) — loaderTable 전체를 순회해 무관한 loader 의
+        // 동일 key 핸들까지 건드리는 사고를 막는다 (감사 5차 HResource 항목 5).
+        readonly Dictionary<TKey, IAssetReleasableLoader<TKey, TAsset>> releasableLoaderByKey = new();
         bool disposed;
+        #endregion
+
+        #region Public - Diagnostics
+        // disposed 는 private 이라 "폐기됐는데 계속 쓰이는 중"을 테스트가 단정할 수 없었다
+        // (케이스 리포트 07 TST-2). 진단 전용 읽기 프로퍼티만 노출한다 — 상태를 바꾸지 않는다.
+        public bool IsDisposed => disposed;
         #endregion
 
         #region Public - Constructors
@@ -82,11 +91,13 @@ namespace HResource.Provider {
                         nameof(assetLoaders)));
                 }
 
-                loaderTable[assetLoader.LoadMode] = assetLoader;
-
-                if (assetLoader is IAssetReleasableLoader<TKey, TAsset> releasableLoader) {
-                    releasableLoaders.Add(releasableLoader);
+                if (loaderTable.ContainsKey(assetLoader.LoadMode)) {
+                    HLogger.Warning(
+                        $"[AssetProvider] Duplicate loader for LoadMode={assetLoader.LoadMode}. " +
+                        "The previous loader is overwritten and becomes unreachable via _ResolveLoader.");
                 }
+
+                loaderTable[assetLoader.LoadMode] = assetLoader;
             }
 
             if (loaderTable.Count < 1) {
@@ -215,7 +226,7 @@ namespace HResource.Provider {
             if (disposed) {
                 HLogger.Warning(
                     $"[AssetProvider] Disposed while loading key '{request.Key}'. Releasing the in-flight loader handle.");
-                _ReleaseAssetLoaders(request.Key);
+                _ReleaseLoaderHandle(request.LoadMode, request.Key);
                 return default;
             }
 
@@ -229,10 +240,17 @@ namespace HResource.Provider {
                 if (!_SaveCache(request, asset)) {
                     HLogger.Error(
                         $"[AssetProvider] Cache rejected key '{request.Key}'. Releasing the freshly loaded asset to avoid a handle leak.");
-                    // 캐시가 소유하지 않으므로 OnAssetRemoved 연쇄가 돌지 않는다 — 로더에 직접 돌려준다.
-                    _ReleaseAssetLoaders(request.Key);
+                    // 캐시가 소유하지 않으므로 OnAssetRemoved 연쇄가 돌지 않는다 — 방금 이 요청이
+                    // 사용한 loader 하나만 돌려준다. 같은 key 를 이미 다른 loader 가 캐시에 올려
+                    // 살아있는 상태일 수 있으므로, 등록된 모든 releasable loader 를 도매금으로
+                    // 건드리면 그 살아있는 핸들까지 회수해 버린다 (감사 5차 HResource 항목 5).
+                    _ReleaseLoaderHandle(request.LoadMode, request.Key);
                     return default;
                 }
+
+                // 캐시에 실제로 올라간 asset 을 로드한 loader 만 기록한다 — 이후 이 key 가
+                // OnAssetRemoved 로 제거될 때 이 loader 하나만 release 되도록.
+                _TrackReleasableLoader(request.Key, request.LoadMode);
             }
 
             return asset;
@@ -269,7 +287,7 @@ namespace HResource.Provider {
             var sourceAsset = await _LoadFromSourceAsync(request);
             if (!_IsValidAsset(request.Key, sourceAsset)) return default;
 
-            await _SaveStoreOrReleaseSourceAsync(request.Key, sourceAsset);
+            await _SaveStoreOrReleaseSourceAsync(request, sourceAsset);
             return sourceAsset;
         }
         #endregion
@@ -290,7 +308,7 @@ namespace HResource.Provider {
             var sourceAsset = await _LoadFromSourceAsync(request);
             if (!_IsValidAsset(request.Key, sourceAsset)) return default;
 
-            await _SaveStoreOrReleaseSourceAsync(request.Key, sourceAsset);
+            await _SaveStoreOrReleaseSourceAsync(request, sourceAsset);
             return sourceAsset;
         }
 
@@ -312,7 +330,7 @@ namespace HResource.Provider {
         private async UniTask<TAsset> _GetSourceFirstAsync(AssetRequest<TKey> request) {
             var sourceAsset = await _LoadFromSourceAsync(request);
             if (_IsValidAsset(request.Key, sourceAsset)) {
-                await _SaveStoreOrReleaseSourceAsync(request.Key, sourceAsset);
+                await _SaveStoreOrReleaseSourceAsync(request, sourceAsset);
                 return sourceAsset;
             }
 
@@ -365,16 +383,16 @@ namespace HResource.Provider {
         // 도달하지 못해 "캐시 등록은 없는데 로더 핸들만 살아있는" 불일치가 남고, 그 핸들은
         // OnAssetRemoved 연쇄가 돌지 않으므로 아무도 해제하지 않는다.
         // 예외는 삼키지 않고 그대로 올리되, 나가기 전에 방금 잡은 핸들만 되돌려 놓는다.
-        private async UniTask _SaveStoreOrReleaseSourceAsync(TKey key, TAsset asset) {
+        private async UniTask _SaveStoreOrReleaseSourceAsync(AssetRequest<TKey> request, TAsset asset) {
             if (assetStore == null) return;
 
             try {
-                await assetStore.SaveAsync(key, asset);
+                await assetStore.SaveAsync(request.Key, asset);
             }
             catch {
                 HLogger.Error(
-                    $"[AssetProvider] Store save failed after the source load for key '{key}'. Releasing the loader handle before rethrowing.");
-                _ReleaseAssetLoaders(key);
+                    $"[AssetProvider] Store save failed after the source load for key '{request.Key}'. Releasing the loader handle before rethrowing.");
+                _ReleaseLoaderHandle(request.LoadMode, request.Key);
                 throw;
             }
         }
@@ -393,22 +411,37 @@ namespace HResource.Provider {
         #endregion
 
         #region Private - Release
-        private bool _ReleaseAssetLoaders(TKey key) {
-            bool released = false;
-
-            foreach (var releasableLoader in releasableLoaders) {
-                if (releasableLoader.Release(key)) {
-                    released = true;
-                }
+        // 캐시 등록 이전(로드 직후 / store 저장 실패) 단계의 해제. 이 요청이 실제로 사용한
+        // loadMode 의 loader 하나만 건드린다 — 다른 loadMode 의 loader 가 같은 key 로 이미
+        // 캐시에 올려둔 살아있는 핸들을 대신 회수하는 사고를 막는다.
+        private bool _ReleaseLoaderHandle(AssetLoadMode loadMode, TKey key) {
+            if (_ResolveLoader(loadMode) is IAssetReleasableLoader<TKey, TAsset> releasableLoader) {
+                return releasableLoader.Release(key);
             }
+            return false;
+        }
 
-            return released;
+        // 캐시에 실제로 등록된 key 가 어떤 loader 로 로드됐는지 기록한다. Save 성공 직후에만
+        // 호출 — 실패한(캐시가 거부한) 로드는 _ReleaseLoaderHandle 로 직접 처리하므로 기록하지 않는다.
+        private void _TrackReleasableLoader(TKey key, AssetLoadMode loadMode) {
+            if (_ResolveLoader(loadMode) is IAssetReleasableLoader<TKey, TAsset> releasableLoader) {
+                releasableLoaderByKey[key] = releasableLoader;
+            }
+        }
+
+        // 캐시가 key 를 완전히 제거했을 때(OnAssetRemoved) 그 key 를 실제로 로드했던 loader
+        // 하나만 release 한다. 등록되지 않은 key(비-releasable loader 로만 로드된 경우 등)는
+        // 무해하게 false 를 반환한다.
+        private bool _ReleaseTrackedLoader(TKey key) {
+            if (!releasableLoaderByKey.TryGetValue(key, out var releasableLoader)) return false;
+            releasableLoaderByKey.Remove(key);
+            return releasableLoader.Release(key);
         }
         #endregion
 
         #region Private - Event
         private void _OnAssetRemoved(TKey key, TAsset asset) {
-            _ReleaseAssetLoaders(key);
+            _ReleaseTrackedLoader(key);
         }
         #endregion
 
@@ -424,6 +457,41 @@ namespace HResource.Provider {
 /* =========================================================
  * Dev Log
  * =========================================================
+ *
+ * =========================================================
+ * 2026-08-07 (수정 4) :: IsDisposed 진단 프로퍼티 추가 (케이스 리포트 07 TST-2)
+ * =========================================================
+ * 변경 ::
+ * `disposed` 필드를 읽기 전용으로 노출하는 `public bool IsDisposed` 프로퍼티 신설.
+ *
+ * 이유 ::
+ * `disposed` 가 private 이라 "폐기 후에도 계속 쓰이는 중"을 테스트가 단정할 방법이 없었다.
+ * 리포트가 제안한 최소 처방(진단 프로퍼티)만 적용 — 상태를 바꾸지 않는 읽기 전용이라
+ * NEG-1/RACE-1 가드 로직에는 영향이 없다. 인터페이스(IAssetProvider)에는 올리지 않았다 —
+ * 구현체가 1개뿐이고 테스트는 구체 타입으로 직접 생성하므로 계약 확장까지는 불필요하다.
+ *
+ * =========================================================
+ * 2026-08-06 (수정 3) :: key 단위 releasable loader 추적 + 중복 LoadMode 경고 (감사 5차 HResource 항목 5·9)
+ * =========================================================
+ * 변경 ::
+ * 1) releasableLoaders(List, 전체 releasable loader) 를 releasableLoaderByKey(Dictionary,
+ *    key → 실제로 그 key 를 로드한 loader 1개) 로 교체. Save 성공 직후에만 등록(_TrackReleasableLoader).
+ * 2) 캐시 등록 이전 단계(로드 직후 Save 거부 / store 저장 실패 / 로딩 중 Dispose)의 해제는
+ *    request.LoadMode 로 해석한 그 loader 하나만(_ReleaseLoaderHandle), 캐시 제거(OnAssetRemoved)
+ *    시점의 해제는 추적된 loader 하나만(_ReleaseTrackedLoader) 건드리도록 분리.
+ * 3) 생성자에서 동일 LoadMode 로더가 중복 등록되면 loaderTable 덮어쓰기 전에 경고 로그 추가.
+ *
+ * 이유 ::
+ * 1) 기존 _ReleaseAssetLoaders 는 등록된 모든 releasable loader 에 대해 Release(key) 를 호출했다.
+ *    여러 loader 가 등록된 provider 에서 같은 key 문자열을 다른 LoadMode 로 이미 캐시에 올려
+ *    살아있는 다른 loader 의 핸들까지 도매금으로 회수해 버릴 수 있었다 — 특히 Save 거부 롤백
+ *    경로(같은 key 에 다른 asset 이 이미 캐시됨)에서 이 사고가 정확히 그 상황이다.
+ *    현재 실사용(AssetProviderFactory)은 loader 1개뿐이라 미도달이지만, 생성자가 다중 loader
+ *    조립을 허용하는 이상 잠재 결함으로 남겨두지 않는다.
+ * 2) 동일 LoadMode 중복 등록은 이전 loader 를 조용히 덮어써 그 loader 로 로드된 자산의 release
+ *    경로(_ResolveLoader 경유)가 통째로 사라진다. 등록 자체를 막지 않는 이유는 기존 계약(예외
+ *    없이 마지막 등록이 승리)을 유지하면서 관측 가능성만 확보하기 위함 — 다른 Medium 처방(NEG-2)과
+ *    동일한 판단.
  *
  * =========================================================
  * 2026-08-06 (수정 2) :: 폐기 후 진입 가드 (케이스 리포트 07 NEG-1 / RACE-1 / USR-3)

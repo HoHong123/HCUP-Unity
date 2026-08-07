@@ -14,6 +14,8 @@
  * 주의 ::
  * resourcesRootPath 와 token path 조합 규칙이 프로젝트 규칙과 맞아야 함. Resources 는 별도
  * source release 를 요구하지 않으므로 IAssetReleasableLoader 를 구현하지 않음 (cache 만 정리).
+ * "이미 rootPath 하위" 판정은 경로 경계(뒤따르는 '/' 또는 완전 일치)까지 검사한다 — 단순
+ * StartsWith 는 rootPath="Icon"·key="IconSet/A" 같은 접두 오탐으로 이중 결합을 만든다.
  * =========================================================
  */
 #endif
@@ -69,7 +71,13 @@ namespace HResource.Load {
                 return normalizedKey;
             }
 
-            if (normalizedKey.StartsWith(resourcesRootPath, StringComparison.OrdinalIgnoreCase)) {
+            // StartsWith 만으로는 경로 경계를 검사하지 않는다 — rootPath="Icon" 일 때
+            // key="IconSet/A" 가 "Icon" 으로 시작한다는 이유로 오탐되어 "Icon/IconSet/A" 로
+            // 잘못 중복 결합되지 않도록, 정확히 rootPath 뒤에 '/' 가 오거나 rootPath 자체와
+            // 같은 경우만 "이미 rootPath 하위" 로 인정한다.
+            bool isUnderRootPath = normalizedKey.Equals(resourcesRootPath, StringComparison.OrdinalIgnoreCase)
+                || normalizedKey.StartsWith(resourcesRootPath + "/", StringComparison.OrdinalIgnoreCase);
+            if (isUnderRootPath) {
                 return normalizedKey;
             }
 
@@ -99,6 +107,19 @@ namespace HResource.Load {
 /* =========================================================
  * Dev Log
  * =========================================================
+ *
+ * =========================================================
+ * 2026-08-06 (수정) :: rootPath 경계 검사 없는 StartsWith 교정 (감사 5차 HResource 항목 8)
+ * =========================================================
+ * 변경 ::
+ * _NormalizeKey 의 "이미 rootPath 하위인가" 판정을 StartsWith(rootPath) 에서
+ * Equals(rootPath) 또는 StartsWith(rootPath + "/") 로 교체.
+ *
+ * 이유 ::
+ * StartsWith 만으로는 경로 경계를 검사하지 않아, rootPath="Icon" 일 때 key="IconSet/A" 가
+ * "Icon" 으로 시작한다는 이유로 "이미 rootPath 하위" 로 오판되어 rootPath 결합을 건너뛴다.
+ * 현재 프로젝트 전 호출이 rootPath="" 라 미도달이었으나, rootPath 를 실제로 쓰는 호출이
+ * 생기는 순간 접두 겹침 조합에서 조용히 잘못된 키로 로드가 실패하므로 지금 교정한다.
  *
  * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입

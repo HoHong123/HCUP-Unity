@@ -8,14 +8,14 @@
  * ReleaseAll() — 전체 source 핸들 정리.
  *
  * 사용법 ::
- * Addressable 같이 명시 release 가 필요한 loader 만 본 인터페이스 구현. AssetProvider 는
- * 등록된 loader 중 본 인터페이스 구현체만 releasableLoaders List 로 별도 관리하여
- * cache 제거 시 (OnAssetRemoved) source release 연쇄.
+ * Addressable 같이 명시 release 가 필요한 loader 만 본 인터페이스 구현. AssetProvider 는 key 를
+ * 실제로 로드한 loader 가 본 인터페이스 구현체면 key 단위로 기록해두었다가, cache 제거 시
+ * (OnAssetRemoved) 그 loader 하나만 release (2026-08-06, 감사 5차 HResource 항목 5 참조).
  *
  * 주의 ::
  * cache release 와 source release 는 다른 책임. Resources 같이 release 가 불필요한 loader 는
- * 본 인터페이스 미구현 (IAssetLoader 만 구현). provider 는 release 연쇄 시 본 인터페이스
- * 구현체만 순회하여 dispatch 비용 0.
+ * 본 인터페이스 미구현 (IAssetLoader 만 구현). provider 는 이 key 를 로드한 loader 하나만
+ * 골라 release — 등록된 releasable loader 전체를 도매금으로 건드리지 않는다.
  * =========================================================
  */
 #endif

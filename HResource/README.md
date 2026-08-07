@@ -66,7 +66,9 @@ Editor 어셈블리는 owner 점유 현황을 보는 진단 창 하나다 (메�
    전자는 `IAssetLoader` 를 구현하지 않아 provider 에 등록할 수도 없다.
 3. **`AssetProvider.Dispose()` 를 부르는 곳이 없고, `IAssetProvider` 는 `IDisposable` 을 상속하지
    않는다.** 인터페이스로 보유하는 소비자는 `OnAssetRemoved` 구독을 해제할 수단이 없다.
-4. **`int → AssetOwnerId` 암시 변환이 생성기를 우회한다.** 임의 정수가 owner 로 통과한다.
-5. Editor 어셈블리의 네임스페이스가 `HUtil.Editor.Subscription` 으로 남아 있다 (HUtil 분리 잔재).
+4. ~~`int → AssetOwnerId` 암시 변환이 생성기를 우회한다.~~ → 2026-08-06 해소. `int → AssetOwnerId`
+   방향의 implicit 변환을 제거해 임의 정수가 owner 로 통과하는 경로를 컴파일 타임에 차단.
+5. ~~Editor 어셈블리의 네임스페이스가 `HUtil.Editor.Subscription` 으로 남아 있다~~ → 2026-08-06
+   `HResource.Editor.Subscription` 으로 정정, 메뉴 경로도 `HCUP/Resource/Owner Watcher` 로 통일.
 
 근거 라인은 [Runtime README](Runtime/README.md) 의 "정리 대상" 절에 있다.

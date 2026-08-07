@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace HUtil.Editor.Subscription {
+namespace HResource.Editor.Subscription {
     public sealed class AssetOwnerIdWatcherWindow : EditorWindow {
         #region Fields
         Vector2 scrollPosition;
@@ -15,7 +15,7 @@ namespace HUtil.Editor.Subscription {
         #endregion
 
         #region Menu
-        [MenuItem("HCUP/Data/Owner Watcher")]
+        [MenuItem("HCUP/Resource/Owner Watcher")]
         public static void Open() {
             AssetOwnerIdWatcherWindow window = GetWindow<AssetOwnerIdWatcherWindow>();
             window.titleContent = new GUIContent("OwnerId Watcher");

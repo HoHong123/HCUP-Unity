@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using HResource.Subscription;
 
-namespace HUtil.Editor.Subscription {
+namespace HResource.Editor.Subscription {
     [InitializeOnLoad]
     public static class AssetOwnerIdWatchRegistry {
         #region Public - Types
