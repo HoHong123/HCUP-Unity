@@ -56,7 +56,13 @@ namespace HcupLocalization {
         }
 
         protected override void OnDestroy() {
+            // base.OnDestroy() 가 instance == this 를 null 로 정리하므로, 판정은 그 전에 캡처한다.
+            // 중복 인스턴스(Awake 에서 Destroy 예약된 개체)의 파괴 경로가 살아있는 본 인스턴스의
+            // 델리게이트/provider 를 끊지 않도록 소유자일 때만 정리한다.
+            bool isOwner = instance == this;
             base.OnDestroy();
+            if (!isOwner) return;
+
             HTextLocalizer.GetText = null;
             // InitializeAsync 에서 이 매니저가 provider 를 만들었으므로 폐기 책임도 여기에 있다.
             provider?.Dispose();
@@ -66,6 +72,8 @@ namespace HcupLocalization {
 
         #region Public - Initialize
         public async UniTask InitializeAsync(LocalizationLanguage defaultLanguage = DEFAULT_LANGUAGE) {
+            // 재호출 시 이전 provider 가 점유한 에셋이 누수되지 않도록 먼저 폐기한다.
+            provider?.Dispose();
             provider = AssetProviderFactory.CreateAddressable<LocalizationSO>();
             LocalizationLanguage startLanguage = _LoadSavedLanguage(defaultLanguage);
             bool loaded = await _LoadLanguageAsync(startLanguage);
@@ -129,6 +137,15 @@ namespace HcupLocalization {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 재호출 provider 누수 · 중복 인스턴스 파괴 오염 수정
+ *
+ * # 변경
+ * - InitializeAsync: provider 재생성 전 기존 provider Dispose 선행 (재호출 시 누수 방지)
+ * - OnDestroy: base.OnDestroy() 호출 전 `instance == this` 를 캡처해, 소유자일 때만
+ *   HTextLocalizer.GetText / provider 정리 수행 (중복 인스턴스 파괴 경로가 살아있는
+ *   본 인스턴스의 델리게이트를 끊는 것을 방지)
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.03 HLocalization → HcupLocalization 패키지 개칭
  *
