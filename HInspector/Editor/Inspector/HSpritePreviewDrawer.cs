@@ -12,6 +12,8 @@
  * 주의사항 ::
  * - PropertyDrawer 인스턴스는 Unity 가 재사용 → 모든 캐시 static 선언
  * - Addressables 핸들은 에디터 세션 동안 해제하지 않음 (텍스처 언로드 방지)
+ * - Texture2D 전용 에셋용 Sprite.Create 결과는 경로당 1개만 만들어 캐시하고,
+ *   어셈블리 리로드 직전 (AssemblyReloadEvents.beforeAssemblyReload) 에 일괄 파괴
  * =========================================================
  */
 
@@ -28,6 +30,25 @@ namespace HInspector.Editor {
         static readonly Dictionary<string, Sprite> spriteCache   = new();
         static readonly Dictionary<string, AsyncOperationHandle<Sprite>> addrHandles   = new();
         static readonly Dictionary<string, bool> foldoutStates = new();
+
+        // Texture2D 만 있는 에셋을 미리보기 하려고 Sprite.Create 로 만든 임시 스프라이트들.
+        // 캐시가 없으면 리페인트마다 새 Sprite 가 생기고 아무도 Destroy 하지 않아 초당 수십 개가
+        // 쌓인다. 에셋 경로당 1개만 만들고, 어셈블리 리로드 직전에 전부 파괴한다.
+        static readonly Dictionary<string, Sprite> generatedSpriteCache = new();
+
+        [InitializeOnLoadMethod]
+        private static void _RegisterGeneratedSpriteCleanup() {
+            AssemblyReloadEvents.beforeAssemblyReload -= _DestroyGeneratedSprites;
+            AssemblyReloadEvents.beforeAssemblyReload += _DestroyGeneratedSprites;
+        }
+
+        private static void _DestroyGeneratedSprites() {
+            foreach (var generated in generatedSpriteCache.Values) {
+                if (generated != null) Object.DestroyImmediate(generated);
+            }
+
+            generatedSpriteCache.Clear();
+        }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label) {
             float baseHeight = EditorGUIUtility.singleLineHeight;
@@ -132,13 +153,22 @@ namespace HInspector.Editor {
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
             if (sprite != null) return sprite;
 
+            // fake-null (파괴된 Unity 오브젝트) 을 그대로 돌려주지 않도록 == 비교로 확인한다.
+            if (generatedSpriteCache.TryGetValue(path, out var cachedGenerated) && cachedGenerated != null) {
+                return cachedGenerated;
+            }
+
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (tex != null) return Sprite.Create(
+            if (tex == null) return null;
+
+            var generated = Sprite.Create(
                 tex,
                 new Rect(0f, 0f, tex.width, tex.height),
                 new Vector2(0.5f, 0.5f));
-
-            return null;
+            // 프로젝트에 저장되지 않는 임시 오브젝트임을 명시 — 씬/에셋 더티 유발 방지.
+            generated.hideFlags = HideFlags.HideAndDontSave;
+            generatedSpriteCache[path] = generated;
+            return generated;
         }
         #endregion
 
