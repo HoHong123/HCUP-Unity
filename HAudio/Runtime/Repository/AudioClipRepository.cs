@@ -25,6 +25,14 @@ namespace HAudio.Repository {
         #region Fields
         readonly AudioCatalogRegistry catalogRegistry;
         readonly IAssetProvider<string, AudioClip> assetProvider;
+        // uid → 최종 loadKey 해석 캐시. loadKey 생성은 문자열 할당을 동반하므로(Resources 모드의
+        // BuildResourcesLoadKey) uid 당 1회만 수행하고 이후 재생은 조회만 한다.
+        // AudioClip 자체는 캐시하지 않는다 — 자산 수명은 AssetProvider 한 곳이 소유해야 하고,
+        // 여기에 두 번째 캐시를 두면 해제 경로가 둘로 갈라진다.
+        readonly Dictionary<int, string> loadKeyByUid = new();
+        // provider 를 주입받았다면 소유자는 호출자다 — 이 저장소가 폐기하면 안 된다.
+        readonly bool ownsAssetProvider;
+        bool disposed;
         #endregion
 
         #region Properties
@@ -46,15 +54,35 @@ namespace HAudio.Repository {
 
             LoadMode = loadMode;
             this.catalogRegistry = catalogRegistry;
+            ownsAssetProvider = assetProvider == null;
             this.assetProvider = assetProvider ?? _CreateDefaultProvider(loadMode);
         }
         #endregion
 
         #region Public - Get
+        /// <summary> uid 로 조회한다. 재생 경로의 기본 진입점 — 문자열 정규화·할당이 없다. </summary>
+        public bool TryGet(int uid, out AudioClip clip) {
+            clip = null;
+            if (!_TryBuildLoadKey(uid, out string loadKey)) return false;
+            return assetProvider.TryGet(loadKey, out clip) && clip;
+        }
+
         public bool TryGet(string token, out AudioClip clip) {
             clip = null;
             if (!_TryBuildLoadKey(token, out string loadKey)) return false;
             return assetProvider.TryGet(loadKey, out clip) && clip;
+        }
+
+        public UniTask<AudioClip> GetOrLoadAsync(
+            int uid,
+            AssetOwnerId ownerId = default,
+            AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
+
+            if (!_TryBuildLoadKey(uid, out string loadKey)) {
+                return UniTask.FromResult<AudioClip>(null);
+            }
+
+            return assetProvider.GetAsync(loadKey, LoadMode, fetchMode, ownerId);
         }
 
         public UniTask<AudioClip> GetOrLoadAsync(
@@ -71,6 +99,14 @@ namespace HAudio.Repository {
         #endregion
 
         #region Public - Prewarm
+        public async UniTask PrewarmTokenAsync(
+            int uid,
+            AssetOwnerId ownerId = default,
+            AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
+
+            await GetOrLoadAsync(uid, ownerId, fetchMode);
+        }
+
         public async UniTask PrewarmTokenAsync(
             string token,
             AssetOwnerId ownerId = default,
@@ -99,6 +135,16 @@ namespace HAudio.Repository {
         #endregion
 
         #region Public - Release
+        public bool Release(int uid) {
+            if (!_TryBuildLoadKey(uid, out string loadKey)) return false;
+            return assetProvider.Release(loadKey);
+        }
+
+        public bool Release(int uid, AssetOwnerId ownerId) {
+            if (!_TryBuildLoadKey(uid, out string loadKey)) return false;
+            return assetProvider.Release(loadKey, ownerId);
+        }
+
         public bool Release(string token) {
             if (!_TryBuildLoadKey(token, out string loadKey)) return false;
             return assetProvider.Release(loadKey);
@@ -121,6 +167,10 @@ namespace HAudio.Repository {
             if (refCount > 0) return;
 
             foreach (var entry in removedEntries) {
+                // 해석 캐시를 함께 버린다. 같은 uid 가 경로가 다른 카탈로그로 재등록되면
+                // 남아있던 loadKey 가 옛 경로를 가리켜 조용히 엉뚱한 자산을 찾게 된다.
+                if (entry != null && entry.Uid != 0) loadKeyByUid.Remove(entry.Uid);
+
                 string loadKey = _ResolveLoadKey(entry);
                 if (string.IsNullOrWhiteSpace(loadKey)) continue;
 
@@ -138,11 +188,49 @@ namespace HAudio.Repository {
         }
 
         public void ReleaseAll() {
+            loadKeyByUid.Clear();
             assetProvider.ReleaseAll();
+        }
+
+        /// <summary>
+        /// 저장소 폐기. 기본 provider 를 이 저장소가 만들었을 때만 provider 까지 함께 폐기한다.
+        /// 주입받은 provider 는 수명 소유자가 따로 있으므로 아무것도 하지 않는다.
+        /// </summary>
+        public void Dispose() {
+            if (disposed) return;
+            disposed = true;
+
+            loadKeyByUid.Clear();
+
+            // 주입받은 provider 에 ReleaseAll 을 걸면 owner 를 가리지 않고 캐시를 통째로 비우므로
+            // 주입한 쪽의 다른 점유까지 파괴된다 (케이스 리포트 07 COR-1). 이 저장소는 자기 몫만
+            // 식별할 수단(자체 ownerId)이 없으므로, 비소유 경로에서는 손대지 않는 것이 유일하게
+            // 안전한 선택이다 — 해제 책임은 provider 를 주입한 쪽에 있다.
+            if (!ownsAssetProvider) return;
+
+            assetProvider.Dispose();
         }
         #endregion
 
         #region Private - Resolve
+        private bool _TryBuildLoadKey(int uid, out string loadKey) {
+            // 히트하면 여기서 끝난다 — int 해시 1회, 할당 0.
+            if (loadKeyByUid.TryGetValue(uid, out loadKey)) {
+                return !string.IsNullOrWhiteSpace(loadKey);
+            }
+
+            if (!catalogRegistry.TryGetEntry(uid, out AudioCatalogSO.Entry entry)) {
+                loadKey = string.Empty;
+                return false;
+            }
+
+            loadKey = _ResolveLoadKey(entry);
+            if (string.IsNullOrWhiteSpace(loadKey)) return false;
+
+            loadKeyByUid[uid] = loadKey;
+            return true;
+        }
+
         private bool _TryBuildLoadKey(string token, out string loadKey) {
             loadKey = string.Empty;
 
