@@ -12,6 +12,12 @@ namespace HAudio.Core {
         fileName = "SoundCatalog",
         menuName = "HCUP/Sound/Sound Catalog")]
     public sealed class AudioCatalogSO : ScriptableObject {
+        #region Public - Const
+        // 인스펙터 클립 드롭다운([HDropdown])이 항목 공급자를 찾는 키.
+        // 런타임 속성 인자와 에디터 등록부가 같은 상수를 봐야 오타로 어긋나지 않는다.
+        public const string DROPDOWN_SOURCE_ID = "HAudio.Clips";
+        #endregion
+
         #region Private - Const
         const string RESOURCE_ROOT = "Assets/Resources/";
         #endregion
@@ -23,6 +29,13 @@ namespace HAudio.Core {
             // 분류용 enum. 개발자가 카탈로그를 읽을 때의 라벨이며 로드 키가 아니다.
             [SerializeField]
             AudioMajorCategory major;
+
+            // 런타임 신원. token 접두의 숫자와 항상 같은 값이며, 생성기가 token 에서 뽑아 채운다.
+            // 별도 필드로 두는 이유 : 재생마다 token 문자열을 파싱하지 않기 위해서다.
+            // 이 값이 게임 쪽 AudioClips enum 의 원소 값이 된다.
+            [HTitle("Identity")]
+            [SerializeField]
+            int uid;
 
             [HTitle("Load Token")]
             [SerializeField]
@@ -40,6 +53,7 @@ namespace HAudio.Core {
 
             #region Public - Properties
             public AudioMajorCategory Major => major;
+            public int Uid => uid;
             public string Token => token;
             public string Path => path;
 #if UNITY_EDITOR
@@ -50,6 +64,7 @@ namespace HAudio.Core {
 #if UNITY_EDITOR
             #region Public - Editor
             public void EditorSetMajor(AudioMajorCategory value) => major = value;
+            public void EditorSetUid(int value) => uid = value;
             public void EditorSetToken(string value) => token = value;
             public void EditorSetPath(string value) => path = value;
             public void EditorSetClip(AudioClip value) => editorClip = value;
@@ -106,6 +121,49 @@ namespace HAudio.Core {
         }
         #endregion
 
+        #region Public - Token Identity
+        // token 은 "{uid}_{이름}" 규약이다 (예: "600003_Click"). 이 규약은 파일명에서 그대로 오며,
+        // uid 는 엑셀 데이터 넘버링·enum 원소 값·탐색기 정렬·로드 유일키 네 역할을 겸한다.
+        //
+        // 아래 두 함수가 그 규약의 단일 해석 지점이다. 파싱은 저작·생성 시점에만 수행하고,
+        // 런타임 재생 경로는 Entry.Uid 를 직접 읽는다 (문자열을 만지지 않는다).
+
+        /// <summary> token 접두의 uid 를 뽑는다. 규약을 어긴 token 이면 false. </summary>
+        public static bool TryParseUid(string token, out int uid) {
+            uid = 0;
+            if (string.IsNullOrWhiteSpace(token)) return false;
+
+            string trimmed = token.Trim();
+            int separator = trimmed.IndexOf('_');
+            // 구분자가 없거나, 맨 앞이거나, 숫자부가 없으면 규약 위반이다.
+            if (separator < 1) return false;
+
+            for (int k = 0; k < separator; k++) {
+                if (!char.IsDigit(trimmed[k])) return false;
+            }
+
+            // int.Parse 대신 TryParse — 자릿수가 int 범위를 넘는 token 도 조용히 통과시키지 않는다.
+            return int.TryParse(
+                trimmed.Substring(0, separator),
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out uid);
+        }
+
+        /// <summary> token 의 uid 접두를 제외한 이름부를 뽑는다 (enum 멤버 이름의 원천). </summary>
+        public static bool TryParseName(string token, out string name) {
+            name = string.Empty;
+            if (string.IsNullOrWhiteSpace(token)) return false;
+
+            string trimmed = token.Trim();
+            int separator = trimmed.IndexOf('_');
+            if (separator < 1 || separator + 1 >= trimmed.Length) return false;
+
+            name = trimmed.Substring(separator + 1);
+            return !string.IsNullOrWhiteSpace(name);
+        }
+        #endregion
+
         #region Public - Load Key Builder
         public static string BuildResourcesLoadKey(string path, string token) {
             if (string.IsNullOrWhiteSpace(token)) return string.Empty;
@@ -132,11 +190,24 @@ namespace HAudio.Core {
             string token,
             string path,
             AudioClip clip) {
+            string normalizedToken = _NormalizeToken(token);
+
             Entry entry = new Entry();
             entry.EditorSetMajor(major);
-            entry.EditorSetToken(_NormalizeToken(token));
+            entry.EditorSetToken(normalizedToken);
             entry.EditorSetPath(_NormalizeFolderPath(path));
             entry.EditorSetClip(clip);
+
+            // uid 는 여기 한 곳에서만 채워진다 — 카탈로그로 들어오는 모든 경로가 이 함수를 지난다.
+            // 규약 위반은 조용히 0 으로 두지 않고 드러낸다 (0 이면 재생 경로에서 조회가 실패한다).
+            if (TryParseUid(normalizedToken, out int uid)) {
+                entry.EditorSetUid(uid);
+            }
+            else {
+                Debug.LogError(
+                    $"[AudioCatalogSO] Token does not follow the \"{{uid}}_{{name}}\" convention. uid is left unset. token={normalizedToken}", this);
+            }
+
             entries.Add(entry);
         }
 
