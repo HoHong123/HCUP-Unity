@@ -62,6 +62,12 @@ namespace HInspector.Editor {
 
         #region Static Fields
         static GUIStyle boxGroupStyle;
+
+        // 타입 계층 전체를 GetFields/GetProperties/GetMethods 로 훑는 수집이라 리페인트마다
+        // 돌리면 비용이 크다. 결과는 타입의 정적 메타데이터이므로 타입당 1회만 계산한다.
+        // 도메인 리로드 시 Type 인스턴스와 함께 무효화되므로 별도 리셋 훅이 필요 없다.
+        static readonly Dictionary<Type, List<(MemberInfo member, HShowInInspectorAttribute attribute)>> _showInInspectorCache = new();
+        static readonly Dictionary<Type, List<(MethodInfo method, HButtonAttribute attribute)>> _buttonMethodCache = new();
         #endregion
 
         #region Fields
@@ -181,8 +187,21 @@ namespace HInspector.Editor {
 
                 if (!GUILayout.Button(label)) continue;
 
+                // 버튼이 대상 오브젝트를 바꾸는 것이 정상 사용이다. Undo 등록과 SetDirty 가 없으면
+                // 변경이 되돌릴 수도, 저장될 수도 없다 (씬/프리팹이 더티로 표시되지 않는다).
+                Undo.RecordObjects(targets, label);
+
                 for (int j = 0; j < targets.Length; j++) {
-                    method.Invoke(targets[j], null);
+                    try {
+                        method.Invoke(targets[j], null);
+                    }
+                    catch (TargetInvocationException e) {
+                        // 예외가 OnInspectorGUI 밖으로 나가면 인스펙터 전체가 그리기를 멈춘다.
+                        Debug.LogException(e.InnerException ?? e, targets[j]);
+                        continue;
+                    }
+
+                    EditorUtility.SetDirty(targets[j]);
                 }
             }
         }
@@ -249,6 +268,14 @@ namespace HInspector.Editor {
         }
 
         private List<(MemberInfo member, HShowInInspectorAttribute attribute)> _CollectShowInInspectorMembers(Type targetType) {
+            if (_showInInspectorCache.TryGetValue(targetType, out var cachedEntries)) return cachedEntries;
+
+            var collected = _BuildShowInInspectorMembers(targetType);
+            _showInInspectorCache[targetType] = collected;
+            return collected;
+        }
+
+        private static List<(MemberInfo member, HShowInInspectorAttribute attribute)> _BuildShowInInspectorMembers(Type targetType) {
             List<(MemberInfo, HShowInInspectorAttribute)> entries = new List<(MemberInfo, HShowInInspectorAttribute)>();
             Type current = targetType;
             while (current != null && current != typeof(object)) {
@@ -318,6 +345,14 @@ namespace HInspector.Editor {
         }
 
         private List<(MethodInfo method, HButtonAttribute attribute)> _CollectButtonMethods(Type targetType) {
+            if (_buttonMethodCache.TryGetValue(targetType, out var cachedEntries)) return cachedEntries;
+
+            var collected = _BuildButtonMethods(targetType);
+            _buttonMethodCache[targetType] = collected;
+            return collected;
+        }
+
+        private static List<(MethodInfo method, HButtonAttribute attribute)> _BuildButtonMethods(Type targetType) {
             List<(MethodInfo, HButtonAttribute)> entries = new List<(MethodInfo, HButtonAttribute)>();
             Type current = targetType;
             while (current != null && current != typeof(object)) {
