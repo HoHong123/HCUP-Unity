@@ -19,9 +19,10 @@
  * 캐시 전략 ::
  * ReorderableList / 검색어 / 중복 인덱스 집합을 (InstanceID + propertyPath) 키로 캐시.
  * 매 OnGUI 마다 새로 만들면 ReorderableList 의 드래그 hot-index 가 풀리기 때문.
+ * Selection.selectionChanged 마다 죽은 오브젝트 키를 정리해 세션 내내 누적되지 않게 한다.
  *
  * 주의사항 ::
- * SerializedProperty 에서 private 필드명 "entries" / "logDuplicateKeyWarning" 을 직접 참조 -
+ * SerializedProperty 에서 private 필드명 "entries" 를 직접 참조 -
  * HDictionary 쪽 필드명을 바꾸면 본 Drawer 도 동기화해야 함 (호환성 계약).
  * Sort/Search 는 PropertyToString 기반이라 사용자 정의 Key 는 ToString () 에 의존.
  * =========================================================
@@ -87,6 +88,43 @@ namespace HCollection.Editor {
         // 중복 검사용 스크래치. OnGUI 경로에서 매 리페인트 새로 할당하던 것을 재사용으로 바꿨다.
         // 에디터 GUI 는 단일 스레드이고 이 사전은 _UpdateDuplicateIndices 호출 안에서만 살아있다.
         static readonly Dictionary<string, int> duplicateScratch = new();
+        #endregion
+
+        #region Static Init
+        // 위 3종 캐시의 키는 "{instanceID}:{propertyPath}" 라 선택할 때마다 늘어나기만 하고
+        // 제거 시점이 없었다(케이스 리포트 08 WST-1, HSpritePreviewDrawer.foldoutStates 와 동일
+        // 유형). 선택이 바뀔 때마다 더 이상 존재하지 않는 오브젝트의 항목을 걷어낸다.
+        [InitializeOnLoadMethod]
+        static void _RegisterCachePruning() {
+            Selection.selectionChanged -= _PruneDeadCacheEntries;
+            Selection.selectionChanged += _PruneDeadCacheEntries;
+        }
+
+        static void _PruneDeadCacheEntries() {
+            _PruneDeadKeys(listCache.Keys);
+            _PruneDeadKeys(searchCache.Keys);
+            _PruneDeadKeys(duplicateCache.Keys);
+        }
+
+        static void _PruneDeadKeys(IEnumerable<string> keys) {
+            List<string> deadKeys = null;
+            foreach (string key in keys) {
+                int separatorIndex = key.IndexOf(':');
+                if (separatorIndex <= 0) continue;
+                if (!int.TryParse(key.Substring(0, separatorIndex), out int instanceId)) continue;
+                if (instanceId != 0 && EditorUtility.InstanceIDToObject(instanceId) != null) continue;
+
+                deadKeys ??= new List<string>();
+                deadKeys.Add(key);
+            }
+
+            if (deadKeys == null) return;
+            for (int k = 0; k < deadKeys.Count; k++) {
+                listCache.Remove(deadKeys[k]);
+                searchCache.Remove(deadKeys[k]);
+                duplicateCache.Remove(deadKeys[k]);
+            }
+        }
         #endregion
 
         #region IDisposable Scopes
@@ -757,6 +795,21 @@ namespace HCollection.Editor {
  * =========================================================
  *
  * =========================================================
+ * 2026-08-07 (수정) :: 캐시 3종 선택 변경 시 정리 (케이스 리포트 08 WST-1)
+ * =========================================================
+ * 변경 ::
+ * 1. `_RegisterCachePruning`([InitializeOnLoadMethod]) 신설 — `Selection.selectionChanged` 구독.
+ * 2. `_PruneDeadCacheEntries` / `_PruneDeadKeys` 신설 — 키의 instanceID 를
+ *    `EditorUtility.InstanceIDToObject` 로 확인해 더 이상 존재하지 않는 오브젝트의
+ *    `listCache` / `searchCache` / `duplicateCache` 항목을 제거.
+ *
+ * 이유 ::
+ * 세 캐시 모두 키가 "{instanceID}:{propertyPath}" 라 선택할 때마다 새 엔트리가 쌓이고
+ * 제거 시점이 없었다(`HSpritePreviewDrawer.foldoutStates` 와 동일 유형의 결함).
+ * 완전한 참조 카운팅 대신 "선택 변경 시 죽은 항목 정리"로 최소 처리했다 — 살아있는
+ * 오브젝트의 캐시는 그대로 유지되므로 재선택 시 ReorderableList 드래그 상태 등이 보존된다.
+ *
+ * =========================================================
  * 2026-04-26 (수정 2) :: 헤더 형틀 복원 + 헤더/Dev Log #if UNITY_EDITOR 가드 적용
  * =========================================================
  * 변경 ::
@@ -810,7 +863,7 @@ namespace HCollection.Editor {
  * 새로 만들면 드래그가 풀린다.
  *
  * 주의사항 ::
- * - SerializedProperty 에서 private 필드명 "entries" / "logDuplicateKeyWarning" 을 직접 참조.
+ * - SerializedProperty 에서 private 필드명 "entries" 를 직접 참조.
  *   HDictionary 쪽 필드명을 바꾸면 이 Drawer 도 동기화해야 함 (호환성 계약).
  * - Sort/Search 는 PropertyToString 기반 단순 문자열 비교이므로 사용자 정의 타입 Key 는
  *   ToString() 에 의존.

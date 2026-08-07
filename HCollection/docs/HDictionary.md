@@ -410,10 +410,9 @@ table.Clear();
 
 ### 정리 대상
 
-10. **드로어 헤더가 존재하지 않는 필드를 계약으로 서술한다.** `logDuplicateKeyWarning` 를
-    "직접 참조하는 private 필드" 로 적고 있으나(`HDictionaryDrawer.cs:24`, `:808`),
-    패키지 전역 grep 결과 그 필드는 **주석 2곳에만 존재**하고 `HDictionary` 에도 드로어
-    코드에도 없다. 과거 필드가 제거되면서 남은 문서 잔재다.
+10. ~~드로어 헤더가 존재하지 않는 필드를 계약으로 서술한다.~~ `logDuplicateKeyWarning`
+    언급을 주석 2곳(`HDictionaryDrawer.cs:24`, `:813`)에서 제거 — 실제로는 "entries"
+    필드만 참조한다 (2026-08-07 반영).
 11. **진단 API 5종의 호출처가 패키지 안에 0건이다.** `NeedsEntriesSync` /
     `IsEntriesOutOfSync` / `ForceSyncEntriesFromDictionary` / `DescribeEntriesSyncState` /
     `DebugSnapshot` 전부 grep 0건. 이 중 `IsEntriesOutOfSync` +
@@ -426,9 +425,9 @@ table.Clear();
     전자는 단방향(Dictionary→entries 누락만, `:253-267`), 후자는 양방향 엄격 비교
     (`:337-364`). 전자는 고아 행도 중복 행도 값 불일치도 잡지 못한다. 둘 중 하나로
     모으는 것이 맞다.
-13. **`DuplicateKeyCount()` 는 "중복 키 개수" 가 아니라 "중복 행 개수" 다** (`:186-200`).
-    같은 키가 3행이면 `2` 를 반환한다. 검증 메시지가 `"{n} duplicate key(s)"` 로
-    출력되므로(`HDictionaryValidator.cs:110`) 사용자에게 오해를 준다.
+13. ~~`DuplicateKeyCount()` 는 "중복 키 개수" 가 아니라 "중복 행 개수" 다~~ (`:186-200`).
+    같은 키가 3행이면 `2` 를 반환한다. 검증 메시지를 `"{n} duplicate row(s) (rows sharing
+    an already-used key)"` 로 정정 (`HDictionaryValidator.cs:110`, 2026-08-07 반영).
 14. **`UnityEngine.Debug` 를 직접 쓴다** (`:94, :130, :142, :150, :273`). 같은 어셈블리의
     `CircularList` / `CollectionUtil` 은 `HDiagnosis.Logger.HLogger` 를 쓰고, asmdef 도
     `HCUP.HDiagnosis` 를 참조하고 있어 기술적 제약이 아니다.

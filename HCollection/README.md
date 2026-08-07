@@ -61,8 +61,9 @@ Odin 어셈블리는 브릿지가 아니라 **차단기**다 — Odin 이 `HDict
 1. **진단 API 5종의 호출처가 0건이다** — `NeedsEntriesSync` / `IsEntriesOutOfSync` /
    `ForceSyncEntriesFromDictionary` / `DescribeEntriesSyncState` / `DebugSnapshot`.
    앞의 둘은 이름이 비슷한데 판정 기준이 달라 혼동을 부른다.
-2. **`DuplicateKeyCount()` 는 중복 "행" 수를 센다** (같은 키 3행 → `2`). 검증 메시지는
-   `"{n} duplicate key(s)"` 라 사용자는 "서로 다른 키 n개"로 읽는다.
+2. **`DuplicateKeyCount()` 는 중복 "행" 수를 센다** (같은 키 3행 → `2`). 검증 메시지도
+   `"{n} duplicate row(s) (rows sharing an already-used key)"` 로 정정해 행 수임을 명시한다
+   (2026-08-07, `HDictionaryValidator.cs` 반영).
 3. **`HDictionary` 만 `UnityEngine.Debug` 를 직접 쓴다.** 같은 어셈블리의 `CircularList` 는
    `HLogger` 를 쓰고 asmdef 도 `HCUP.HDiagnosis` 를 참조하므로 기술적 제약은 아니다.
 4. **`EnumArray` 는 선언 파일 밖 사용처가 0건이다.**

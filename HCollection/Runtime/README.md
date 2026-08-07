@@ -121,7 +121,7 @@ flowchart TD
 | `NextPivot` / `PrevPivot` | `0` — 가드 없이는 `% 0` 으로 DivideByZero (`:31-32`) |
 | `CurrentItem` | `default` (`:37`) |
 | `IsAtLast` | `false` — `list.Count > 0` 조건 포함 (`:34`) |
-| `IsAtFirst` | **`true`** — 가드 없음 (`:33`) |
+| `IsAtFirst` | `false` — `list.Count > 0` 조건 포함 (`:34`, 2026-08-07 반영) |
 | `MoveNext` / `MovePrev` / `MoveToLast` / `MoveBy` | 무동작 |
 | `MoveTo(int)` | `HLogger.Exception` 로그 후 무동작 (`:150-153`) |
 
@@ -222,9 +222,8 @@ int removed = dict.RemoveIf(v => v.expired);
    외부 게임 코드 전용이거나, 도입만 되고 쓰이지 않은 상태다.
 7. **`CircularList.Clear()` 는 `[Obsolete("Change it to 'Dispose'")]` 상태로 남아 있다**
    (`CircularList.cs:174-175`). 패키지 내 호출처 0건이므로 제거 가능하다.
-8. **`CircularList.IsAtFirst` 만 빈 리스트 가드가 없다** (`:33`). `IsAtLast` 는
-   `list.Count > 0` 을 포함하는데(`:34`) 대칭이 깨져 있다. 빈 리스트에서
-   `IsAtFirst == true && IsAtLast == false` 라는 비대칭 상태가 나온다.
+8. ~~`CircularList.IsAtFirst` 만 빈 리스트 가드가 없다~~ — `IsAtLast` 와 동일하게
+   `list.Count > 0` 조건을 추가해 대칭을 맞췄다 (`:34`, 2026-08-07 반영).
 9. **`CircularList.MoveTo(int)` 만 실패를 로그한다** (`:150-153`). 같은 클래스의 다른
    이동/제거 API 는 전부 조용히 무동작이라 실패 처리 정책이 일관되지 않다.
 10. **로거가 두 갈래다.** `CircularList` / `CollectionUtil` 은 `HDiagnosis.Logger.HLogger`

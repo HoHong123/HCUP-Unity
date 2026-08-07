@@ -107,7 +107,7 @@ namespace HCollection.Editor {
                     if (dictionary == null) continue;
                     if (!dictionary.HasDuplicateKeys()) continue;
 
-                    errors.Add($"{context}.{fields[k].Name} → {dictionary.DuplicateKeyCount()} duplicate key(s)");
+                    errors.Add($"{context}.{fields[k].Name} → {dictionary.DuplicateKeyCount()} duplicate row(s) (rows sharing an already-used key)");
                 }
                 currentType = currentType.BaseType;
             }

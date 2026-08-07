@@ -231,13 +231,12 @@ if (errors.Count > 0) Debug.LogError(string.Join("\n", errors));
 
 ### 정리 대상
 
-5. **드로어 헤더가 존재하지 않는 필드를 계약으로 서술한다.** `logDuplicateKeyWarning` 를
-   "SerializedProperty 로 직접 참조하는 private 필드" 로 적고 있으나
-   (`HDictionaryDrawer.cs:24`, `:808`), 패키지 전역 grep 결과 이 이름은 **그 주석 2곳에만**
-   존재한다. `HDictionary` 에도 드로어 코드에도 없는 죽은 서술이다.
-6. **`DuplicateKeyCount()` 의 반환값이 메시지와 어긋난다.** 이 API 는 중복 "행" 수를
-   센다(같은 키 3행 → `2`). 검증 메시지는 `"{n} duplicate key(s)"` 로 출력하므로
-   (`HDictionaryValidator.cs:110`) 사용자는 서로 다른 키가 n 개 중복된 것으로 읽는다.
+5. ~~드로어 헤더가 존재하지 않는 필드를 계약으로 서술한다.~~ `logDuplicateKeyWarning`
+   언급을 주석 2곳(`HDictionaryDrawer.cs:24`, `:813`)에서 제거 — 실제로는 "entries"
+   필드만 참조한다 (2026-08-07 반영).
+6. ~~`DuplicateKeyCount()` 의 반환값이 메시지와 어긋난다.~~ 이 API 는 중복 "행" 수를
+   센다(같은 키 3행 → `2`). 검증 메시지를 `"{n} duplicate row(s) (rows sharing an
+   already-used key)"` 로 정정 (`HDictionaryValidator.cs:110`, 2026-08-07 반영).
 7. **`HDictionaryDrawer` 는 814 행 단일 파일이다.** 레이아웃 상수 20여 개 + 컨테이너 셀
    렌더 + 필터 리스트 + 리셋 로직 + 캐시 관리가 한 클래스에 있다. partial 분할
    (`HDictionaryDrawer.Row.cs` / `.Cache.cs` 등)이 유력하다.

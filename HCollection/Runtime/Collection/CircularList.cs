@@ -30,7 +30,7 @@ namespace HCollection {
         // 빈 리스트 가드 — IsAtLast 와 동일 규약. 가드 없이는 Count==0 에서 DivideByZero. [CASE EDGE-3]
         public int NextPivot => (list.Count > 0) ? (index + 1) % list.Count : 0;
         public int PrevPivot => (list.Count > 0) ? (index - 1 + list.Count) % list.Count : 0;
-        public bool IsAtFirst => index == 0;
+        public bool IsAtFirst => index == 0 && list.Count > 0;
         public bool IsAtLast => index == list.Count - 1 && list.Count > 0;
         public bool IsEmpty => list.Count == 0;
         // pivot 선지정(deferred) 상태에서 Count <= index 인 동안의 접근을 막는 범위 가드. [CASE COR-2]
@@ -183,6 +183,16 @@ namespace HCollection {
 
 #if UNITY_EDITOR
 /* Dev Log
+ * =========================================================
+ * @Jason - PKH 2026.08.07 IsAtFirst 빈 리스트 가드 추가 (IsAtLast 와 대칭)
+ *
+ * # 변경
+ * - IsAtFirst: `index == 0` → `index == 0 && list.Count > 0`
+ *
+ * # 이유
+ * - 빈 리스트에서 index 기본값이 0 이라 기존 구현은 IsAtFirst == true 를 반환했다.
+ *   같은 상황에서 IsAtLast 는 `list.Count > 0` 가드로 false 를 반환해 비대칭이었다.
+ *   빈 리스트는 첫/마지막 요소 모두 존재하지 않으므로 둘 다 false 가 맞다.
  * =========================================================
  * * @Jason - PKH
  *
