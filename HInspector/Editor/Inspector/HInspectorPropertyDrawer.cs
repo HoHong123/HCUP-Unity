@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,6 +16,12 @@ namespace HInspector.Editor {
 
         // HListDrawer의 DefaultExpandedState는 세션당 1회만 초기화되어 사용자의 접기 조작을 방해하지 않아야 한다.
         static readonly HashSet<string> _listDefaultExpandedApplied = new HashSet<string>();
+
+        // 속성 수집은 리페인트마다 바뀌지 않는 정적 메타데이터다. FieldInfo 하나당 1회만 계산한다.
+        // (GetPropertyHeight + OnGUI 가 프레임당 각각 호출되므로 캐시가 없으면 프레임당 2회
+        //  GetCustomAttributes + LINQ 체인이 돌면서 배열·이터레이터를 계속 새로 할당한다.)
+        // 도메인 리로드 시 FieldInfo 인스턴스와 함께 통째로 무효화되므로 별도 리셋 훅이 필요 없다.
+        static readonly Dictionary<FieldInfo, HInspectorAttribute[]> _attributeCache = new Dictionary<FieldInfo, HInspectorAttribute[]>();
         #endregion
 
         #region Public Functions
@@ -26,12 +33,12 @@ namespace HInspector.Editor {
 
             float totalHeight = EditorGUI.GetPropertyHeight(property, label, true);
 
-            HMinMaxSliderAttribute minMaxSliderAttribute = attributes.OfType<HMinMaxSliderAttribute>().FirstOrDefault();
+            HMinMaxSliderAttribute minMaxSliderAttribute = _FindAttribute<HMinMaxSliderAttribute>(attributes);
             if (minMaxSliderAttribute != null && property.propertyType == SerializedPropertyType.Vector2) {
                 totalHeight += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
             }
 
-            HRequiredAttribute requiredAttribute = attributes.OfType<HRequiredAttribute>().FirstOrDefault();
+            HRequiredAttribute requiredAttribute = _FindAttribute<HRequiredAttribute>(attributes);
             if (requiredAttribute != null && _IsRequiredEmpty(property)) {
                 totalHeight += RequiredBoxHeight + RequiredBoxTopGap;
             }
@@ -73,11 +80,26 @@ namespace HInspector.Editor {
         HInspectorAttribute[] _GetAttributes() {
             if (fieldInfo == null) return Array.Empty<HInspectorAttribute>();
 
-            return fieldInfo
+            if (_attributeCache.TryGetValue(fieldInfo, out var cached)) return cached;
+
+            var resolved = fieldInfo
                 .GetCustomAttributes(typeof(HInspectorAttribute), true)
                 .Cast<HInspectorAttribute>()
                 .OrderBy(attribute => attribute.Order)
                 .ToArray();
+
+            _attributeCache[fieldInfo] = resolved;
+            return resolved;
+        }
+
+        // OfType<T>().FirstOrDefault() 는 호출마다 이터레이터를 할당한다. 리페인트 경로에서
+        // 프레임당 여러 번 도는 조회라 할당 없는 루프로 대체한다.
+        static T _FindAttribute<T>(HInspectorAttribute[] attributes) where T : HInspectorAttribute {
+            for (int k = 0; k < attributes.Length; k++) {
+                if (attributes[k] is T typed) return typed;
+            }
+
+            return null;
         }
 
         bool _IsVisible(SerializedProperty property, HInspectorAttribute[] attributes) {
@@ -107,13 +129,13 @@ namespace HInspector.Editor {
         }
 
         bool _EvaluateReadOnly(SerializedProperty property, HInspectorAttribute[] attributes) {
-            HListDrawerAttribute listAttribute = attributes.OfType<HListDrawerAttribute>().FirstOrDefault();
+            HListDrawerAttribute listAttribute = _FindAttribute<HListDrawerAttribute>(attributes);
             if (listAttribute != null && listAttribute.IsReadOnly && _IsCollectionField()) return true;
 
-            HEnableIfAttribute enableIfAttribute = attributes.OfType<HEnableIfAttribute>().FirstOrDefault();
+            HEnableIfAttribute enableIfAttribute = _FindAttribute<HEnableIfAttribute>(attributes);
             if (enableIfAttribute != null) return !_EvaluateEnableIf(property, enableIfAttribute);
 
-            HReadOnlyAttribute readOnlyAttribute = attributes.OfType<HReadOnlyAttribute>().FirstOrDefault();
+            HReadOnlyAttribute readOnlyAttribute = _FindAttribute<HReadOnlyAttribute>(attributes);
             if (readOnlyAttribute == null) return false;
 
             if (string.IsNullOrEmpty(readOnlyAttribute.ConditionMemberName)) {
@@ -154,10 +176,10 @@ namespace HInspector.Editor {
         }
 
         GUIContent _ResolveLabel(GUIContent originalLabel, HInspectorAttribute[] attributes) {
-            HHideLabelAttribute hideLabelAttribute = attributes.OfType<HHideLabelAttribute>().FirstOrDefault();
+            HHideLabelAttribute hideLabelAttribute = _FindAttribute<HHideLabelAttribute>(attributes);
             if (hideLabelAttribute != null) return GUIContent.none;
 
-            HLabelTextAttribute labelTextAttribute = attributes.OfType<HLabelTextAttribute>().FirstOrDefault();
+            HLabelTextAttribute labelTextAttribute = _FindAttribute<HLabelTextAttribute>(attributes);
             if (labelTextAttribute != null) return new GUIContent(labelTextAttribute.Text, originalLabel.tooltip);
 
             return originalLabel;
@@ -177,7 +199,7 @@ namespace HInspector.Editor {
         }
 
         void _DrawRequiredWarning(Rect fieldRect, SerializedProperty property, HInspectorAttribute[] attributes) {
-            HRequiredAttribute requiredAttribute = attributes.OfType<HRequiredAttribute>().FirstOrDefault();
+            HRequiredAttribute requiredAttribute = _FindAttribute<HRequiredAttribute>(attributes);
             if (requiredAttribute == null) return;
 
             if (!_IsRequiredEmpty(property)) return;
@@ -242,7 +264,15 @@ namespace HInspector.Editor {
         }
 
         void _DrawProperty(Rect position, SerializedProperty property, GUIContent label, HInspectorAttribute[] attributes) {
-            HMinMaxSliderAttribute minMaxSliderAttribute = attributes.OfType<HMinMaxSliderAttribute>().FirstOrDefault();
+            // 드롭다운이 먼저다. 값의 출처를 목록으로 제한하는 속성이므로 다른 그리기와 겹치면
+            // 제한이 무의미해진다.
+            HDropdownAttribute dropdownAttribute = _FindAttribute<HDropdownAttribute>(attributes);
+            if (dropdownAttribute != null) {
+                HDropdownField.Draw(position, property, label, dropdownAttribute);
+                return;
+            }
+
+            HMinMaxSliderAttribute minMaxSliderAttribute = _FindAttribute<HMinMaxSliderAttribute>(attributes);
             if (minMaxSliderAttribute != null) {
                 _DrawMinMaxSlider(position, property, label, minMaxSliderAttribute);
                 return;
@@ -305,8 +335,8 @@ namespace HInspector.Editor {
         }
 
         void _ApplyPostConstraints(SerializedProperty property, HInspectorAttribute[] attributes) {
-            HMinAttribute minAttribute = attributes.OfType<HMinAttribute>().FirstOrDefault();
-            HMaxAttribute maxAttribute = attributes.OfType<HMaxAttribute>().FirstOrDefault();
+            HMinAttribute minAttribute = _FindAttribute<HMinAttribute>(attributes);
+            HMaxAttribute maxAttribute = _FindAttribute<HMaxAttribute>(attributes);
 
             if (minAttribute == null && maxAttribute == null)
                 return;
@@ -358,7 +388,7 @@ namespace HInspector.Editor {
         }
 
         void _ProcessOnValueChanged(SerializedProperty property, HInspectorAttribute[] attributes) {
-            HOnValueChangedAttribute onValueChangedAttribute = attributes.OfType<HOnValueChangedAttribute>().FirstOrDefault();
+            HOnValueChangedAttribute onValueChangedAttribute = _FindAttribute<HOnValueChangedAttribute>(attributes);
             if (onValueChangedAttribute == null) return;
 
             if (string.IsNullOrEmpty(onValueChangedAttribute.MethodName)) return;
@@ -376,7 +406,7 @@ namespace HInspector.Editor {
         void _ApplyListDrawerState(SerializedProperty property, HInspectorAttribute[] attributes) {
             if (!_IsCollectionField()) return;
 
-            HListDrawerAttribute listAttribute = attributes.OfType<HListDrawerAttribute>().FirstOrDefault();
+            HListDrawerAttribute listAttribute = _FindAttribute<HListDrawerAttribute>(attributes);
             if (listAttribute == null) return;
             if (!listAttribute.DefaultExpandedState) return;
 
