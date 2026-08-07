@@ -161,12 +161,10 @@ flowchart TD
 
 1. **`Samples~` 는 Unity 가 컴파일하지 않는다.** 호출처 집계에서 빠지므로, 샘플만 쓰는 API 는
    "사용처 0건"으로 보인다. 샘플을 고칠 때는 컴파일러가 잡아주지 않으니 grep 으로 직접 확인해야 한다.
-2. **`USE_DOTWEEN` 제약은 무효다.** 이 심볼이 걸린 `HCUP.Util.Tween` 어셈블리에는 `.cs` 가 0개고,
-   실제 DOTween 사용처인 `HUI` 의 asmdef 는 `defineConstraints: []` 에 `DOTween.Modules` 를 직접
-   참조한다. 심볼을 정의하든 말든 동작이 같다.
-3. **빈 어셈블리 2개.** `HCUP.Util.Odin`, `HCUP.Util.Tween` 은 `.cs` 가 0개이며 이름 규약
-   (`HCUP.HUtil.*`)에서도 벗어나 있다. 삭제 대상이다.
-4. **`HCore` 의 asmdef 참조 4건이 코드 근거 0건이다** — `Unity.Addressables`,
+2. **`USE_DOTWEEN` 제약은 존재하지 않는다.** 이 심볼이 걸려 있던 빈 어셈블리 `HCUP.Util.Tween`
+   은 2026-08-06 에 제거됐다. 실제 DOTween 사용처인 `HUI` 의 asmdef 는 `defineConstraints: []`
+   에 `DOTween.Modules` 를 직접 참조한다. 심볼을 정의하든 말든 동작이 같다.
+3. **`HCore` 의 asmdef 참조 4건이 코드 근거 0건이다** — `Unity.Addressables`,
    `Unity.ResourceManager`, `UniTask.Addressables`, `HCUP.HUtil`. `HCore` 를 참조하는 모든
    어셈블리에 Addressables 의존이 전파된다.
 5. **`HCore/Runtime/Scene/Demo/` 가 런타임 asmdef 안에 있다.** 테스트 씬 3개와 `SceneTester.cs`
