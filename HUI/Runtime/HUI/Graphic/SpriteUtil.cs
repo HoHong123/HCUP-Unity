@@ -6,9 +6,9 @@ namespace HUI.Graphic {
 
     public static class SpriteUtil {
         /// <summary>
-        /// ImageÀÇ ½ºÇÁ¶óÀÌÆ® pivotÀÌ rectTransformÀÇ referencePivot À§Ä¡¿¡ ¿Àµµ·Ï anchoredPositionÀ» º¸Á¤ÇÑ´Ù.
-        /// - referencePivot: RectTransform ³»ºÎ ±âÁØÁ¡ (0~1). º¸Åë (0.5,0.5) ¶Ç´Â (0,0) µî.
-        /// - ÁÖÀÇ: LayoutGroupÀÌ ºÙ¾î ÀÖÀ¸¸é ¸Å ÇÁ·¹ÀÓ ÀçÀû¿ëµÇ°Å³ª ±úÁú ¼ö ÀÖÀ½.
+        /// Imageì˜ ìŠ¤í”„ë¼ì´íŠ¸ pivotì´ rectTransformì˜ referencePivot ìœ„ì¹˜ì— ì˜¤ë„ë¡ anchoredPositionì„ ë³´ì •í•œë‹¤.
+        /// - referencePivot: RectTransform ë‚´ë¶€ ê¸°ì¤€ì  (0~1). ë³´í†µ (0.5,0.5) ë˜ëŠ” (0,0) ë“±.
+        /// - ì£¼ì˜: LayoutGroupì´ ë¶™ì–´ ìˆìœ¼ë©´ ë§¤ í”„ë ˆì„ ì¬ì ìš©ë˜ê±°ë‚˜ ê¹¨ì§ˆ ìˆ˜ ìˆìŒ.
         /// </summary>
         public static void AlignPivot(this Image image, Vector2 referencePivot) {
             Assert.IsNotNull(image);
@@ -19,22 +19,22 @@ namespace HUI.Graphic {
 
             RectTransform rt = image.rectTransform;
 
-            // ½ºÇÁ¶óÀÌÆ® Å©±â(ÇÈ¼¿)
+            // ìŠ¤í”„ë¼ì´íŠ¸ í¬ê¸°(í”½ì…€)
             float width = sprite.rect.width;
             float height = sprite.rect.height;
 
             if (width <= 0f || height <= 0f) return;
 
-            // ½ºÇÁ¶óÀÌÆ® pivot (ÇÈ¼¿, ÁÂÇÏ´Ü ±âÁØ)
+            // ìŠ¤í”„ë¼ì´íŠ¸ pivot (í”½ì…€, ì¢Œí•˜ë‹¨ ê¸°ì¤€)
             Vector2 pivotPx = sprite.pivot;
 
-            // pivotÀ» 0~1 Á¤±ÔÈ­
+            // pivotì„ 0~1 ì •ê·œí™”
             Vector2 pivot01 = new Vector2(pivotPx.x / width, pivotPx.y / height);
 
-            // RectTransform ³»ºÎÀÇ referencePivot À§Ä¡¿¡¼­, sprite pivotÀÌ ¶³¾îÁø ¸¸Å­(Á¤±ÔÈ­)
+            // RectTransform ë‚´ë¶€ì˜ referencePivot ìœ„ì¹˜ì—ì„œ, sprite pivotì´ ë–¨ì–´ì§„ ë§Œí¼(ì •ê·œí™”)
             Vector2 delta01 = referencePivot - pivot01;
 
-            // RectTransform ÇÈ¼¿ Å©±â ±âÁØÀ¸·Î offset °è»ê
+            // RectTransform í”½ì…€ í¬ê¸° ê¸°ì¤€ìœ¼ë¡œ offset ê³„ì‚°
             Vector2 rectSize = rt.rect.size;
             Vector2 offset = new Vector2(delta01.x * rectSize.x, delta01.y * rectSize.y);
 
