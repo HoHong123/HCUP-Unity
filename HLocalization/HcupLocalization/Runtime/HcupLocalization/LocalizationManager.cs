@@ -58,7 +58,9 @@ namespace HcupLocalization {
         protected override void OnDestroy() {
             base.OnDestroy();
             HTextLocalizer.GetText = null;
-            provider?.ReleaseAll();
+            // InitializeAsync 에서 이 매니저가 provider 를 만들었으므로 폐기 책임도 여기에 있다.
+            provider?.Dispose();
+            provider = null;
         }
         #endregion
 
