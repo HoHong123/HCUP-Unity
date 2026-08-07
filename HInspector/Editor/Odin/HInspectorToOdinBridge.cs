@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using HInspector.Editor;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
 
@@ -59,6 +60,7 @@ namespace HInspector.Odin.Editor {
             _MapHButton(attributes);
             _MapHShowInInspector(attributes);
             _MapHListDrawer(attributes);
+            _MapHDropdown(attributes);
         }
 
         private static void _MapHTitle(List<Attribute> attributes) {
@@ -300,6 +302,79 @@ namespace HInspector.Odin.Editor {
 
             attributes.Add(odinAttr);
         }
+
+        private static void _MapHDropdown(List<Attribute> attributes) {
+            if (attributes.OfType<ValueDropdownAttribute>().Any()) return;
+
+            HDropdownAttribute h = attributes.OfType<HDropdownAttribute>().FirstOrDefault();
+            if (h == null) return;
+            if (string.IsNullOrEmpty(h.SourceId)) return;
+
+            // ValueDropdownAttribute는 문자열 표현식 하나만 받는다. sourceId/allowNone은 필드마다
+            // 달라 컴파일 타임에 고정할 수 없으므로, Odin의 '@정적메서드(...)' 표현식으로 매 필드마다
+            // 다른 인자를 넘겨 HDropdownOdinItemSource.GetItems를 호출하게 만든다.
+            //
+            // 주의 : Odin의 '@' 표현식은 네임스페이스로 정규화된 경로(Namespace.Type.Method)를
+            // 지원하지 않는다 — 짧은 타입 이름(Type.Name)만으로 전역 검색해 타입을 찾는다.
+            // typeof(...).FullName을 쓰면 "Unable to locate identifier" 로 실패한다(실측 확인).
+            // 그래서 이 창구는 public top-level 클래스여야 하고, 표현식에는 Name만 넣는다.
+            string expr = $"@{typeof(HDropdownOdinItemSource).Name}.GetItems(\"{h.SourceId}\", {(h.AllowNone ? "true" : "false")})";
+            attributes.Add(new ValueDropdownAttribute(expr));
+        }
+    }
+
+    // Odin의 ValueDropdown 표현식이 호출하는 항목 공급 창구. HDropdownSourceRegistry(등록소)를
+    // ValueDropdownItem<int> 형태로 번역하기만 하고, 목록 자체는 여전히 각 도메인이 공급한다.
+    // Odin이 짧은 타입 이름으로 전역 검색하므로 public top-level 이어야 한다 (실측 확인).
+    public static class HDropdownOdinItemSource {
+        public static IEnumerable<ValueDropdownItem<int>> GetItems(string sourceId, bool allowNone) {
+            var items = new List<ValueDropdownItem<int>>();
+            if (allowNone) items.Add(new ValueDropdownItem<int>("(None)", 0));
+
+            if (HDropdownSourceRegistry.TryGetOptions(sourceId, out var options)) {
+                for (int k = 0; k < options.Count; k++) {
+                    items.Add(new ValueDropdownItem<int>(options[k].Label, options[k].Value));
+                }
+            }
+
+            return items;
+        }
     }
 }
+
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 [HDropdown] Odin 매핑 누락 수정 — 근본 원인
+ *
+ * # 문제
+ * - Odin 설치 환경(ODIN_INSPECTOR)에서 [HDropdown] 필드가 평범한 int 필드로 그려지고
+ *   값이 절대 바뀌지 않았다. 지난 세션이 HDropdownField.cs(IMGUI 드로어)를 두 차례 수정했지만
+ *   그 코드는 애초에 호출되지 않고 있었다 — _MapAll 매핑 표에 HDropdown 항목이 없어서
+ *   Odin이 [HDropdown]을 인식하지 못하고 무시했다.
+ * - 실측 근거 : `_diag/hdropdown.log`(HDropdownField.cs의 진입 로그)가 재현 클릭 후에도
+ *   한 줄도 기록되지 않음 = Draw()가 아예 호출되지 않음. 콘솔 에러도 0건.
+ *
+ * # 변경
+ * - `_MapHDropdown` 추가 — HDropdownAttribute를 Odin `ValueDropdownAttribute`로 매핑.
+ * - `HDropdownOdinItemSource`(public top-level) 신설 — Odin의 '@정적메서드(...)' 표현식이
+ *   호출할 항목 공급 창구. HDropdownSourceRegistry(등록소)를 그대로 재사용해 목록 출처를
+ *   중복 관리하지 않는다.
+ * - asmdef에 `HCUP.HInspector.Editor` 참조 추가 (등록소가 그 어셈블리에 있어서 필요).
+ *
+ * # 주의 — Odin 표현식 제약 (실측 확인)
+ * - Odin의 '@' 표현식은 네임스페이스로 정규화된 경로(`Namespace.Type.Method`)를 지원하지
+ *   않는다. 짧은 타입 이름(`Type.Name`)만으로 전역 검색해 타입을 찾는다.
+ *   `typeof(X).FullName`을 넣으면 "Unable to locate identifier" 로 즉시 실패한다.
+ * - 그래서 `HDropdownOdinItemSource`는 private 중첩 클래스가 아니라 public top-level
+ *   이어야 하고, 표현식에는 `.Name`만 사용해야 한다.
+ *
+ * # 후속 과제
+ * - HDropdownField.cs의 진단 로그(`HDropdownDiagnostics`)는 이번 조사로 원인이 확정됐으므로
+ *   제거 대상이다. IMGUI 경로(Odin 미설치 환경) 자체는 정상 동작하므로 그 파일 로직은
+ *   손대지 않았다 — 진단 스캐폴딩 제거만 남은 작업이다.
+ * - `HInspector/Editor/Odin/README.md`의 매핑 표에 HDropdown 행 추가 필요.
+ *
+ * =============================================================================
+ */
 #endif
