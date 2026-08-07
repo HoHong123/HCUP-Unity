@@ -38,10 +38,10 @@ namespace HAudio.Editor {
         readonly Dictionary<string, bool> catalogFold = new();
         string selectedCatalog;
 
-        [MenuItem("HCUP/Audio/Data Diagnostics")]
+        [MenuItem("HCUP/Audio/Sound Data Diagnostics")]
         public static void Open() {
             var window = GetWindow<AudioClipDiagnosticsWindow>();
-            window.titleContent = new GUIContent("Data Diagnostics");
+            window.titleContent = new GUIContent("Sound Data Diagnostics");
             window.Show();
         }
 
