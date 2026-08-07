@@ -1,10 +1,10 @@
 ---
 script_path: Assets/01_Scripts/HCUP-Unity/HWindows/Editor/NodeWindow/NodeCatalog/Authoring/NodeCatalogAuthor.cs
 script_name: NodeCatalogAuthor
-latest_log_id: LOG-20260512-1
-total_entries: 11
+latest_log_id: LOG-20260807-1
+total_entries: 12
 created: 2026-05-12
-updated: 2026-05-12
+updated: 2026-08-07
 ---
 
 # NodeCatalogAuthor Dev Log History
@@ -12,6 +12,27 @@ updated: 2026-05-12
 `Assets/01_Scripts/HCUP-Unity/HWindows/Editor/NodeWindow/NodeCatalog/Authoring/NodeCatalogAuthor.cs` 의 Dev Log 엔트리 풀 본문이 본 파일에 시간 역순으로 보관됩니다 (최신이 위). .cs 파일 안에는 최신 3 엔트리의 1-줄 요약 view 가 유지되며, **본 history MD 가 ground truth** — 모든 엔트리의 풀 본문은 손실 없이 본 파일에 보관됩니다.
 
 본 파일은 unity-devlog-history-mirror 스킬에 의해 사용자 명시 요청으로 생성되었습니다 (2026-05-12). legacy 형식 엔트리 포함.
+
+=============================================================================
+@Jason - PKH 2026.08.07 _FindAnyOtherNode 루트 이전 후보에서 CatalogNode 제외 [LOG-20260807-1]
+
+# 변경
+- _FindAnyOtherNode(catalog, exclude): CatalogNode 인 노드를 후보에서 skip 하도록 순회 조건 추가.
+  KeyValuePair 순회로 변경해 value(BaseNode) 타입을 직접 검사.
+
+# 이유
+- RemoveNode / PurgeNullNodes 의 루트 자동 이전 경로가 _FindAnyOtherNode 의 반환값을
+  그대로 catalog.InternalSetRoot() 에 전달한다. InternalSetRoot 는 SetRoot(공개 API)의
+  CatalogNode 타입 가드(LOG-20260511-3)를 거치지 않으므로, 제거된 root 의 유일한 대체
+  후보가 CatalogNode 였을 경우 가드가 우회되어 CatalogNode 가 root 로 지정될 수 있었다.
+
+# 결과
+- Root 자동 이전 시 CatalogNode 는 후보에서 제외 — 남은 노드가 전부 CatalogNode 면
+  fallback.IsValid == false 로 InternalClearRoot() 경로를 타 (root 없음으로 정리).
+
+# 주의
+- SetRoot 의 명시적(사용자 조작) CatalogNode 지정 거부와, 이 변경(자동 이전 후보 제외)은
+  같은 불변식("CatalogNode는 root가 될 수 없다")의 두 진입점을 각각 방어한다.
 
 =============================================================================
 @Jason - PKH 2026.05.12 PurgeNullNodes + _ValidateEdgeCreation null 가드 [LOG-20260512-1]
