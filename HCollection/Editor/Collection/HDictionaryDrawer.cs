@@ -83,6 +83,10 @@ namespace HCollection.Editor {
         static readonly Dictionary<string, ReorderableList> listCache = new();
         static readonly Dictionary<string, string> searchCache = new();
         static readonly Dictionary<string, HashSet<int>> duplicateCache = new();
+
+        // 중복 검사용 스크래치. OnGUI 경로에서 매 리페인트 새로 할당하던 것을 재사용으로 바꿨다.
+        // 에디터 GUI 는 단일 스레드이고 이 사전은 _UpdateDuplicateIndices 호출 안에서만 살아있다.
+        static readonly Dictionary<string, int> duplicateScratch = new();
         #endregion
 
         #region IDisposable Scopes
@@ -587,7 +591,8 @@ namespace HCollection.Editor {
             // 상위 HDictionaryValidator가 Play/Build/Save 경로를 차단하므로, 여기서는 UI 피드백에
             // 집중한다. 사용자가 "1" → "11"로 확장하는 중간에 "1"이 기존 "1"과 중복 표시되는 것은
             // 정상적인 상태 반영이며, 두 번째 "1" 입력 즉시 해소된다.
-            Dictionary<string, int> firstSeen = new();
+            Dictionary<string, int> firstSeen = duplicateScratch;
+            firstSeen.Clear();
             for (int i = 0; i < entriesProperty.arraySize; i++) {
                 SerializedProperty keyProperty = entriesProperty.GetArrayElementAtIndex(i).FindPropertyRelative(KEY_FIELD);
                 string keyText = _PropertyToString(keyProperty) ?? string.Empty;
