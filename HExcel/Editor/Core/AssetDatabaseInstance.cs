@@ -83,8 +83,8 @@ namespace HExcel.Core {
             path = path.Replace(Application.dataPath, "Assets");
             HLogger.Log(path);
             try {
-                instance.isLoadedFromAsset = true;
-                UnityEditor.AssetDatabase.CreateAsset(instance, path);
+                isLoadedFromAsset = true;
+                UnityEditor.AssetDatabase.CreateAsset(this, path);
             }
             catch(Exception e) {
                 HLogger.Error(e.Message);
@@ -98,13 +98,13 @@ namespace HExcel.Core {
                 return;
             }
             try {
-                instance.isLoadedFromAsset = true;
-                UnityEditor.AssetDatabase.CreateAsset(instance, assetPath);
+                isLoadedFromAsset = true;
+                UnityEditor.AssetDatabase.CreateAsset(this, assetPath);
                 UnityEditor.AssetDatabase.SaveAssets();
             }
             catch (Exception e) {
                 HLogger.Error(e.Message);
-                instance.isLoadedFromAsset = false;
+                isLoadedFromAsset = false;
             }
         }
         #endregion
@@ -115,6 +115,19 @@ namespace HExcel.Core {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 CreateAsset/CreateAssetAt 대상 오브젝트 수정
+ *
+ * # 변경
+ * - CreateAsset() / CreateAssetAt(string) : static instance 필드 대신 this 에 기록
+ *
+ * # 이유
+ * - 두 메서드는 CustomEditor 가 Reflection 으로 target(=인스펙터에서 보고 있는 실제
+ *   객체)을 대상으로 호출한다. 그런데 본문은 static Instance 캐시 필드를 읽고 써서,
+ *   캐시가 target 과 다른 객체를 가리키면 엉뚱한 에셋이 저장되고 isLoadedFromAsset 도
+ *   잘못된 대상에 찍혔다. instance 프로퍼티 게터를 거치지 않아 캐시 미초기화 상태에서
+ *   호출되면 NullReferenceException 도 발생했다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.13 CreateAssetAt(string) 추가
  *
