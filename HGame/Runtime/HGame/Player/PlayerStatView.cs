@@ -2,7 +2,7 @@ using UnityEngine;
 using HGame.Skill;
 
 namespace HGame.Player {
-    // (½ºÅÈ + ½ºÅ³) ÃÖÁ¾¼öÄ¡ °è»ê Å¬·¡½º
+    // (ìŠ¤íƒ¯ + ìŠ¤í‚¬) ìµœì¢…ìˆ˜ì¹˜ ê³„ì‚° í´ë˜ìŠ¤
     public sealed class PlayerStatView : MonoBehaviour {
         PlayerConfig config = null;
         SkillStats skill = null;
