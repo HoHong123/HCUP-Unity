@@ -8,6 +8,7 @@
  * TryGet — 비동기 없이 cache 만 단순 조회.
  * Release / Release(key, ownerId) / ReleaseOwner / ReleaseAll / ClearCache — 점유 해제 5 갈래.
  * ClearStoreAsync — store 영속 데이터 비움.
+ * Dispose — provider 폐기 (남은 점유 일괄 해제 + cache 이벤트 구독 해제).
  *
  * 사용법 ::
  * Repository / 도메인 코드가 본 인터페이스로 자산 조회. owner lifecycle 이 있는 경로는
@@ -18,16 +19,19 @@
  * Subscription 의 IAssetLeaseManager / IAssetLease 는 위에 얹힌 선택 계층일 뿐, 실제 자산
  * 수명은 언제나 provider(cache) 의 Release 경로를 통해 종료. 오너 단위 일괄 해제와 전역
  * 해제는 provider 에만 존재 — lease 계층은 단일 key 짝맞춤만 제공.
+ * provider 를 만든 쪽(MonoBehaviour 등)은 OnDestroy 에서 Dispose 를 호출할 책임을 진다.
+ * 주입만 받아 쓰는 쪽(AssetLeaseManager 등)은 Dispose 하지 않는다 — 소유자가 아니다.
  * =========================================================
  */
 #endif
 
+using System;
 using Cysharp.Threading.Tasks;
 using HResource.Data;
 using HResource.Subscription;
 
 namespace HResource.Provider {
-    public interface IAssetProvider<TKey, TAsset> {
+    public interface IAssetProvider<TKey, TAsset> : IDisposable {
         UniTask<TAsset> GetAsync(AssetRequest<TKey> request);
         UniTask<TAsset> GetAsync(
             TKey key,
@@ -51,6 +55,18 @@ namespace HResource.Provider {
 /* =========================================================
  * Dev Log
  * =========================================================
+ *
+ * =========================================================
+ * 2026-08-06 (수정) :: IDisposable 상속 (케이스 리포트 01 TST-2)
+ * =========================================================
+ * 변경 ::
+ * IAssetProvider<TKey, TAsset> 가 System.IDisposable 을 상속.
+ *
+ * 이유 ::
+ * AssetProvider 는 IDisposable 을 이미 구현하고 있었으나 소유자 4곳이 전부 IAssetProvider
+ * 타입 필드로 들고 있어 Dispose 가 문법적으로 도달 불가였다 — "호출자 0건" 의 진짜 원인.
+ * 폐기 경로를 Factory 에 새로 만드는 대신(리포트 처방), 이미 있는 Dispose 를 계약에 올려
+ * 도달 가능하게 하는 쪽이 구현체·소유자 양쪽에 추가 개념을 만들지 않는다.
  *
  * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
