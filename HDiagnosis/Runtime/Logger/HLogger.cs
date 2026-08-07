@@ -15,7 +15,7 @@ using System.Collections.Generic;
 #endif
 
 namespace HDiagnosis.Logger {
-    public class HLogger {
+    public static class HLogger {
         #region Const
         const int MAX_QUE_SIZE = 1000;
         #endregion
@@ -76,19 +76,21 @@ namespace HDiagnosis.Logger {
         #region Log
 #if !UNITY_EDITOR
         readonly static Queue<LogEntry> logQue = new();
+#endif
 
         // Domain Reload 비활성(Enter Play Mode Options) 시 정적 구독·큐가 플레이 세션을 넘어
         // 잔존하는 것을 차단한다.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void _ResetStatics() {
             OnLogPublished = null;
+#if !UNITY_EDITOR
             logQue.Clear();
-        }
 #endif
+        }
         #endregion
 
         #region Property
-        static DateTimeOffset _UtcNow => DateTimeOffset.Now;
+        static DateTimeOffset _UtcNow => DateTimeOffset.UtcNow;
         #endregion
 
         #region Public - Call Logger
@@ -192,3 +194,19 @@ namespace HDiagnosis.Logger {
         #endregion
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 static 봉인 + UTC 표기 교정
+ *
+ * # 수정
+ * - `public class` → `public static class` 로 교정. 암묵적 public 생성자로
+ *   `new HLogger()` 가 가능했던 결함을 제거(README 에 이미 기술돼 있던 이슈).
+ * - `_UtcNow` 가 `DateTimeOffset.Now`(로컬 타임존)를 반환하던 것을 `DateTimeOffset.UtcNow` 로 교정.
+ *   이름과 실제 동작의 불일치를 해소.
+ *
+ * =============================================================================
+ */
+#endif
