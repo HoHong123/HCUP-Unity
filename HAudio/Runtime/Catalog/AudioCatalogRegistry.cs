@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine.Assertions;
 using HAudio.Core;
+using HDiagnosis.Logger;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -41,11 +42,16 @@ namespace HAudio.Catalog {
         #region Fields
         readonly Dictionary<AudioCatalogSO, int> catalogRefTable = new();
         readonly Dictionary<string, EntrySlot> tokenEntryTable = new Dictionary<string, EntrySlot>(StringComparer.Ordinal);
+        // uid 축 인덱스. token 축과 같은 EntrySlot 을 가리키지 않고 별도 슬롯을 쓴다.
+        // 두 축의 retain/release 를 독립적으로 세야 한 축의 해제가 다른 축을 무너뜨리지 않는다.
+        // 재생 경로는 이쪽만 탄다 (int 해시 = 항등, 할당 0).
+        readonly Dictionary<int, EntrySlot> uidEntryTable = new();
         #endregion
 
         #region Properties
         public int CatalogCount => catalogRefTable.Count;
         public int EntryCount => tokenEntryTable.Count;
+        public int UidEntryCount => uidEntryTable.Count;
         #endregion
 
         #region Public - Catalog
@@ -97,10 +103,22 @@ namespace HAudio.Catalog {
         public void Clear() {
             catalogRefTable.Clear();
             tokenEntryTable.Clear();
+            uidEntryTable.Clear();
         }
         #endregion
 
         #region Public - Lookup
+        /// <summary> uid 로 조회한다. 재생 경로의 기본 진입점 — 문자열을 만지지 않는다. </summary>
+        public bool TryGetEntry(int uid, out AudioCatalogSO.Entry entry) {
+            entry = null;
+            if (uid == 0) return false;
+            if (!uidEntryTable.TryGetValue(uid, out var slot)) return false;
+
+            entry = slot.Entry;
+            return entry != null;
+        }
+
+        /// <summary> token 으로 조회한다. 저작·에디터·디버그 축. </summary>
         public bool TryGetEntry(string token, out AudioCatalogSO.Entry entry) {
             entry = null;
 
@@ -110,6 +128,11 @@ namespace HAudio.Catalog {
 
             entry = slot.Entry;
             return entry != null;
+        }
+
+        public bool ContainsUid(int uid) {
+            if (uid == 0) return false;
+            return uidEntryTable.ContainsKey(uid);
         }
 
         public bool ContainsToken(string token) {
@@ -137,13 +160,56 @@ namespace HAudio.Catalog {
                 existing => _AssertEquivalentEntry(existing, entry, normalizedToken, normalizedPath),
                 duplicateKey => $"[AudioCatalogRegistry] Token collision detected. token={duplicateKey}");
 
+            if (_TryResolveUid(entry, normalizedToken, out int uid)) {
+                _RetainEntry(
+                    uidEntryTable,
+                    uid,
+                    entry,
+                    existing => _AssertEquivalentEntry(existing, entry, normalizedToken, normalizedPath),
+                    duplicateKey => $"[AudioCatalogRegistry] Uid collision detected. uid={duplicateKey}");
+            }
         }
 
         private bool _ReleaseEntry(AudioCatalogSO.Entry entry) {
             Assert.IsNotNull(entry, "[AudioCatalogRegistry] entry is null.");
             if (entry == null) return false;
 
-            return _ReleaseEntry(tokenEntryTable, _NormalizeToken(entry.Token));
+            string normalizedToken = _NormalizeToken(entry.Token);
+
+            // token 축의 제거 여부를 반환값으로 삼는다 — 자산 해제의 기준은 종전과 동일하게 token 축이다.
+            // uid 축은 같은 시점에 함께 내려놓기만 하고 판정에는 관여하지 않는다.
+            if (_TryResolveUid(entry, normalizedToken, out int uid)) {
+                _ReleaseEntry(uidEntryTable, uid);
+            }
+
+            return _ReleaseEntry(tokenEntryTable, normalizedToken);
+        }
+
+        // uid 는 Entry.uid 필드가 정본이다. 다만 필드가 도입되기 전에 만들어진 카탈로그는 0 이므로,
+        // 그 경우에 한해 token 규약("{uid}_{이름}")에서 복구한다 — 등록 시점 1회뿐이고
+        // 재생 경로에서는 절대 파싱하지 않는다.
+        private bool _TryResolveUid(AudioCatalogSO.Entry entry, string normalizedToken, out int uid) {
+            uid = entry.Uid;
+
+            if (uid != 0) {
+                // 필드와 token 이 어긋나면 둘 중 하나가 손상된 것이다. 조용히 한쪽을 택하지 않는다.
+                if (AudioCatalogSO.TryParseUid(normalizedToken, out int parsedUid) && parsedUid != uid) {
+                    HLogger.Error(
+                        $"[AudioCatalogRegistry] Uid mismatch between field and token. uid={uid}, token={normalizedToken}. Regenerate the catalog.");
+                    return false;
+                }
+                return true;
+            }
+
+            if (!AudioCatalogSO.TryParseUid(normalizedToken, out uid)) {
+                HLogger.Error(
+                    $"[AudioCatalogRegistry] Entry has no uid and its token does not follow the \"{{uid}}_{{name}}\" convention. token={normalizedToken}");
+                return false;
+            }
+
+            HLogger.Warning(
+                $"[AudioCatalogRegistry] Entry uid was recovered from the token. Regenerate the catalog to persist it. token={normalizedToken}");
+            return true;
         }
         #endregion
 
