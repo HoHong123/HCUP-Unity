@@ -21,6 +21,8 @@ using HDiagnosis.Logger;
  * 실제 제거 조건은 AnonymousDependency == 0 + Owners.Count == 0 (둘 다 비어야 함).
  * lease 계층과 독립 동작. 가장 얇은 기본 cache 이지만 owner-aware 구조를 포함하여
  * 다중 호출자 점유 추적 가능.
+ * 조회(TryGet)는 점유를 바꾸지 않는다 — 점유 등록은 Save 만 담당한다.
+ * Release 가 false 를 돌려주는 두 경우 중 "점유가 애초에 없음" 은 경고를 남긴다.
  *
  * 양방향 멀티탭 패턴 ::
  * - Item.Owners: "이 key 를 누가 잡고 있나?"
@@ -48,32 +50,6 @@ namespace HResource.Cache {
 
         #region Events
         public event Action<TKey, TAsset> OnAssetRemoved;
-        #endregion
-
-        #region Public - Load
-        public bool TryLoad(TKey key, out TAsset asset) {
-            asset = default;
-            if (!_TryGetItem(key, out var item, out asset)) {
-                return false;
-            }
-
-            item.AnonymousDependency++;
-            return true;
-        }
-
-        public bool TryLoad(TKey key, AssetOwnerId ownerId, out TAsset asset) {
-            asset = default;
-            if (!ownerId.IsValid) {
-                return TryLoad(key, out asset);
-            }
-
-            if (!_TryGetItem(key, out var item, out asset)) {
-                return false;
-            }
-
-            _AddOwnerDependency(item, ownerId, key);
-            return true;
-        }
         #endregion
 
         #region Public - Get
@@ -130,8 +106,14 @@ namespace HResource.Cache {
 
         #region Public - Release
         public bool Release(TKey key) {
-            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) return false;
-            if (item.AnonymousDependency < 1) return false;
+            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) {
+                _WarnUnpairedRelease(key, "no cache entry");
+                return false;
+            }
+            if (item.AnonymousDependency < 1) {
+                _WarnUnpairedRelease(key, "no anonymous dependency registered");
+                return false;
+            }
             item.AnonymousDependency--;
             return _TryRemoveItem(key, item);
         }
@@ -139,8 +121,14 @@ namespace HResource.Cache {
         public bool Release(TKey key, AssetOwnerId ownerId) {
             if (!ownerId.IsValid) return Release(key);
 
-            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) return false;
-            if (!item.Owners.TryGetValue(ownerId, out int dependency)) return false;
+            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) {
+                _WarnUnpairedRelease(key, $"no cache entry (ownerId={ownerId})");
+                return false;
+            }
+            if (!item.Owners.TryGetValue(ownerId, out int dependency)) {
+                _WarnUnpairedRelease(key, $"ownerId={ownerId} holds no dependency on this key");
+                return false;
+            }
 
             if (dependency > 1) {
                 item.Owners[ownerId] = dependency - 1;
@@ -261,10 +249,36 @@ namespace HResource.Cache {
         }
         #endregion
 
+        #region Private - Diagnostics
+        // Release 의 false 는 두 가지 뜻이 겹쳐 있다 — "아직 다른 점유가 남아 살아있다"(정상)
+        // 와 "애초에 이 호출자의 점유가 없다"(획득/해제 짝 오류). 반환값만으로는 호출자가
+        // 둘을 구분할 수 없으므로, 후자에 한해 경고를 남겨 짝 오류를 관측 가능하게 한다.
+        // Error 가 아니라 Warning 인 이유 : ReleaseAll/Clear 이후의 뒤늦은 Release 처럼
+        // 회복 가능한 정리 순서 문제도 이 경로로 들어오기 때문.
+        private void _WarnUnpairedRelease(TKey key, string reason) {
+            HLogger.Warning($"[AssetCache] Unpaired release for key '{key}' — {reason}.");
+        }
+        #endregion
+
         #region Private - Event
+        // 멀티캐스트 델리게이트는 구독자 하나가 던지면 뒤 구독자를 호출하지 않는다. 이 이벤트는
+        // provider 의 로더 핸들 회수를 트리거하는 정리(clean-up) 신호라, 중간에 끊기면 남은
+        // 항목들은 이미 table 에서 제거된 뒤라서 재시도 대상도 아니고 핸들만 살아남는다.
+        // (케이스 리포트 07 EXC-2 — SceneLoader._InvokeSafely 와 동일 처방)
         private void _NotifyRemoved(TKey key, TAsset asset) {
             if (ReferenceEquals(asset, null)) return;
-            OnAssetRemoved?.Invoke(key, asset);
+
+            var handlers = OnAssetRemoved;
+            if (handlers == null) return;
+
+            foreach (Action<TKey, TAsset> handler in handlers.GetInvocationList()) {
+                try {
+                    handler(key, asset);
+                }
+                catch (Exception e) {
+                    HLogger.Error($"[AssetCache] OnAssetRemoved subscriber threw for key '{key}': {e}");
+                }
+            }
         }
         #endregion
     }
@@ -274,6 +288,34 @@ namespace HResource.Cache {
 /* =========================================================
  * Dev Log
  * =========================================================
+ *
+ * =========================================================
+ * 2026-08-06 (수정 2) :: OnAssetRemoved 구독자 예외 격리 (케이스 리포트 07 EXC-2)
+ * =========================================================
+ * 변경 ::
+ * _NotifyRemoved 가 OnAssetRemoved?.Invoke 한 번으로 끝내던 것을 GetInvocationList() 순회 +
+ * 구독자별 try/catch 로 교체.
+ *
+ * 이유 ::
+ * _ClearItems 는 table 을 먼저 비운 뒤 복사본을 순회하며 알림을 쏜다. 구독자
+ * (AssetProvider._OnAssetRemoved → Addressables.Release) 가 하나라도 던지면 멀티캐스트가
+ * 끊기고 foreach 도 중단되는데, 남은 항목은 이미 table 에서 사라져 재시도 대상이 아니다.
+ * 결과는 "캐시에는 없고 로더 핸들만 사는" 미아가 대량 발생. Dispose 가 곧 ReleaseAll 이라
+ * 모든 소유자의 OnDestroy 가 사정권이었다. 처방은 리포트 04 의 SceneLoader._InvokeSafely 와 동일.
+ *
+ * =========================================================
+ * 2026-08-06 (수정) :: TryLoad 2종 제거 + 짝 없는 Release 경고 (케이스 리포트 01 TST-2/NEG-2)
+ * =========================================================
+ * 변경 ::
+ * 1) TryLoad(key) / TryLoad(key, ownerId) 구현 삭제 — IAssetReader 계약에서 함께 제거.
+ * 2) Release 2종에 _WarnUnpairedRelease 추가. "점유가 없어서 false" 인 경로에만 경고.
+ *
+ * 이유 ::
+ * 1) TryLoad 는 "조회하며 점유를 올리는" 의미라 provider 의 호출자별 1:1 등록 규약과
+ *    이중 카운트가 난다. 호출자 0건인 지금 지우는 편이 후속 오용보다 싸다.
+ * 2) Release 의 false 는 "아직 남아있음"(정상) 과 "애초에 없음"(짝 오류) 두 뜻이 겹쳐
+ *    호출자가 구분할 수 없었다. 반환 타입을 바꾸면 공개 API 파괴 변경이므로, 계약은
+ *    유지한 채 후자에만 경고를 붙여 관측 가능성만 확보했다.
  *
  * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
