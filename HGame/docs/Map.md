@@ -28,9 +28,9 @@ Map 은 두 개의 작은 관심사를 담는다.
 | `Map/MapBoundType.cs` | `MapBoundType` | WorldBox / BoundSource / Absolute | 7 |
 | `H2D/Map/Box2DBoundSource.cs` | `Box2DBoundSource` | `BoxCollider2D.bounds` → Rect | 22 |
 | `H2D/Map/CompositeBoundSource.cs` | `CompositeBoundSource` | `CompositeCollider2D.bounds` → Rect (size > 0 검사) | 22 |
-| `H2D/Map/SpriteRendererBoundSource.cs` | **`SpriteRendererBoundsSource`** | `SpriteRenderer.bounds` → Rect | 22 |
+| `H2D/Map/SpriteRendererBoundsSource.cs` | **`SpriteRendererBoundsSource`** | `SpriteRenderer.bounds` → Rect | 22 |
 | `H2D/Map/TilemapBoundSource.cs` | `TilemapBoundSource` | `cellBounds` → 월드 Rect (size > 0 검사) | 26 |
-| `H2D/Map/MinimapTracker.cs` | **`MinimapTrackable`** | 추적 대상 마커 설정 컴포넌트 | 49 |
+| `H2D/Map/MinimapTrackable.cs` | **`MinimapTrackable`** | 추적 대상 마커 설정 컴포넌트 | 49 |
 | `H2D/Map/MapManager.cs` | `MapManager` | 미니맵 본체 (`SingletonBehaviour`) | 350 |
 
 **굵게 표시한 두 파일은 파일명과 타입명이 다르다.**
@@ -113,7 +113,7 @@ return size.x > 0 && size.y > 0;
 ### 추적 대상
 
 ```csharp
-// H2D/Map/MinimapTracker.cs:8-47 — MinimapTrackable
+// H2D/Map/MinimapTrackable.cs:8-47 — MinimapTrackable
 public bool  UseIcon             // false 면 MapManager.defaultMarkerSpt 사용
 public bool  ScaleByCollider     // 콜라이더 크기에 비례해 마커 크기 조절
 public bool  ShowWhenOutOfBounds // false 면 월드 Rect 밖일 때 마커 숨김
@@ -386,7 +386,7 @@ void OnDestroy() {
 
 ### 계약
 
-1. **`MinimapTrackable.Init` 을 호출해야 `Icon` 이 유효하다** (`MinimapTracker.cs:40, 44-47`).
+1. **`MinimapTrackable.Init` 을 호출해야 `Icon` 이 유효하다** (`MinimapTrackable.cs:40, 44-47`).
    `config` 는 `[HReadOnly]` 라 인스펙터로 넣을 수 없다. `Init` 없이 `UseIcon = true` 로
    `Register` 하면 `config.Icon` 에서 `NullReferenceException` 이다 (`MapManager.cs:122`).
 2. **`Unregister` 를 부르지 않으면 마커가 풀로 반납되지 않는다** (`MapManager.cs:128-133`).
@@ -434,7 +434,7 @@ void OnDestroy() {
 
 12. **`LateUpdate` 가 `track.Target` 의 null 을 검사하지 않는다**
     (`MapManager.cs:175, 181`). `MinimapTrackable.Init` 을 거치지 않고 `target` 도
-    미배선이면 (`MinimapTracker.cs:15, 46`) 매 프레임 `NullReferenceException` 이다.
+    미배선이면 (`MinimapTrackable.cs:15, 46`) 매 프레임 `NullReferenceException` 이다.
     파괴된 대상도 `Unregister` 전까지 계속 순회된다 (`:105`).
 
 13. **`_UpdateIconScaleByCollider` 가 매 프레임 `GetComponent<SpriteRenderer>` 를 호출한다**
@@ -445,9 +445,10 @@ void OnDestroy() {
     `markerPrefab` / `mapPanel` 중 하나만 비어도 `NullReferenceException` 이며,
     `[HRequired]` 도 붙어 있지 않다.
 
-15. **파일명과 타입명이 어긋난 파일 2개.**
-    `MinimapTracker.cs:8` → `MinimapTrackable`,
-    `SpriteRendererBoundSource.cs:7` → `SpriteRendererBoundsSource`.
+15. ~~**파일명과 타입명이 어긋난 파일 2개.**~~ 2026-08-06 정정 완료 —
+    `MinimapTracker.cs` → `MinimapTrackable.cs`,
+    `SpriteRendererBoundSource.cs` → `SpriteRendererBoundsSource.cs`
+    (둘 다 `MonoBehaviour` 라 파일명 불일치는 컴포넌트 부착 불가로 이어진다).
 
 16. **`Box2DBoundSource` 와 `SpriteRendererBoundsSource` 에는 크기 0 검사가 없다**
     (`:12-20` 양쪽). 형제 구현 둘(`CompositeBoundSource.cs:19`,
