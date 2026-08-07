@@ -35,7 +35,6 @@
 |---|---|---|---|
 | `HCUP.HAudio` | Runtime | 15 | `UniTask`, `HCUP.HUtil`, `HCUP.HUI`, `HCUP.HCore`, `HCUP.HInspector`, `HCUP.HDiagnosis`, `HCUP.HCollection`, `HCUP.HResource` |
 | `HCUP.HAudio.Editor` | Editor | 4 | `HCUP.HAudio`, `HCUP.HUtil`, `HCUP.HUI`, `HCUP.HData`, `HCUP.HDiagnosis`, `HCUP.HCore` |
-| `HCUP.HAudio.Odin` | Runtime (`ODIN_INSPECTOR`) | **0** | 빈 어셈블리 |
 
 ---
 
@@ -84,6 +83,5 @@
    현재 코드에 그 경로가 없다 (추론).
 3. **`AudioCatalogSO.BuildAddressableLoadKey` 는 호출처가 0건이다.** 같은 로직을
    `AudioClipRepository` 가 자체 구현한다 — 둘 중 하나로 모아야 한다.
-4. **`HCUP.HAudio.Odin` 은 빈 어셈블리다.** 삭제 대상이다.
 
 근거 라인은 [Runtime README](Runtime/README.md) 의 "주의할 점" 절에 있다.
