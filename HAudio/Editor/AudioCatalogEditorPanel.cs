@@ -9,7 +9,8 @@ using HDiagnosis.Logger;
 using HAudio.Core;
 
 namespace HAudio.Editor {
-    public sealed class AudioCatalogEditorWindow : EditorWindow {
+    [Serializable]
+    public sealed class AudioCatalogEditorPanel {
         #region Nested Class
         public sealed class Row {
             public int Index;
@@ -54,23 +55,28 @@ namespace HAudio.Editor {
         Dictionary<AudioCatalogSO, bool> catalogFoldouts = new();
         #endregion
 
-        #region Menu
-        [MenuItem("HCUP/Audio/Sound Catalog Editor")]
-        public static void Open() {
-            var window = GetWindow<AudioCatalogEditorWindow>();
-            window.titleContent = new GUIContent("Sound Catalogs");
-            window.Show();
+        #region Host
+        // 이 패널은 SoundToolsWindow 의 탭으로 그려진다. EditorWindow 를 상속하지 않으므로
+        // Repaint 같은 창 기능은 호스트를 통해 부른다. [NonSerialized] 인 이유는 창 참조를
+        // 직렬화하면 도메인 리로드 후 죽은 참조가 남기 때문 — 매 Draw 에서 다시 받는다.
+        [NonSerialized]
+        EditorWindow host;
+
+        private void _Repaint() {
+            if (host != null) host.Repaint();
         }
         #endregion
 
-        #region Unity Life Cycle
-        private void OnEnable() {
+        #region Panel Life Cycle
+        public void OnEnable() {
             dirtyRows = true;
         }
         #endregion
 
         #region IMGUI
-        private void OnGUI() {
+        public void Draw(EditorWindow owner) {
+            host = owner;
+
             _DrawSearchBar();
             _DrawCatalogList();
             _DrawToolbar();
@@ -125,7 +131,7 @@ namespace HAudio.Editor {
 
                     if (GUILayout.Button("Refresh", GUILayout.Width(100))) {
                         dirtyRows = true;
-                        Repaint();
+                        _Repaint();
                     }
                 }
             }
@@ -173,7 +179,9 @@ namespace HAudio.Editor {
 
                         if (added) {
                             dirtyRows = true;
-                            EditorUtility.SetDirty(this);
+                            // 패널은 UnityEngine.Object 가 아니다. 직렬화 상태를 들고 있는
+                            // 것은 호스트 창이므로 더티 표시도 그쪽에 건다.
+                            if (host != null) EditorUtility.SetDirty(host);
                         }
                     }
 
@@ -247,19 +255,19 @@ namespace HAudio.Editor {
                 if (removeIndex >= 0) {
                     catalogs.RemoveAt(removeIndex);
                     dirtyRows = true;
-                    Repaint();
+                    _Repaint();
                 }
 
                 using (new EditorGUILayout.HorizontalScope()) {
                     if (GUILayout.Button("+ Add", GUILayout.Width(120))) {
                         catalogs.Add(null);
-                        Repaint();
+                        _Repaint();
                     }
 
                     if (GUILayout.Button("Clear", GUILayout.Width(120))) {
                         catalogs.Clear();
                         dirtyRows = true;
-                        Repaint();
+                        _Repaint();
                     }
 
                     GUILayout.FlexibleSpace();
@@ -267,7 +275,7 @@ namespace HAudio.Editor {
                     if (GUILayout.Button("Remove Null", GUILayout.Width(120))) {
                         catalogs.RemoveAll(x => !x);
                         dirtyRows = true;
-                        Repaint();
+                        _Repaint();
                     }
                 }
             }
@@ -445,7 +453,7 @@ namespace HAudio.Editor {
             }
 
             AssetDatabase.SaveAssets();
-            Repaint();
+            _Repaint();
         }
 
         private void _ResolveAllCatalogsClipsFromTokenAndPath() {
@@ -458,7 +466,7 @@ namespace HAudio.Editor {
             }
 
             AssetDatabase.SaveAssets();
-            Repaint();
+            _Repaint();
         }
 
         private void _UpdateSingleTokenAndPathFromClip(Row row) {
@@ -510,7 +518,7 @@ namespace HAudio.Editor {
         private void _TryPreviewClip(AudioClip clip) {
             if (!clip) return;
             if (!EditorAudioPreview.CanUse) {
-                HLogger.Warning("[AudioCatalogEditorWindow] EditorAudioPreview is not available on this Unity version.");
+                HLogger.Warning("[AudioCatalogEditorPanel] EditorAudioPreview is not available on this Unity version.");
                 return;
             }
             EditorAudioPreview.Play(clip, loop: false, single: true);
