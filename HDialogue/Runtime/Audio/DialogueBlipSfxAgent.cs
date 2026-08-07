@@ -31,6 +31,11 @@ namespace HDialogue {
 
         IBlipSfxService blipService;
         string currentBlipToken;
+
+        // Fast 속도 + 홀드 가속이 겹치면 글자당 지연이 초당 130회 이상 호출을 만든다 — 재생
+        // 자체에 최소 간격을 둬 오디오 파이프라인 스팸을 막는다(타이핑 속도 자체는 바꾸지 않는다).
+        const float MIN_BLIP_INTERVAL_SECONDS = 0.03f;
+        float lastBlipTime = float.NegativeInfinity;
         #endregion
 
         #region Unity Life Cycle
@@ -52,6 +57,9 @@ namespace HDialogue {
         }
 
         public void PlayBlip() {
+            float now = Time.unscaledTime;
+            if (now - lastBlipTime < MIN_BLIP_INTERVAL_SECONDS) return;
+            lastBlipTime = now;
             blipService?.PlayBlip(currentBlipToken);
         }
         #endregion
@@ -61,6 +69,17 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: PlayBlip 최소 재생 간격 방어 추가
+ *
+ * # 변경
+ * - `lastBlipTime` 필드 + `MIN_BLIP_INTERVAL_SECONDS`(0.03s) 상수 추가.
+ * - `PlayBlip()`: 마지막 재생 후 최소 간격 미만이면 무시.
+ *
+ * # 이유
+ * - `DialogueTextController` 가 글자마다 `PlayBlip()` 을 호출한다. Fast 속도 + 홀드 가속
+ *   조합에서 글자당 지연이 초당 130회 이상까지 내려가는데 재생 자체에는 상한이 없었다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: AudioClips 필드·메서드 전면 string 토큰 롤백
  *

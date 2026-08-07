@@ -104,16 +104,18 @@ namespace HDialogue {
         public DialogueTextController TextController => textController;
         public CharacterStageDirector StageDirector => stageDirector;
         public DialogueUiController UiController => uiController;
+        // director 는 _ValidateRefs 실패 시 null 로 남는다 — Awake 가 이후 초기화를 중단해도
+        // 인스턴스 자체는 씬에 살아있어 외부 코드가 이 프로퍼티를 계속 호출할 수 있다.
         public bool IsSkipping {
-            get => director.IsSkipping;
-            set => director.IsSkipping = value;
+            get => director != null && director.IsSkipping;
+            set { if (director != null) director.IsSkipping = value; }
         }
         public float AutoAdvanceDelay {
-            get => director.AutoAdvanceDelay;
-            set => director.AutoAdvanceDelay = value;
+            get => director != null ? director.AutoAdvanceDelay : -1f;
+            set { if (director != null) director.AutoAdvanceDelay = value; }
         }
         // 게터는 이제 "실제 적용되는 지연" 을 반환한다 — auto 모드 on/off 판정은 이 쪽을 쓴다.
-        public bool IsAutoAdvanceOn => director.HasAutoAdvanceOverride;
+        public bool IsAutoAdvanceOn => director != null && director.HasAutoAdvanceOverride;
         #endregion
 
         #region Unity Life Cycle
@@ -142,6 +144,10 @@ namespace HDialogue {
         public void PlayCatalog(DialogueCatalogSO catalog) {
             if (catalog == null) {
                 HLogger.Error("[DialogueManager] PlayCatalog: catalog is null.");
+                return;
+            }
+            if (director == null) {
+                HLogger.Error("[DialogueManager] PlayCatalog: director is not assigned (Awake validation failed).");
                 return;
             }
             currentCatalog = catalog;
@@ -178,6 +184,10 @@ namespace HDialogue {
         }
 
         public void Stop() {
+            if (director == null) {
+                HLogger.Error("[DialogueManager] Stop: director is not assigned (Awake validation failed).");
+                return;
+            }
             director.Stop();
 #if UNITY_EDITOR
             _RestoreLocalizationOverride();
@@ -351,6 +361,7 @@ namespace HDialogue {
 #if UNITY_EDITOR
             _RestoreLocalizationOverride();
 #endif
+            textController.Clear();
             uiController.ShowSpeakerName(string.Empty);
             uiController.ShowAdvanceHint(false);
             uiController.HideChoices();
@@ -409,6 +420,18 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: director null 역참조 방어 4곳 추가
+ *
+ * # 변경
+ * - `IsSkipping` / `AutoAdvanceDelay` / `IsAutoAdvanceOn` : director null 이면 안전한
+ *   기본값(false / -1f) 반환, setter 는 무시.
+ * - `PlayCatalog` / `Stop` : 진입부에 director null 가드 + HLogger.Error 추가.
+ *
+ * # 이유
+ * - `_ValidateRefs()` 가 director 미할당을 이유로 실패하면 Awake 가 조기 반환하지만
+ *   싱글톤 인스턴스 자체는 씬에 남는다. 이후 외부 코드가 위 4곳을 호출하면 NRE.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: _OnUiAutoToggle bool 파라미터 + _OnInputAutoToggle 로직 갱신
  *

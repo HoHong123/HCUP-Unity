@@ -127,8 +127,13 @@ namespace HDialogue {
             }
 
             if (ctx.AutoHighlightSpeaker) {
-                foreach (var (charKey, controller) in controllers) {
-                    controller.SetHighlight(charKey == ctx.SpeakerKey);
+                // controllers 는 한 번이라도 생성된 모든 캐릭터를 담는다(퇴장한 캐릭터도 포함).
+                // 그 전체를 순회하면 퇴장 캐릭터마다 매 라인 하이라이트 트랜지션 태스크가 새로
+                // 생긴다 — 현재 무대 위(characterToSlot)에 있는 캐릭터만 대상으로 좁힌다.
+                foreach (string charKey in characterToSlot.Keys) {
+                    if (controllers.TryGetValue(charKey, out CharacterPortraitController controller)) {
+                        controller.SetHighlight(charKey == ctx.SpeakerKey);
+                    }
                 }
             }
         }
@@ -346,6 +351,18 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: EnterLine AutoHighlight 순회 범위를 무대 위 캐릭터로 축소
+ *
+ * # 변경
+ * - `EnterLine` AutoHighlight 블록: `controllers` 전체 순회 → `characterToSlot.Keys`
+ *   (현재 무대 위 캐릭터만) 순회로 축소.
+ *
+ * # 이유
+ * - `controllers` 는 한 번이라도 생성된 캐릭터를 전부 담아 퇴장 후에도 남는다.
+ *   `SetHighlight` 는 항상 트랜지션 태스크를 새로 기동하므로, 전체 순회 시 퇴장 캐릭터마다
+ *   매 라인 불필요한 태스크가 쌓였다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: Addressable spriteProvider 생성 + Controller 주입
  *

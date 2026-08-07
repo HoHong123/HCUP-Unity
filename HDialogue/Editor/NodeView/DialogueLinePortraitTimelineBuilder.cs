@@ -12,6 +12,7 @@
  * editorLocalizationSO 미연결 시 Build는 빈 목록 반환 (포트레이트 스트립 미표시).
  * 텍스트 해시 충돌 시 잘못된 미리보기 가능 (에디터 전용, 런타임 영향 없음).
  * registry null → ResolveSprite 는 항상 null 반환.
+ * 성공한 Addressable 핸들은 도메인 리로드 직전(_ReleaseAllHandles)에 일괄 반납된다.
  * =========================================================
  */
 #endif
@@ -29,6 +30,25 @@ namespace HDialogue.Editor {
         static readonly Dictionary<int, IReadOnlyList<PortraitEventInstruction>> cache = new();
         static readonly Dictionary<string, Sprite> spriteCache = new();
         static readonly Dictionary<string, AsyncOperationHandle<Sprite>> addrHandles = new();
+        #endregion
+
+        #region Lifecycle
+        // 성공한 핸들은 addrHandles 에 담기기만 하고 반납 경로가 없었다 — 도메인 리로드 직전에
+        // 일괄 반납해, 에디터 세션이 길어져도 미리보기 로드가 Addressable 핸들을 계속 쌓지 않게 한다.
+        [InitializeOnLoadMethod]
+        private static void _RegisterCleanup() {
+            AssemblyReloadEvents.beforeAssemblyReload -= _ReleaseAllHandles;
+            AssemblyReloadEvents.beforeAssemblyReload += _ReleaseAllHandles;
+        }
+
+        private static void _ReleaseAllHandles() {
+            foreach (AsyncOperationHandle<Sprite> handle in addrHandles.Values) {
+                if (handle.IsValid()) Addressables.Release(handle);
+            }
+            addrHandles.Clear();
+            spriteCache.Clear();
+            cache.Clear();
+        }
         #endregion
 
         #region Public
@@ -103,6 +123,20 @@ namespace HDialogue.Editor {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: 호출부 registry 배선 확인 + Addressable 핸들 반납 경로 추가
+ *
+ * # 변경
+ * - `HGraphDialogueLineNode` 생성자가 registry 를 조회해 `DialogueLineNodePreviewDrawer.Build`
+ *   에 전달하도록 수정(별도 커밋) — 본 파일 `Build`/`ResolveSprite` 가 그동안 도달 불가였다.
+ * - `_RegisterCleanup`([InitializeOnLoadMethod]) + `_ReleaseAllHandles` 추가.
+ *   `AssemblyReloadEvents.beforeAssemblyReload` 시 `addrHandles` 전량 `Addressables.Release`
+ *   후 3개 캐시(cache/spriteCache/addrHandles) 클리어.
+ *
+ * # 이유
+ * - `_LoadSprite`(:87 부근)가 성공한 핸들을 `addrHandles` 에 담기만 하고 반납 경로가 없었다.
+ *   도메인 리로드 시점에 일괄 반납해 에디터 세션이 길어져도 핸들이 계속 쌓이지 않게 한다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: PortraitPose.Sprite → SpriteKey Addressables 로드
  *

@@ -44,6 +44,9 @@ namespace HDialogue {
         #region Control
         public const float HOLD_SPEED_MULTIPLIER = 0.5f;   // 키 홀드 시 × 0.5 = 2배 빠름
         public const float INPUT_GUARD_DURATION = 0.05f;  // PlayLine 직후 50ms 입력 무시
+        // <speed=0> 등 0 이하 값이 그대로 나눗셈 분모로 들어가면 Infinity/NaN 지연이 되어
+        // 타이프라이터가 영구 대기한다 — 인라인 SpeedSet 토큰 값의 하한.
+        public const float MIN_INLINE_SPEED_MULTIPLIER = 0.05f;
         #endregion
     }
 }
@@ -51,6 +54,17 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: MIN_INLINE_SPEED_MULTIPLIER 추가
+ *
+ * # 변경
+ * - `MIN_INLINE_SPEED_MULTIPLIER = 0.05f` 상수 추가.
+ *
+ * # 이유
+ * - `DialogueTextController._GetBaseInterval` 이 `inlineSpeedMultiplier` 로 나눈다.
+ *   `<speed=0>` 태그가 그대로 들어오면 분모가 0 이 되어 지연이 Infinity/NaN — 타이프라이터가
+ *   영구 대기한다. 값 하한을 상수로 명시해 매직 넘버 없이 clamp.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.15 HUI.TextUI → HDialogue 패키지 이관
  *

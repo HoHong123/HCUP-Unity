@@ -205,7 +205,9 @@ namespace HDialogue {
                     break;
 
                 case DialogueTokenType.SpeedSet:
-                    inlineSpeedMultiplier = t.NumericArg;
+                    // <speed=0> 이하 값은 _GetBaseInterval 의 분모가 되어 Infinity/NaN 지연을
+                    // 만든다 — 하한 clamp로 작가 실수(오타 태그)가 대화를 영구 정지시키지 않게 한다.
+                    inlineSpeedMultiplier = Mathf.Max(t.NumericArg, TextSpeedConstants.MIN_INLINE_SPEED_MULTIPLIER);
                     break;
 
                 case DialogueTokenType.SpeedReset:
@@ -323,6 +325,18 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: SpeedSet 하한 clamp + Char 블립 재생 최소 간격 방어
+ *
+ * # 변경
+ * - `_ProcessTokenAsync` SpeedSet: `inlineSpeedMultiplier = t.NumericArg` →
+ *   `Mathf.Max(t.NumericArg, TextSpeedConstants.MIN_INLINE_SPEED_MULTIPLIER)`.
+ *
+ * # 이유
+ * - `<speed=0>` 이하 값이 `_GetBaseInterval` 의 나눗셈 분모로 들어가면 Infinity/NaN 지연이 되어
+ *   타이프라이터가 영구 대기한다. 블립 재생 쪽 최소 간격 방어는 `DialogueBlipSfxAgent.PlayBlip`
+ *   에 별도로 추가했다(Fast + 홀드 가속 시 초당 130회 이상 호출 방지).
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: Sfx 토큰 case 분리 — 미구현 의도 명확화
  *

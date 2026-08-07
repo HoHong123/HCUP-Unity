@@ -250,7 +250,12 @@ namespace HDialogue {
             if (node is HubNode && hubKey != null) {
                 foreach (BaseNodeEdge edge in currentCatalog.GetOutgoingEdges(node.UID)) {
                     if (edge is HubNodeEdge hubEdge && hubEdge.BranchPortKey == hubKey) {
-                        currentCatalog.Nodes.TryGetValue(hubEdge.LeafUID, out BaseNode hubNext);
+                        // 일반 엣지 경로(:264-267)와 동일하게 방어한다 — 종전에는 TryGetValue 실패를
+                        // 무시하고 null 을 그대로 반환해, 경고도 종료 이벤트도 없이 대화가 멎었다.
+                        if (!currentCatalog.Nodes.TryGetValue(hubEdge.LeafUID, out BaseNode hubNext) || hubNext == null) {
+                            _FinishWithError($"Hub edge target '{hubEdge.LeafUID}' from node '{node.Title}' (port '{hubKey}') is missing in the catalog.");
+                            return null;
+                        }
                         return hubNext;
                     }
                 }
@@ -416,6 +421,12 @@ namespace HDialogue {
                         _FinishWithError($"BranchNode '{node.Title}' — string key '{node.ConditionKey}' not found.");
                         return null;
                     }
+                    // 검증 없이 반환하면 _ResolveNextNode 의 허브 엣지 미스매치 진단이 대신 떠서
+                    // "그래프 배선 문제"로 오인된다 — 진짜 원인(변수 값이 어떤 포트와도 안 맞음)을 여기서 짚는다.
+                    if (!_HasHubEdge(node, strVal)) {
+                        _FinishWithError($"BranchNode '{node.Title}' — string value '{strVal}' matched no Switch port.");
+                        return null;
+                    }
                     return strVal;
                 }
                 default:
@@ -577,6 +588,21 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: Hub 경로 엣지 부재 방어 + Switch 반환 키 검증 추가
+ *
+ * # 변경
+ * - `_ResolveNextNode` Hub 경로(:250-259): `TryGetValue` 실패를 무시하던 부분을 일반 엣지
+ *   경로(:264-267)와 동일하게 `_FinishWithError` 로 통일.
+ * - `_ProcessBranchNode` BranchMode.Switch: `variables.TryGetString` 성공 후 반환 전
+ *   `_HasHubEdge(node, strVal)` 로 실제 매칭 포트 존재 여부 검증.
+ *
+ * # 이유
+ * - 케이스리포트 HDialogue 미검증 목록 재확인. Hub 경로만 방어가 빠져 있어 그래프 조작 시
+ *   경고 없이 대화가 멎었다. Switch 는 미검증 반환값이 `_ResolveNextNode` 의 범용 진단으로
+ *   흘러가 "허브 엣지 없음"으로만 보이고 "변수 값이 어떤 포트와도 안 맞음"이라는 진짜 원인이
+ *   가려졌다 — ChoiceNode.FallbackChoiceKey 가 이미 쓰던 `_HasHubEdge` 재사용으로 해소.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.19 (수정) :: Auto/Skip 모드 — autoAdvanceOverride + isSkipping 추가
  *

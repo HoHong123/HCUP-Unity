@@ -60,6 +60,9 @@ namespace HDialogue {
         Animator animator;
 
         IAssetProvider<string, Sprite> spriteProvider;
+        // 포즈를 바꿀 때마다 이전 점유를 반납하는 데 쓴다 — 반납하지 않으면 대화가 길어질수록
+        // 캐시 점유가 계속 쌓인다(최종 회수는 CharacterStageDirector.OnDestroy 의 Dispose 뿐).
+        string loadedSpriteKey;
         CharacterPortraitSetSO portraitSet;
         SlotConfig currentSlot;
         PortraitHighlightStyle highlightStyle;
@@ -344,6 +347,10 @@ namespace HDialogue {
             Sprite sprite = await spriteProvider.GetAsync(key, AssetLoadMode.Addressable, AssetFetchMode.CacheFirst);
             if (ct.IsCancellationRequested || image == null) return;
             if (CurrentPoseKey != poseKey) return;
+            // 이전 포즈의 점유를 반납한다 — 반납 없이 매번 GetAsync 만 호출하면 포즈를 바꿀
+            // 때마다 점유가 누적돼, 대화가 길어질수록 캐시 점유가 계속 쌓인다.
+            if (loadedSpriteKey != null && loadedSpriteKey != key) spriteProvider.Release(loadedSpriteKey);
+            loadedSpriteKey = key;
             image.sprite = sprite;
         }
 
@@ -388,6 +395,24 @@ namespace HDialogue {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 (수정) :: 포즈 전환 시 이전 스프라이트 점유 반납
+ *
+ * # 변경
+ * - `loadedSpriteKey` 필드 추가.
+ * - `_LoadAndSetSpriteAsync`: 새 스프라이트 적용 성공 시 이전 `loadedSpriteKey` 를
+ *   `spriteProvider.Release` 로 반납 후 갱신.
+ *
+ * # 이유
+ * - `GetAsync` 호출마다 호출자 단위 점유가 등록되는데(HResource 등록/해제 1:1 규약),
+ *   포즈 전환 경로는 반납 없이 매번 새 점유만 쌓았다. 최종 회수는 CharacterStageDirector
+ *   OnDestroy 의 전체 Dispose 뿐이라, 대화가 길어질수록 캐시 점유가 누적됐다.
+ *
+ * # 주의 (추가 발견, 이번 수정 범위 밖)
+ * - `ct.IsCancellationRequested` 또는 `CurrentPoseKey != poseKey` 로 조기 반환하는 경로는
+ *   방금 획득한 점유를 반납하지 않는다(빠른 연속 포즈 전환 시 늦게 도착한 응답). 실사용
+ *   빈도가 낮고 별도 검증이 필요해 이번에는 손대지 않았다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: Show/Hide — gameObject 활성·비활성화 계약 명확화
  *
