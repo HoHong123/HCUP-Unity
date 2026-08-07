@@ -12,8 +12,12 @@
  * 주의사항 ::
  * controllerPrefab / registry / layout 필수 연결 — Awake Debug.Assert 로 검증.
  * leftSlotRoot / rightSlotRoot : 씬의 정확한 위치에 배치할 것. 미연결 시 this.transform 사용.
- * spriteProvider: Awake에서 Addressable 기본 구성으로 생성. OnDestroy에서 ReleaseAll.
- * OnDestroy에서 OnEventTagFired 구독 해제 + spriteProvider.ReleaseAll.
+ * spriteProvider 소유권 :: Awake에서 이 디렉터가 생성하고 OnDestroy에서 Dispose 한다.
+ * _GetOrCreateController 가 자식 컨트롤러에 BindProvider 로 같은 인스턴스를 넘기지만,
+ * 이는 참조 공유일 뿐 소유권 이전이 아니다 — 컨트롤러는 절대 Dispose 하지 않는다.
+ * Unity 는 계층 파괴 순서를 보장하지 않으므로 디렉터가 먼저 파괴될 수 있는데, 그때 컨트롤러의
+ * 뒤늦은 요청은 AssetProvider 의 폐기 후 진입 가드가 경고와 함께 거부한다 (리포트 07 USR-3).
+ * OnDestroy에서 OnEventTagFired 구독 해제 + spriteProvider.Dispose.
  * =========================================================
  */
 #endif
@@ -74,7 +78,13 @@ namespace HDialogue {
             if (textController != null && onEventTagFiredHandler != null) {
                 textController.OnEventTagFired -= onEventTagFiredHandler;
             }
-            spriteProvider?.ReleaseAll();
+            // Awake 에서 이 오브젝트가 provider 를 만들었으므로 폐기 책임도 여기에 있다.
+            // Dispose 가 ReleaseAll 을 먼저 태운 뒤 cache 구독을 끊는다.
+            // 자식 컨트롤러가 BindProvider 로 같은 인스턴스를 들고 있지만 소유자는 아니다.
+            // 파괴 순서가 뒤집혀 컨트롤러가 뒤늦게 요청하면 provider 의 폐기 후 진입 가드가
+            // 경고와 함께 거부한다 — 조용한 핸들 누수가 되지 않는다 (리포트 07 USR-3).
+            spriteProvider?.Dispose();
+            spriteProvider = null;
         }
         #endregion
 
