@@ -11,7 +11,8 @@ using HAudio;
 using HAudio.Core;
 
 namespace HAudio.Editor {
-    public sealed class AudioCatalogGeneratorWindow : EditorWindow {
+    [Serializable]
+    public sealed class AudioCatalogGeneratorPanel {
         #region ===== Types =====
         struct DiscoveredClip {
             public AudioMajorCategory Major;
@@ -33,6 +34,7 @@ namespace HAudio.Editor {
         AudioCatalogPolicySO policy;
         [SerializeField]
         List<AudioClip> extraClips = new();
+
         #endregion
 
         #region ===== Runtime =====
@@ -58,15 +60,22 @@ namespace HAudio.Editor {
         bool logsDirty = true;
         #endregion
 
-        #region ===== Menu =====
-        [MenuItem("HCUP/Audio/Sound Catalog Generator")]
-        private static void Open() {
-            GetWindow<AudioCatalogGeneratorWindow>("Sound Catalog Generator");
+        #region Host
+        // 이 패널은 SoundToolsWindow 의 탭으로 그려진다. EditorWindow 를 상속하지 않으므로
+        // Repaint 같은 창 기능은 호스트를 통해 부른다. [NonSerialized] 인 이유는 창 참조를
+        // 직렬화하면 도메인 리로드 후 죽은 참조가 남기 때문 — 매 Draw 에서 다시 받는다.
+        [NonSerialized]
+        EditorWindow host;
+
+        private void _Repaint() {
+            if (host != null) host.Repaint();
         }
         #endregion
 
-        #region ===== Unity =====
-        private void OnGUI() {
+        #region ===== Panel =====
+        public void Draw(EditorWindow owner) {
+            host = owner;
+
             using (var sv = new EditorGUILayout.ScrollViewScope(windowScroll)) {
                 windowScroll = sv.scrollPosition;
 
@@ -140,6 +149,7 @@ namespace HAudio.Editor {
                 GUI.enabled = true;
             }
         }
+
         #endregion
 
         #region ===== Scan / Generate =====
@@ -200,7 +210,7 @@ namespace HAudio.Editor {
                 Undo.RecordObject(catalog, "Update SoundCatalog");
             }
             else {
-                catalog = CreateInstance<AudioCatalogSO>();
+                catalog = ScriptableObject.CreateInstance<AudioCatalogSO>();
                 AssetDatabase.CreateAsset(catalog, assetPath);
                 logs.Add($"[Generate] Create :: {assetPath}");
             }
@@ -223,7 +233,6 @@ namespace HAudio.Editor {
             logs.Add($"[Generate] Done :: entries={discovered.Count}");
             _MarkAllDirty();
         }
-
         private void _MergeExtras() {
             foreach (var clip in extraClips) {
                 if (!clip) continue;
