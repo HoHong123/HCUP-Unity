@@ -13,7 +13,7 @@ namespace HGame.Skill {
         public const float ATK_MULT_STACK = 0.1f; // +10%
         public const float ATK_SPEED_MULT_STACK = 0.05f; // +5%
         public const float ULT_COOLDOWN_STACK = 0.02f; // -2% (곱연산)
-        public const float KNOCKBACK_MULT_STACK = 0.5f; // +5%
+        public const float KNOCKBACK_MULT_STACK = 0.05f; // +5%
 
         public const float EXPLODE_CHANCE_STACK = 0.01f; // +1%p
         public const float EXPLODE_DMG_STACK = 0.1f; // +10% (곱연산)

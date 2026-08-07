@@ -40,6 +40,12 @@ namespace HGame.Skill {
             pendingLevelUps = 0;
             processingQueue = false;
             playerRef.ReadOnly.OnLevelUp -= _OnLevelUp;
+
+            // 종전에는 stacks/selectedSkills/SkillStats 가 초기화되지 않아, 다음 판이 이전 판의
+            // 누적 스택·배율을 그대로 이어받았다.
+            stacks.Clear();
+            selectedSkills.Clear();
+            stats.ResetAll();
         }
 
 

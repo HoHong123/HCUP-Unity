@@ -50,6 +50,10 @@ namespace HGame.H2D.Cam {
             float minY = worldRect.yMin + halfH;
             float maxY = worldRect.yMax - halfH;
 
+            // 맵이 뷰포트보다 작으면 min > max 로 Clamp 범위가 역전되므로 중앙에 고정한다.
+            if (minX > maxX) minX = maxX = worldRect.center.x;
+            if (minY > maxY) minY = maxY = worldRect.center.y;
+
             Vector3 desired = Target.position;
             float newX = Mathf.Clamp(desired.x, minX, maxX);
             float newY = Mathf.Clamp(desired.y, minY, maxY);

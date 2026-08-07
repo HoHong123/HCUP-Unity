@@ -61,6 +61,10 @@ namespace HGame.H3D.Cam {
             float minZ = worldBounds3D.min.z + halfH;
             float maxZ = worldBounds3D.max.z - halfH;
 
+            // 맵이 뷰포트보다 작으면 min > max 로 Clamp 범위가 역전되므로 중앙에 고정한다.
+            if (minX > maxX) minX = maxX = worldBounds3D.center.x;
+            if (minZ > maxZ) minZ = maxZ = worldBounds3D.center.z;
+
             Vector3 desired = Target.position;
             float newX = Mathf.Clamp(desired.x, minX, maxX);
             float newZ = Mathf.Clamp(desired.z, minZ, maxZ);

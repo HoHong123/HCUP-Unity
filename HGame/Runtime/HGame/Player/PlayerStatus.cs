@@ -37,7 +37,7 @@ namespace HGame.Player {
             if (gainExp <= 0f) return;
             Exp += gainExp;
 
-            while (Exp >= ExpToNext) {
+            while (ExpToNext > 0f && Exp >= ExpToNext) {
                 Exp -= ExpToNext;
 
                 Level++;

@@ -231,8 +231,17 @@ namespace HGame.H2D.Map {
             float halfH = cam.orthographicSize;
             float halfW = halfH * cam.aspect;
 
-            float clampedX = Mathf.Clamp(world.x, worldRect.xMin + halfW, worldRect.xMax - halfW);
-            float clampedY = Mathf.Clamp(world.y, worldRect.yMin + halfH, worldRect.yMax - halfH);
+            float minX = worldRect.xMin + halfW;
+            float maxX = worldRect.xMax - halfW;
+            float minY = worldRect.yMin + halfH;
+            float maxY = worldRect.yMax - halfH;
+
+            // 맵이 뷰포트보다 작으면 min > max 로 Clamp 범위가 역전되므로 중앙에 고정한다.
+            if (minX > maxX) minX = maxX = worldRect.center.x;
+            if (minY > maxY) minY = maxY = worldRect.center.y;
+
+            float clampedX = Mathf.Clamp(world.x, minX, maxX);
+            float clampedY = Mathf.Clamp(world.y, minY, maxY);
 
             var current = cam.transform.position;
             var dest = new Vector3(clampedX, clampedY, worldZ);
@@ -244,25 +253,45 @@ namespace HGame.H2D.Map {
 
         #region Refresh
         private void _RefreshWorldRect() {
-            hasWorldRect = true;
+            // CameraBoundry2D._RefreshWorldRect 와 동일 규약 : 기본값 false, 성공한 분기에서만 true.
+            // 종전에는 최상단에서 true 를 선대입해 실패 시에도 stale Rect(0,0,0,0) 를 재사용,
+            // _ConvertWorldToMap 의 InverseLerp 가 0폭으로 나눠지는 결함이 있었다.
+            hasWorldRect = false;
 
             switch (boundType) {
             case MapBoundType.WorldBox:
                 if (worldBoundsB2D) {
                     var b = worldBoundsB2D.bounds;
                     cachedWorldRect = new Rect(b.min, b.size);
+                    hasWorldRect = true;
                 }
                 break;
             case MapBoundType.BoundSource:
+                // 마지막 성공분만 남기지 않고 전체를 합집합(Encapsulate)한다.
+                bool first = true;
+                Rect unionRect = default;
                 foreach (var bound in worldBoundSources) {
-                    if (bound is IWorldBoundSource src && src.TryGetWorldRect(out var rect)) {
-                        cachedWorldRect = rect;
+                    if (bound is not IWorldBoundSource src || !src.TryGetWorldRect(out var rect)) continue;
+                    if (first) {
+                        unionRect = rect;
+                        first = false;
                     }
+                    else {
+                        unionRect.xMin = Mathf.Min(unionRect.xMin, rect.xMin);
+                        unionRect.yMin = Mathf.Min(unionRect.yMin, rect.yMin);
+                        unionRect.xMax = Mathf.Max(unionRect.xMax, rect.xMax);
+                        unionRect.yMax = Mathf.Max(unionRect.yMax, rect.yMax);
+                    }
+                }
+                if (!first) {
+                    cachedWorldRect = unionRect;
+                    hasWorldRect = true;
                 }
                 break;
             case MapBoundType.Absolute:
                 if (absolutBound.size != Vector2.zero) {
                     cachedWorldRect = absolutBound;
+                    hasWorldRect = true;
                 }
                 break;
             default:

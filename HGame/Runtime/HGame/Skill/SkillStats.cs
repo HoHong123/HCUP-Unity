@@ -34,15 +34,17 @@ namespace HGame.Skill {
         public float ExplosiveDamageMul => explosiveDamageMul;
         public float ExplosiveRadiusMul => explosiveRadiusMul;
 
-        public void AddAttackStacks(int stacks) => attackMul = 1f + SkillConst.ATK_MULT_STACK * stacks;
-        public void AddAttackSpeedStacks(int stacks) => attackSpeedMul = 1f + SkillConst.ATK_SPEED_MULT_STACK * stacks;
-        public void AddUltCoolStacks(int stacks) => ultCooldownMul = 1f - SkillConst.ULT_COOLDOWN_STACK * stacks;
-        public void AddKnockbackStacks(int stacks) => knockbackMul = 1f + SkillConst.KNOCKBACK_MULT_STACK * stacks;
+        // 호출부(Samples~/Skill/Scripts/**)가 전부 증분(add)을 넘기므로 절대 대입이 아닌 누적(+=/-=)으로 통일한다.
+        // 절대 대입이면 같은 add 값이 반복 호출될 때 스택 2 이상에서 값이 증가하지 않는다.
+        public void AddAttackStacks(int stacks) => attackMul += SkillConst.ATK_MULT_STACK * stacks;
+        public void AddAttackSpeedStacks(int stacks) => attackSpeedMul += SkillConst.ATK_SPEED_MULT_STACK * stacks;
+        public void AddUltCoolStacks(int stacks) => ultCooldownMul -= SkillConst.ULT_COOLDOWN_STACK * stacks;
+        public void AddKnockbackStacks(int stacks) => knockbackMul += SkillConst.KNOCKBACK_MULT_STACK * stacks;
 
         public void UnlockExplosive() => enableExplosive = true;
         public void AddExplChanceStacks(int stacks) => explosiveChance += SkillConst.EXPLODE_CHANCE_STACK * stacks;
-        public void AddExplDamageStacks(int stacks) => explosiveDamageMul = 1f + SkillConst.EXPLODE_DMG_STACK * stacks;
-        public void AddExplRadiusStacks(int stacks) => explosiveRadiusMul = 1f + SkillConst.EXPLODE_RADIUS_STACK * stacks;
+        public void AddExplDamageStacks(int stacks) => explosiveDamageMul += SkillConst.EXPLODE_DMG_STACK * stacks;
+        public void AddExplRadiusStacks(int stacks) => explosiveRadiusMul += SkillConst.EXPLODE_RADIUS_STACK * stacks;
 
         public void ResetAll() {
             attackMul = attackSpeedMul = explosiveDamageMul = explosiveRadiusMul = 1f;

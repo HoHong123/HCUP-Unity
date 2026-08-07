@@ -35,12 +35,16 @@ namespace HGame.H2D.Map {
             }
             return false;
         }
-        protected bool CheckMatch(GameObject go) => filterType switch {
-            EventTargetType.Tag => TagMatch(go),
-            EventTargetType.Layer => LayerMatch(go),
-            EventTargetType.TagAndLayer => TagMatch(go) && LayerMatch(go),
-            _ => false
-        };
+        // filterType 은 [Flags] 비트 조합이다 — 정확값 switch 는 Tag|Layer(3) 조합이 TagAndLayer(3)
+        // 이외의 값으로 들어오면(예: 코드에서 직접 OR) 전부 거부했다. 비트 판정으로 교정.
+        protected bool CheckMatch(GameObject go) {
+            bool requireTag = (filterType & EventTargetType.Tag) != 0;
+            bool requireLayer = (filterType & EventTargetType.Layer) != 0;
+            if (!requireTag && !requireLayer) return false;
+            if (requireTag && !TagMatch(go)) return false;
+            if (requireLayer && !LayerMatch(go)) return false;
+            return true;
+        }
         #endregion
 
         #region Triggers

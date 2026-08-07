@@ -51,7 +51,7 @@ namespace HGame.Player {
         }
          
         public int RollBaseDamage() {
-            return Random.Range(minDamage, maxDamage);
+            return Random.Range(minDamage, maxDamage + 1);
         }
         
         public bool RollCrit(out float rate) {
