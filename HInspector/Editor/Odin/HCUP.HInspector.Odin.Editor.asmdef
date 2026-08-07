@@ -2,6 +2,6 @@
   "name": "HCUP.HInspector.Odin.Editor",
   "rootNamespace": "HInspector.Odin.Editor",
   "includePlatforms": ["Editor"],
-  "references": ["HCUP.HInspector"],
+  "references": ["HCUP.HInspector", "HCUP.HInspector.Editor"],
   "defineConstraints": ["ODIN_INSPECTOR"]
 }
