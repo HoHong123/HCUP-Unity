@@ -7,7 +7,9 @@
         "HCUP.HUI",
         "HCUP.HData",
         "HCUP.HDiagnosis",
-        "HCUP.HCore"
+        "HCUP.HCore",
+        "HCUP.HInspector",
+        "HCUP.HInspector.Editor"
     ],
     "includePlatforms": [
         "Editor"
