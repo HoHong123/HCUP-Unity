@@ -32,7 +32,7 @@ Time·Web 은 상호 의존 없는 유틸리티 묶음이라 이 문서 안의 �
 | `Core/SingletonBehaviour.cs` | 87 | `MonoBehaviour` 싱글톤 기반 타입. **패키지 전역 의존** |
 | `Core/HServiceLocator.cs` | 106 | 타입 키 정적 서비스 레지스트리. `SubsystemRegistration` 리셋 |
 | `Core/PlayerPrefsHandler.cs` | 172 | Base64 키·값 인코딩 `PlayerPrefs` 래퍼. 손상 시 기본값 복구 |
-| `Core/TransformExtention.cs` | 45 | `Transform.DestroyAllChildren()` 확장 |
+| `Core/TransformExtension.cs` | 45 | `Transform.DestroyAllChildren()` 확장 |
 | `Scene/SceneLoader.cs` | 304 | 씬 로드/언로드/재로드 정적 진입점 → [Scene.md](../docs/Scene.md) |
 | `Scene/BaseSceneManager.cs` | 101 | `SingletonBehaviour` 파사드 + `SceneLoader.Initialize` |
 | `Scene/ISceneControl.cs` | 60 | 씬 제어 계약 (`UniTask<bool>` 반환 규약) |
@@ -174,7 +174,7 @@ flowchart TD
 ### TransformExtension
 
 ```csharp
-// Core/TransformExtention.cs:13-24 — 컴파일 심볼이 아니라 런타임 판정이다
+// Core/TransformExtension.cs:13-24 — 컴파일 심볼이 아니라 런타임 판정이다
 if (Application.isPlaying) Object.Destroy(...);
 else                        Object.DestroyImmediate(...);
 ```
@@ -368,8 +368,6 @@ await BaseSceneManager.Instance.LoadSceneAsync(SceneKey.Game, loadingKey: SceneK
     또 `base.Awake()` 후 `instance != this` 가드가 없어 **중복 인스턴스도 `Start` 에서 구독을 건다**.
 11. **`Demo/` 가 Runtime 폴더 안에 있다.** `SceneTester.cs` 와 `Test1~3.unity`, `TestScenes.asset` 이
     빌드에 포함된다. 상세는 [Scene.md](../docs/Scene.md) "정리 대상" 10번.
-12. **파일명 오타.** `Core/TransformExtention.cs` 의 클래스명은 `TransformExtension` 이다(`:12`).
-    MonoBehaviour 가 아니라 컴파일에는 문제없으나 검색이 어긋난다. 리네임 시 `.meta` 동반 `git mv`.
 13. **`SceneCatalogSO` 만 `UnityEngine.Debug` 를 직접 쓴다**(`SceneCatalogSO.cs:54, 60, 66`).
     나머지 HCore 파일은 전부 `HLogger` 경유다.
 
