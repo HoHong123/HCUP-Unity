@@ -66,6 +66,12 @@ namespace HUI.Popup {
 
             resourcesProvider?.ReleaseOwner(ownerId);
             addressableProvider?.ReleaseOwner(ownerId);
+            // 두 provider 모두 이 팝업이 지연 생성한 것이라 폐기 책임도 여기에 있다.
+            // ReleaseOwner 로 자기 몫을 내려놓은 뒤, 남은 점유와 cache 구독을 Dispose 가 마감한다.
+            resourcesProvider?.Dispose();
+            addressableProvider?.Dispose();
+            resourcesProvider = null;
+            addressableProvider = null;
             if (ownerId.IsValid) AssetOwnerIdGenerator.NotifyReleased(ownerId);
         }
         #endregion
