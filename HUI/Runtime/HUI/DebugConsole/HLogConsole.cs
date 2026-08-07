@@ -59,6 +59,8 @@ namespace HUI.DebugConsole {
         readonly List<HLogCellData> entries = new();
         readonly List<HLogCellData> filteredEntries = new();
         readonly Dictionary<string, int> pendingUnityEchoCountByCondition = new();
+        // 대응 Unity 에코가 끝내 도착하지 않는 조건 문자열이 쌓이면 무한히 자랄 수 있어 상한을 둔다.
+        const int MAX_PENDING_UNITY_ECHO_CONDITIONS = 256;
 
         bool isFollowingLatest = true;
         float fpsInterval = 0.5f;

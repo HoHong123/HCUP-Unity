@@ -139,6 +139,7 @@ namespace HUI.Entity {
         public void SetColor(Color original, Color target, bool immediate = false) {
             originColor = original;
             targetColor = target;
+            if (immediate) _Dye(targetColor, true);
         }
 
         public void Reset(bool immediate = false) {
@@ -219,6 +220,13 @@ namespace HUI.Entity {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
+ * @Jason - PKH 2026.08.07 SetColor(original, target, immediate) 의 immediate 무시 수정
+ *
+ * # 수정
+ * - immediate=true 일 때 targetColor 를 _Dye(targetColor, true) 로 즉시 반영하도록 변경
+ *   (기존에는 필드만 갱신하고 시각 반영을 하지 않아 파라미터가 무의미했음)
+ *
+ * =============================================================================
  * @Jason - PKH 2026.06.29 DG.Tweening 제거 + Debug Owner 추가 + _Dye() null 가드
  *
  * # 수정
@@ -252,7 +260,7 @@ namespace HUI.Entity {
  * 1. Color 변경 모드에서 graphic이 Image인 경우 image 참조도 함께 캐싱합니다.
  * 2. Sprite 변경 모드에서는 graphic = image로 동기화하여 공통 접근을 유지합니다.
  * 3. _RefreshTargetColorInEditor()는 에디터에서 targetColor를 즉시 갱신하기 위한 보조 함수입니다.
- * 4. SetColor(Color original, Color target, bool immediate = false)의 immediate 매개변수는 현재 내부에서 사용되지 않습니다.
+ * 4. SetColor(Color original, Color target, bool immediate = false)에서 immediate=true 이면 targetColor 를 즉시 반영합니다.
  * =========================================================
  */
 #endif

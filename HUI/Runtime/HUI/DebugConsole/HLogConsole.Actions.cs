@@ -188,6 +188,12 @@ namespace HUI.DebugConsole {
             if (string.IsNullOrEmpty(condition)) return;
 
             if (!pendingUnityEchoCountByCondition.TryGetValue(condition, out int count)) {
+                // 조건 문자열이 계속 달라지는 로그가 들어오면 테이블이 무한히 자랄 수 있다 — 상한 도달 시 정리.
+                if (pendingUnityEchoCountByCondition.Count >= MAX_PENDING_UNITY_ECHO_CONDITIONS) {
+                    HLogger.Warning($"[HLogConsole] Pending Unity echo table limit ({MAX_PENDING_UNITY_ECHO_CONDITIONS}) reached. Clearing.");
+                    pendingUnityEchoCountByCondition.Clear();
+                }
+
                 pendingUnityEchoCountByCondition[condition] = 1;
                 return;
             }

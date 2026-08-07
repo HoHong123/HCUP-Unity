@@ -48,7 +48,7 @@ namespace HUI.Entity {
         private void _ApplyScale(Vector3 scale, bool immediate = false) {
             target.DOKill();
 
-            if (_CanAnimate()) {
+            if (_CanAnimate() && !immediate) {
                 target.DOScale(scale, animationDuration).SetUpdate(true);
                 return;
             }

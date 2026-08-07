@@ -91,6 +91,9 @@ namespace HUI.ScrollView {
         LayoutInfo[] layout;
         float[] startPrimaryPxList;
         float[] endPrimaryPxList;
+        // _FindPlacement 가 앞쪽 빈 칸부터 채우므로 혼합 스팬에서는 index 순서와 primary 위치
+        // 순서가 어긋날 수 있다 — 이 경우 이진 탐색 전제(단조 증가)가 깨지므로 선형 탐색으로 대체한다.
+        bool isPrimaryMonotonic = true;
 
         float _PrimarySize => isHorizontal ? cellSize.x : cellSize.y;
         float _PrimarySpacing => isHorizontal ? spacing.x : spacing.y;
@@ -277,6 +280,8 @@ namespace HUI.ScrollView {
 
             var primaryMasks = new List<int>(64);
             totalPrimaryUnits = 0;
+            isPrimaryMonotonic = true;
+            float prevStartPrimaryPx = float.NegativeInfinity;
 
             for (int k = 0; k < Count; k++) {
                 var (spanX, spanY) = _GetSpan(dataList[k]);
@@ -309,6 +314,9 @@ namespace HUI.ScrollView {
 
                 startPrimaryPxList[k] = startPrimaryPx;
                 endPrimaryPxList[k] = endPrimaryPx;
+
+                if (startPrimaryPx < prevStartPrimaryPx) isPrimaryMonotonic = false;
+                prevStartPrimaryPx = startPrimaryPx;
 
                 totalPrimaryUnits = Mathf.Max(totalPrimaryUnits, primary + primarySpan);
             }
@@ -384,6 +392,8 @@ namespace HUI.ScrollView {
 
         private int _LowerBoundEndPrimary(float value) {
             // endPrimaryPx >= value 인 첫 인덱스
+            if (!isPrimaryMonotonic) return _LinearLowerBoundEndPrimary(value);
+
             int lo = 0;
             int hi = Count;
             while (lo < hi) {
@@ -396,6 +406,8 @@ namespace HUI.ScrollView {
 
         private int _UpperBoundStartPrimary(float value) {
             // startPrimaryPx <= value 인 마지막 인덱스
+            if (!isPrimaryMonotonic) return _LinearUpperBoundStartPrimary(value);
+
             int lo = 0;
             int hi = Count;
             while (lo < hi) {
@@ -404,6 +416,24 @@ namespace HUI.ScrollView {
                 else hi = mid;
             }
             return lo - 1;
+        }
+
+        // 혼합 스팬으로 startPrimaryPxList/endPrimaryPxList 가 단조 증가하지 않을 때의 대체 경로.
+        // O(n) 이지만 가시 범위 계산 빈도(스크롤 시)에서 항목 수가 매우 크지 않다면 허용 가능한 비용이다.
+        private int _LinearLowerBoundEndPrimary(float value) {
+            int result = Count;
+            for (int k = 0; k < Count; k++) {
+                if (endPrimaryPxList[k] >= value) { result = k; break; }
+            }
+            return result;
+        }
+
+        private int _LinearUpperBoundStartPrimary(float value) {
+            int result = -1;
+            for (int k = 0; k < Count; k++) {
+                if (startPrimaryPxList[k] <= value) result = k;
+            }
+            return result;
         }
     }
 }

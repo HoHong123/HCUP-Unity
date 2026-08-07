@@ -94,8 +94,8 @@ namespace HUI.Popup {
         protected Queue<LogQue> logHistory = new();
 
         protected TextPopup textInstance = null;
-        protected ImagePopup imgInstnace = null;
-        protected VideoPopup vidInstnace = null;
+        protected ImagePopup imgInstance = null;
+        protected VideoPopup vidInstance = null;
 
         protected int logCreatStack = 0;
 
@@ -108,8 +108,8 @@ namespace HUI.Popup {
         protected bool IsAllClosed =>
             logHistory.Count == 0
             && (textInstance == null || !textInstance.IsActive)
-            && (imgInstnace == null || !imgInstnace.IsActive)
-            && (vidInstnace == null || !vidInstnace.IsActive);
+            && (imgInstance == null || !imgInstance.IsActive)
+            && (vidInstance == null || !vidInstance.IsActive);
         #endregion
 
 
@@ -167,20 +167,20 @@ namespace HUI.Popup {
             if (background != null) background.SetActive(true);
             _DisposeImageInstance();
 
-            imgInstnace = Instantiate(imagePrefab, gameParent);
-            imgInstnace.OnClosed += _OnPopupClosed;   // 닫힘을 매니저가 알아야 배경을 내릴 수 있다
-            imgInstnace.SetUi(texture);
-            if (onClick != null) imgInstnace.OnClickPanel += onClick;
+            imgInstance = Instantiate(imagePrefab, gameParent);
+            imgInstance.OnClosed += _OnPopupClosed;   // 닫힘을 매니저가 알아야 배경을 내릴 수 있다
+            imgInstance.SetUi(texture);
+            if (onClick != null) imgInstance.OnClickPanel += onClick;
         }
 
         public void ShowVideo(string address, Action onClick = null, int width = 0, int height = 0) {
             if (background != null) background.SetActive(true);
             _DisposeVideoInstance();
 
-            vidInstnace = Instantiate(videoPrefab, gameParent);
-            vidInstnace.OnClosed += _OnPopupClosed;
-            vidInstnace.SetVideo(address, width, height);
-            if (onClick != null) vidInstnace.OnClickPanel += onClick;
+            vidInstance = Instantiate(videoPrefab, gameParent);
+            vidInstance.OnClosed += _OnPopupClosed;
+            vidInstance.SetVideo(address, width, height);
+            if (onClick != null) vidInstance.OnClickPanel += onClick;
         }
 
         // 싱글톤 파괴 시 자식 팝업 인스턴스와 큐에 남은 외부 Action 참조를 모두 끊는다.
@@ -199,17 +199,17 @@ namespace HUI.Popup {
         }
 
         private void _DisposeImageInstance() {
-            if (imgInstnace == null) return;
-            imgInstnace.OnClosed -= _OnPopupClosed;
-            Destroy(imgInstnace.gameObject);
-            imgInstnace = null;
+            if (imgInstance == null) return;
+            imgInstance.OnClosed -= _OnPopupClosed;
+            Destroy(imgInstance.gameObject);
+            imgInstance = null;
         }
 
         private void _DisposeVideoInstance() {
-            if (vidInstnace == null) return;
-            vidInstnace.OnClosed -= _OnPopupClosed;
-            Destroy(vidInstnace.gameObject);
-            vidInstnace = null;
+            if (vidInstance == null) return;
+            vidInstance.OnClosed -= _OnPopupClosed;
+            Destroy(vidInstance.gameObject);
+            vidInstance = null;
         }
 
 

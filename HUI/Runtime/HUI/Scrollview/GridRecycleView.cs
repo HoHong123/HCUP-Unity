@@ -55,7 +55,9 @@ namespace HUI.ScrollView {
 
         public float TotalContentSize {
             get {
-                int primaryCount = Mathf.CeilToInt((float)Count / secondaryCount);
+                // secondaryCount 는 UpdateVisibleCount() 가 실행돼야 채워진다 — SetData 이전에
+                // 이 프로퍼티를 먼저 읽으면 0으로 나눌 수 있어 최소 1로 방어한다.
+                int primaryCount = Mathf.CeilToInt((float)Count / Mathf.Max(1, secondaryCount));
                 float itemsLength = Mathf.Max(0f, (primarySize + primarySpacing) * primaryCount - primarySpacing);
                 return startPadding + itemsLength + endPadding;
             }

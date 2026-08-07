@@ -16,37 +16,39 @@
 
 using HDiagnosis.HDebug;
 
-public static class UiEvent {
-    public static bool IsDragging { get; private set; } = false;
+namespace HUI {
+    public static class UiEvent {
+        public static bool IsDragging { get; private set; } = false;
 
-    private static object dragOwner = null;
+        private static object dragOwner = null;
 
-    // Domain Reload 비활성 시 드래그 잠금이 이전 플레이에서 잔존하면 전 UI 드래그가 무음 불능이 된다.
-    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void _ResetStatics() {
-        dragOwner = null;
-        IsDragging = false;
-    }
+        // Domain Reload 비활성 시 드래그 잠금이 이전 플레이에서 잔존하면 전 UI 드래그가 무음 불능이 된다.
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void _ResetStatics() {
+            dragOwner = null;
+            IsDragging = false;
+        }
 
 
-    public static bool LockDrag(object owner) {
-        if (dragOwner != null) return false;
-        dragOwner = owner;
-        IsDragging = true;
-        return true;
-    }
+        public static bool LockDrag(object owner) {
+            if (dragOwner != null) return false;
+            dragOwner = owner;
+            IsDragging = true;
+            return true;
+        }
 
-    public static bool UnlockDrag(object owner) {
-        if (dragOwner == null || dragOwner != owner) return false;
-        dragOwner = null;
-        IsDragging = false;
-        return true;
-    }
+        public static bool UnlockDrag(object owner) {
+            if (dragOwner == null || dragOwner != owner) return false;
+            dragOwner = null;
+            IsDragging = false;
+            return true;
+        }
 
-    public static void ForcedUnlockDrag() {
-        HDebug.ErrorCaller("Force unlock the drag.");
-        dragOwner = null;
-        IsDragging = false;
+        public static void ForcedUnlockDrag() {
+            HDebug.ErrorCaller("Force unlock the drag.");
+            dragOwner = null;
+            IsDragging = false;
+        }
     }
 }
 

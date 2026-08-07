@@ -1,4 +1,6 @@
-public interface IBasicPanel {
-    public void Open();
-    public void Close();
+namespace HUI {
+    public interface IBasicPanel {
+        public void Open();
+        public void Close();
+    }
 }

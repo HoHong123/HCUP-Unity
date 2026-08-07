@@ -112,6 +112,7 @@ namespace HUI.ScrollView {
         #region Public - Item Control
         public void DestroyAll() {
             itemPool?.Dispose();
+            itemPool = null; // Dispose 후에도 참조가 남아 있으면 다음 SetData 가 파괴된 풀을 재사용한다.
             content?.DestroyAllChildren();
         }
         #endregion

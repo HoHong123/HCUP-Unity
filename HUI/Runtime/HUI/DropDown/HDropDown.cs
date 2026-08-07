@@ -24,6 +24,7 @@ using HInspector;
 namespace HUI.Dropdown {
     public class HDropDown : BaseDropDown<HDropDown.HData, HDropDown.HUnit> {
         #region Inner Class
+        [Serializable]
         public class HData : IDropData {
             public string Name;
             public Sprite Icon;

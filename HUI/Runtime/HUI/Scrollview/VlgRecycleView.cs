@@ -43,7 +43,7 @@ namespace HUI.ScrollView {
             Action<TCellView> onCreate = null, Action<TCellView> onGet = null,
             Action<TCellView> onReturn = null, Action<TCellView> onDispose = null) {
             _InitTubesIfNeeded();
-            base.SetData(data, initSize);
+            base.SetData(data, initSize, onCreate, onGet, onReturn, onDispose);
             ScrollToIndex(0, false);
         }
 
@@ -140,6 +140,8 @@ namespace HUI.ScrollView {
             cell.transform.SetParent(content, false);
             cell.transform.SetSiblingIndex(index + 1);
             activeItems[index] = cell;
+
+            OnCellCreated(cell, index, dataList[index]);
         }
 
         private LayoutElement _CreateTube(string name) {
