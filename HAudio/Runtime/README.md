@@ -2,7 +2,7 @@
 
 > 어셈블리: `HCUP.HAudio` (`Runtime/HCUP.HAudio.asmdef`, rootNamespace `HAudio`)
 > 의존: `UniTask`, `HCUP.HResource`, `HCUP.HCore`, `HCUP.HUtil`, `HCUP.HUI`, `HCUP.HInspector`, `HCUP.HDiagnosis`, `HCUP.HCollection`
-> 동반 어셈블리: `HCUP.HAudio.Editor`(카탈로그 편집·생성·진단), `HCUP.HAudio.Odin`(`ODIN_INSPECTOR` 조건부)
+> 동반 어셈블리: `HCUP.HAudio.Editor`(카탈로그 편집·생성·진단)
 
 ---
 
@@ -380,7 +380,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph 저작["카탈로그 저작 — 에디터"]
-    F["AudioClip 에셋"] --> G["AudioCatalogGeneratorWindow"]
+    F["AudioClip 에셋"] --> G["AudioCatalogGeneratorPanel"]
     G -->|"파일명"| T["token"]
     G -->|"폴더 추론"| M["AudioMajorCategory"]
     G -->|"폴더 경로"| P2["path"]
@@ -400,9 +400,11 @@ flowchart LR
 
 | 창 | 메뉴 | 용도 |
 |---|---|---|
-| `AudioCatalogEditorWindow` | HCUP/Audio | 카탈로그 Entry 표 편집 (key/token/path/clip) |
-| `AudioCatalogGeneratorWindow` | HCUP/Audio | 폴더 스캔 → token·path·카테고리 자동 생성 |
-| `AudioClipDiagnosticsWindow` | HCUP/Audio/Data Diagnostics | **Play Mode 전용.** 토큰별 로드 여부 실시간 확인 |
+| `SoundToolsWindow` | HCUP/Audio/Sound Catalog Editor · Generator · Sound Clip Enum Generator | 아래 3개 패널을 탭으로 묶은 호스트 창 |
+| ├ `AudioCatalogEditorPanel` | (Sound Catalogs 탭) | 카탈로그 Entry 표 편집 (key/token/path/clip) |
+| ├ `AudioCatalogGeneratorPanel` | (Catalog Generator 탭) | 폴더 스캔 → token·path·카테고리 자동 생성 |
+| └ `AudioClipEnumPanel` | (Enum Generator 탭) | 카탈로그 → AudioClips enum + 재생 확장 메서드 생성 |
+| `AudioClipDiagnosticsWindow` | HCUP/Audio/Sound Data Diagnostics | **Play Mode 전용.** 토큰별 로드 여부 실시간 확인 |
 | `EditorAudioPreview` | (내부) | `UnityEditor.AudioUtil` 리플렉션 래퍼 — 에디터 미리듣기 |
 
 진단 창은 `AudioManager.CreateSnapshot()`(`AudioManager.Preview.cs`)이 만든
