@@ -249,6 +249,13 @@ namespace HDeploy.Vercel {
 
                 log.Info($"Connection test start :: {repoPath}");
 
+                DeployRepoGitService gitService = new DeployRepoGitService(
+                    repoPath,
+                    userSettings.LocalGitTimeoutSeconds,
+                    userSettings.RemoteGitTimeoutSeconds,
+                    log);
+                if (await gitService.ValidateRepoAsync() == false) return;
+
                 GitResult branchResult = await GitCommandRunner.RunAsync(repoPath, "rev-parse --abbrev-ref HEAD", userSettings.LocalGitTimeoutSeconds);
                 if (branchResult.IsSuccess == false) {
                     log.Error($"git rev-parse failed (exit {branchResult.ExitCode}) :: {branchResult.StandardError}");
@@ -287,6 +294,18 @@ namespace HDeploy.Vercel {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 연결 테스트에 레포 검증 추가
+ *
+ * # 변경
+ * - _RunConnectionTestAsync() : git 명령 실행 전 DeployRepoGitService.ValidateRepoAsync() 호출
+ *
+ * # 이유
+ * - 기존에는 repoPath 공백 검사만 하고 바로 GitCommandRunner 를 호출해, 존재하지 않는
+ *   경로나 git 워크트리가 아닌 폴더에서도 명령이 실행되며 원인 불명 에러 로그만 남았다.
+ *   실제 배포 흐름(VercelDeployService)이 쓰는 동일 검증 경로를 재사용해 진단 메시지를
+ *   통일했다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.07.04 HTitle 시각 규격 적용
  *
