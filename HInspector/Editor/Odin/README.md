@@ -80,6 +80,7 @@ Odin 이 설치돼 있어도 `HInspectorBehaviour` / `HInspectorScriptableObject
 | `HButton` | `Button` | 라벨 유무로 오버로드 분기 (`:252-264`) |
 | `HShowInInspector` | `ShowInInspector` **+** `LabelText` | 1:2 매핑 — Label 파라미터를 별도 속성으로 (`:266-278`) |
 | `HListDrawer` | `ListDrawerSettings` | **`[Obsolete]` 5개 옵션까지 전달** (`:293-299`) |
+| `HDropdown` | `ValueDropdown("@HDropdownOdinItemSource.GetItems(...)")` | `HDropdownSourceRegistry` 재사용. 표현식은 짧은 타입 이름만 지원 — `FullName` 금지 (`:306-318`) |
 
 ### `HReadOnly` 의 논리 변환
 
