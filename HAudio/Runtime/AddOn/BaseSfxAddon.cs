@@ -3,7 +3,7 @@ using HInspector;
 using HAudio.Core;
 
 namespace HAudio.AddOn {
-    public class BaseSfxAddon : MonoBehaviour {
+    public abstract class BaseSfxAddon : MonoBehaviour {
         #region Field
         // 0 = 오버라이드 없음. 별도의 useOverride bool 을 두지 않는 이유는 상태가 둘이면
         // "켰는데 값이 비었다" 는 모순 상태가 생기기 때문이다. 값 하나가 곧 의사표시다.
@@ -14,16 +14,10 @@ namespace HAudio.AddOn {
         #endregion
 
         #region Protected - Handler
-        protected virtual void _HandleClick() {
-            if (!AudioManager.HasInstance) return;
-
-            if (overrideClickUid != 0) {
-                AudioManager.Instance.PlayUI(overrideClickUid);
-                return;
-            }
-
-            AudioManager.Instance.PlayClick();
-        }
+        // UI 재생축(PlayUI)을 기본 구현으로 두지 않는다 — 3D 월드 오브젝트 등
+        // 비-UI 상속자는 Play/Play3D 로 응답해야 하므로, 어떤 재생 축을 쓸지는
+        // 파생 클래스가 스스로 결정한다.
+        protected abstract void _HandleClick();
         #endregion
     }
 }
@@ -31,6 +25,28 @@ namespace HAudio.AddOn {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 _HandleClick 을 protected abstract 로 전환
+ *
+ * # 변경
+ * - `_HandleClick` 기본 구현(PlayUI/PlayClick 재생 로직)을 제거하고 `protected abstract void`
+ *   로 선언. 재생 로직은 `ButtonSfxAddon`/`ToggleSfxAddon` 각 파생 클래스로 이전.
+ *
+ * # 이유
+ * - 기존 기본 구현은 `AudioManager.PlayUI`/`PlayClick` 을 호출하는 UI 전용 재생축을
+ *   가정했다. `BaseSfxAddon` 이 UI 가 아닌 위치(3D 월드 오브젝트 등)에서도 상속될 수
+ *   있다는 전제가 생기면서, 어떤 재생축(`PlayUI` vs `Play`/`Play3D`)을 쓸지는 파생 클래스가
+ *   스스로 결정해야 하는 문제가 되었다 — base 가 UI 전용 구현을 강제하면 비-UI 상속자가
+ *   잘못된 축으로 재생하거나 base 를 오버라이드로 통째로 덮어써야 한다.
+ *
+ * # 결과
+ * - `ButtonSfxAddon`/`ToggleSfxAddon` 은 기존과 동일하게 `PlayUI`/`PlayClick` 을 호출하도록
+ *   각자 `_HandleClick` 을 구현(동작 변경 없음, 위치만 이전).
+ *
+ * # 주의
+ * - `BaseSfxAddon` 은 이제 추상 클래스라 직접 부착 불가. 신규 비-UI 파생 클래스는
+ *   `Play`/`Play3D` 등 알맞은 재생축으로 `_HandleClick` 을 구현할 것.
+ *
  * =============================================================================
  * @Jason - PKH 2026.08.06 overrideClickToken(string) → overrideClickUid(int) 전환
  *

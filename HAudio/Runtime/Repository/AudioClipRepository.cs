@@ -37,6 +37,12 @@ namespace HAudio.Repository {
 
         #region Properties
         public AssetLoadMode LoadMode { get; }
+
+        // disposed/ownsAssetProvider 가 private 이라 "폐기됐는가" · "provider 를 소유하는가"
+        // 를 테스트가 단정할 수 없었다(케이스 리포트 07 TST-2). 진단 전용 읽기 프로퍼티만
+        // 노출한다 — 상태를 바꾸지 않는다.
+        public bool IsDisposed => disposed;
+        public bool OwnsAssetProvider => ownsAssetProvider;
         #endregion
 
         #region Public - Constructors
@@ -298,5 +304,23 @@ namespace HAudio.Repository {
  * 1. Addressable 모드에서는 token 직접 해석 fallback을 허용합니다.
  * 2. 실제 source 호출은 AssetProvider가 담당합니다.
  * =========================================================
+ */
+#endif
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 IsDisposed/OwnsAssetProvider 진단 프로퍼티 추가 (케이스 리포트 07 TST-2)
+ *
+ * # 변경
+ * - `disposed` / `ownsAssetProvider` 필드를 읽기 전용으로 노출하는
+ *   `public bool IsDisposed` / `public bool OwnsAssetProvider` 프로퍼티 신설
+ *
+ * # 이유
+ * - COR-1(주입받은 공유 provider 에 `ReleaseAll`)의 분기(`ownsAssetProvider`)를 테스트가
+ *   생성자 인자로만 추론해야 했다. 둘 다 private 이라 관측 수단이 없었다
+ * - 상태를 바꾸지 않는 읽기 전용이라 `Dispose()` 의 기존 분기 로직에는 영향이 없다
+ * =============================================================================
  */
 #endif
