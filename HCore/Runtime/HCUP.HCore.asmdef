@@ -5,11 +5,7 @@
         "HCUP.HData",
         "HCUP.HDiagnosis",
         "HCUP.HInspector",
-        "HCUP.HUtil",
-        "UniTask",
-        "UniTask.Addressables",
-        "Unity.Addressables",
-        "Unity.ResourceManager"
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

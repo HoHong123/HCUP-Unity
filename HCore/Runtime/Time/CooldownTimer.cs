@@ -94,6 +94,9 @@ namespace HCore.HTime {
         }
 
         #region Public - Cancellation
+        // Start/StartWithEndTicks 에서 저장한 기본 cancelBehavior 를 사용한다.
+        public void Cancel() => Cancel(cancelBehavior);
+
         public void Cancel(CancelBehavior behavior) {
             _ThrowIfDisposed();
 
@@ -179,3 +182,19 @@ namespace HCore.HTime {
         #endregion
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 cancelBehavior 미사용 필드 결함 수정
+ *
+ * # 수정
+ * - Start/StartWithEndTicks 에서 저장만 되고 읽히지 않던 cancelBehavior 필드를
+ *   소비하는 파라미터 없는 Cancel() 오버로드를 추가했다.
+ * - 자연 완료(_Run 내부) 는 OnCompleted 를 직접 호출하므로 SkipAllEvents 하드코딩은
+ *   의도된 동작으로 판정, 변경하지 않았다.
+ *
+ * =============================================================================
+ */
+#endif

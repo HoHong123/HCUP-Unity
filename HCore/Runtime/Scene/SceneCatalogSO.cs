@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using HDiagnosis.Logger;
 
 namespace HCore.Scene {
     [CreateAssetMenu(menuName = "HCUP/Scene/Scene Catalog")]
@@ -51,19 +52,19 @@ namespace HCore.Scene {
             // 조용히 스킵하면 SceneLoader 가 "매핑되지 않음" 으로 오진한다 — 실제 원인은 깨진 SceneRef 다.
             foreach (var entry in entries) {
                 if (entry.Scene == null) {
-                    Debug.LogError($"[SceneCatalog] '{name}': SceneKey '{entry.Key}' has no SceneRef assigned.", this);
+                    HLogger.Error($"[SceneCatalog] '{name}': SceneKey '{entry.Key}' has no SceneRef assigned.");
                     continue;
                 }
 
                 var sceneName = entry.Scene.SceneName;
                 if (string.IsNullOrEmpty(sceneName)) {
-                    Debug.LogError($"[SceneCatalog] '{name}': SceneKey '{entry.Key}' has a SceneRef with an empty scene name.", this);
+                    HLogger.Error($"[SceneCatalog] '{name}': SceneKey '{entry.Key}' has a SceneRef with an empty scene name.");
                     continue;
                 }
 
                 // 중복 키는 last-wins 로 조용히 덮어써지고 있었다. 편집 실수를 드러낸다.
                 if (scenes.ContainsKey(entry.Key)) {
-                    Debug.LogError($"[SceneCatalog] '{name}': duplicate SceneKey '{entry.Key}'. The last entry wins.", this);
+                    HLogger.Error($"[SceneCatalog] '{name}': duplicate SceneKey '{entry.Key}'. The last entry wins.");
                 }
 
                 scenes[entry.Key] = sceneName;
@@ -81,3 +82,18 @@ namespace HCore.Scene {
 #endif
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 진단 로그를 HLogger 경유로 교정
+ *
+ * # 수정
+ * - UnityEngine.Debug.LogError 직접 호출 3곳을 HLogger.Error 로 교체.
+ *   HCore 전역에서 유일하게 Debug 를 직접 쓰던 지점이라, 인게임 콘솔(HLogConsole)에
+ *   잡히지 않던 진단 누락을 해소했다.
+ *
+ * =============================================================================
+ */
+#endif

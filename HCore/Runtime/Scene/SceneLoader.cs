@@ -261,6 +261,13 @@ namespace HCore.Scene {
             Action<float> onProgress = null,
             Action onComplete = null,
             string loadingScene = null) {
+            // in-flight 가드보다 timeScale 보정이 먼저 실행되면, 거부될 요청도 배속을 초기화해 버린다.
+            // LoadSceneAsync 내부의 isLoading 검사와 별개로 여기서도 먼저 확인한다.
+            if (isLoading) {
+                HLogger.Error("[SceneLoader] ReloadActiveSceneAsync() rejected: another load is already in flight.");
+                return UniTask.FromResult(false);
+            }
+
             // 종전에는 1 미만만 보정해 배속(>1) 상태가 새 씬으로 이월됐다. 재로드는 항상 등속에서 시작한다.
             Time.timeScale = 1f;
             var active = SceneManager.GetActiveScene().name;
@@ -302,3 +309,18 @@ namespace HCore.Scene {
         #endregion
     }
 }
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 ReloadActiveSceneAsync in-flight 순서 결함 수정
+ *
+ * # 수정
+ * - ReloadActiveSceneAsync 가 in-flight 가드보다 먼저 Time.timeScale = 1f 를 실행해,
+ *   요청이 거부되는 경우에도 배속이 초기화되던 결함을 수정. isLoading 검사를
+ *   timeScale 보정보다 앞에 배치했다.
+ *
+ * =============================================================================
+ */
+#endif
