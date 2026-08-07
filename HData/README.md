@@ -46,10 +46,12 @@ Unity 외 외부 의존이 없다. **단, `JTokenUtil.cs` 만 예외다** — �
    이 심볼을 정의하는 곳이 저장소 어디에도 없다 (`versionDefines` 전부 비어 있고
    `defineConstraints` 에도 없다). 게다가 asmdef 가 Newtonsoft 어셈블리를 참조하지 않으므로
    **심볼을 켜는 순간 컴파일 에러가 난다.** 삭제하거나 `versionDefines` 를 붙여야 한다.
-2. **`StringUtil.NumToAlpha` 의 단위 경계가 10,000 이다.** 1,000~9,999 는 축약되지 않고
-   (`"9999"`), 10,000 이 `"10.0천"` 이 된다 — 한국어로는 "1만" 이 맞다.
-3. **`VectorUtil.GetCanvasPosition` 의 본문은 `Camera.WorldToScreenPoint` 다.** 캔버스 좌표가
-   아니라 스크린 좌표를 반환한다. 파라미터명도 `_target`/`_camera` 로 컨벤션에서 벗어나 있다.
+2. ~~`StringUtil.NumToAlpha` 의 단위 경계가 10,000 이다.~~ K 단위 분기 조건을
+   `num >= 1_000` 으로 정정 (2026-08-07 반영) — 다른 단위(M/B/T)와 동일하게 "그 단위의
+   기준값 이상"이면 축약한다.
+3. ~~`VectorUtil.GetCanvasPosition` 의 본문은 `Camera.WorldToScreenPoint` 다.~~ 호출처
+   0건 확인 후 `GetScreenPosition` 으로 개명, 파라미터명도 `target`/`camera` 로 정정
+   (2026-08-07 반영).
 4. **폴더와 네임스페이스가 어긋난 파일이 있다** — `Primitives/StringUtil.cs` 의 네임스페이스는
    `HData.Formattable` 이다.
 

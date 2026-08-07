@@ -217,11 +217,11 @@ Vector2 dir  = 90f.DegreeToDirection();         // (0, 1)
    검사(`:30-32`)와 `AesEncryptor` 의 pepper·plain 검사(`:33-35`, `:42-44`)는 전부
    `#if UNITY_ASSERTIONS` 다. 릴리즈 빌드에서 `Encode(null)` 은 `Assert` 없이
    `Convert.ToBase64String` 이 던지는 `ArgumentNullException` 으로 나간다.
-8. **`VectorUtil.GetCanvasPosition` 은 캔버스 좌표를 반환하지 않는다** (`:31-33`).
-   본문이 `Camera.WorldToScreenPoint` 이므로 스크린 좌표다. Screen Space - Camera /
-   World Space 캔버스에서는 이 값을 그대로 쓸 수 없다. 이름이 동작과 어긋난다.
-9. **`VectorUtil` 의 파라미터 명명이 컨벤션을 벗어난다** (`:31` — `_target`, `_camera`).
-   같은 파일의 다른 메서드는 접두사 없이 쓴다.
+8. ~~`VectorUtil.GetCanvasPosition` 은 캔버스 좌표를 반환하지 않는다~~ (`:33-34`).
+   호출처 0건 확인 후 `GetScreenPosition` 으로 개명해 이름과 동작(World→Screen 변환)을
+   일치시켰다 (2026-08-07 반영).
+9. ~~`VectorUtil` 의 파라미터 명명이 컨벤션을 벗어난다~~ (`_target`, `_camera`) — 개명
+   작업에서 `target`/`camera` 로 함께 정정 (2026-08-07 반영).
 10. **`EnumUtil` / `FloatUtil` 은 메서드 1개짜리 파일이다** (17행씩). `Primitives` 하위에
     합치거나, 사용처를 확인해 제거 대상인지 판단할 여지가 있다.
 11. **`StringUtil` 만 네임스페이스가 `HData.Formattable` 이다** (`:21`). 폴더는
