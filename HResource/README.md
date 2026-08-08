@@ -14,12 +14,12 @@
 이 저장소에서 계층이 갈리는 지점이 여기다. `HUI`·`HAudio`·`HDialogue`·`HcupLocalization` 은
 "무엇을 쓸지"만 알고, 언제 로드되고 언제 풀리는지는 전부 이 모듈이 소유한다.
 
-| 시스템 | 파일 | 문서 |
-|---|---|---|
-| Load — 로더 3종 + 중복 요청 병합 게이트 | 8 | [docs/Load.md](docs/Load.md) |
-| Cache — 메모리 캐시 + owner별 점유 카운트 | 5 | [docs/Cache.md](docs/Cache.md) |
-| Provider — 진입점 + 팩토리 (+ Store·Validation·Data) | 3+6 | [docs/Provider.md](docs/Provider.md) |
-| Subscription — `AssetOwnerId` 발급·해제, Lease | 6 | [docs/Subscription.md](docs/Subscription.md) |
+| 시스템                                            | 파일  | 문서                                           |
+| ---------------------------------------------- | --- | -------------------------------------------- |
+| Load — 로더 3종 + 중복 요청 병합 게이트                    | 8   | [docs/Load.md](docs/Load.md)                 |
+| Cache — 메모리 캐시 + owner별 점유 카운트                 | 5   | [docs/Cache.md](docs/Cache.md)               |
+| Provider — 진입점 + 팩토리 (+ Store·Validation·Data) | 3+6 | [docs/Provider.md](docs/Provider.md)         |
+| Subscription — `AssetOwnerId` 발급·해제, Lease     | 6   | [docs/Subscription.md](docs/Subscription.md) |
 
 ---
 
