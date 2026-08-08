@@ -199,7 +199,7 @@ flowchart LR
     end
 
     A1 --> X{"기존 키인가"}
-    X -->|예| U1["_UpdateFirstEntryValue — 첫 매칭 행만 갱신"]
+    X -->|예| U1["_UpdateAllEntriesByKey — 매칭 행 하나로 수렴 + 값 갱신"]
     X -->|아니오| U2["entries.Add(new Entry)"]
     A2 --> U2
     A3 --> X
@@ -207,10 +207,12 @@ flowchart LR
     A5 --> U4["entries.Clear()"]
 ```
 
-`_RemoveAllEntriesByKey` (`:380-385`)가 **모든** 행을 지우는 것이 최근 수정 지점이다.
+`_RemoveAllEntriesByKey` (`:400-405`)와 `_UpdateAllEntriesByKey` (`:371-396`)는 같은 원칙을
+공유한다 — **"그 키에 해당하는 행이 둘 이상 남지 않는다"**. 삭제는 전량 제거, 갱신은 하나로
+수렴한다.
 
 ```csharp
-// HDictionary.cs:378-385
+// HDictionary.cs:400-405
 // 종전에는 첫 행만 제거해, 중복 키 상태에서 Remove 하면 둘째 행이 승격되어
 // "삭제했는데 값이 바뀐 채 살아있는" 결과가 나왔다. 키가 사라지면 그 키의 모든 행이 사라져야 한다.
 private void _RemoveAllEntriesByKey(TKey key) {
@@ -221,9 +223,17 @@ private void _RemoveAllEntriesByKey(TKey key) {
 }
 ```
 
-반대로 `_UpdateFirstEntryValue` (`:366-377`)는 **첫 행만** 갱신한다. `OnAfterDeserialize`
-가 중복 키를 first-wins 로 처리하므로(`:148-155`) 두 번째 이후 행은 어차피 딕셔너리에
-반영되지 않는다 — 정책이 일치한다.
+`_UpdateAllEntriesByKey` (`:371-396`)는 원래 `_UpdateFirstEntryValue` 라는 이름으로 **첫 행만**
+갱신했다. "`OnAfterDeserialize` 가 first-wins 라 둘째 행은 어차피 딕셔너리에 반영되지 않으니
+정책이 일치한다"는 것이 당시의 근거였으나, 이 설명은 "dict 값이 맞는가"만 보고 "entries 가
+청소되는가"는 보지 않는다 — 중복 키 상태에서 `TryAddOrReplace`/indexer 로 값을 정상적으로
+갱신해도 stale 둘째 행이 `entries` 에 영구히 남아, 재직렬화마다 `OnAfterDeserialize` 의
+dup-key `LogError` 가 계속 재현됐다(케이스 리포트 09 COR-6).
+
+**값만 모든 매칭 행에 동기화하는 1차 시도는 부족했다** — 행이 여전히 2개면 "행 개수 중복"
+자체가 dup-key 오류를 계속 유발한다(Unity MCP 실측으로 확인). 매칭 행 중 하나만 남기고
+나머지는 `RemoveAt` 으로 정리한 뒤, 정리 건수가 있으면 `Debug.LogWarning` 을 남기는 형태로
+최종 수정했다 — `ForceSyncEntriesFromDictionary` 의 파기 경고 관행과 동일하다.
 
 ---
 
