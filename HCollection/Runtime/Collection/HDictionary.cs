@@ -67,7 +67,7 @@ namespace HCollection {
                 base[key] = value;
 
                 if (existed) {
-                    _UpdateFirstEntryValue(key, value);
+                    _UpdateAllEntriesByKey(key, value);
                     return;
                 }
 
@@ -363,15 +363,35 @@ namespace HCollection {
         #endregion
         
         #region Private - Entry Sync
-        private void _UpdateFirstEntryValue(TKey key, TValue value) {
+        // 종전에는 첫 행만 갱신해, 중복 키 상태에서 TryAddOrReplace/indexer 로 값을 "정상적으로"
+        // 고쳐도 stale 둘째 행이 entries 에 영구히 남아 재직렬화마다 dup-key 오류가 재현됐다
+        // (케이스 리포트 09 COR-6). 값만 모든 매칭 행에 맞춰서는 "행 개수 중복" 자체가 해소되지
+        // 않아 오류가 그대로 재현된다 — 매칭 행 중 하나만 남기고 나머지는 정리해야 한다.
+        // 중복 키 정책(하드 에러 + first-wins)과 맞춰, 남기는 한 행에 새 값을 반영한다.
+        private void _UpdateAllEntriesByKey(TKey key, TValue value) {
             IEqualityComparer<TKey> comparer = Comparer;
-            for (int k = 0; k < entries.Count; k++) {
+            bool valueApplied = false;
+            int purged = 0;
+            for (int k = entries.Count - 1; k >= 0; k--) {
                 if (!comparer.Equals(entries[k].Key, key)) continue;
+
+                if (valueApplied) {
+                    entries.RemoveAt(k);
+                    purged++;
+                    continue;
+                }
+
                 entries[k] = new Entry {
                     Key = key,
                     Value = value
                 };
-                return;
+                valueApplied = true;
+            }
+
+            if (purged > 0) {
+                Debug.LogWarning(
+                    $"[HDictionary] Update collapsed {purged} duplicate row(s) for key='{key}' into one while syncing the new value. "
+                    + $"Fix duplicate keys in the inspector to avoid relying on this cleanup.");
             }
         }
 
@@ -392,6 +412,40 @@ namespace HCollection {
 /* =========================================================
  * Dev Log
  * =========================================================
+ *
+ * =========================================================
+ * 2026-08-08 (수정) :: _UpdateFirstEntryValue → _UpdateAllEntriesByKey (COR-6)
+ * =========================================================
+ * 변경 ::
+ * 1. `_UpdateFirstEntryValue(TKey, TValue)` 를 `_UpdateAllEntriesByKey(TKey, TValue)` 로
+ *    개명. 매칭 행 중 하나(역방향 순회상 첫 발견)에 새 값을 반영하고, 나머지 매칭 행은
+ *    `RemoveAt` 으로 정리 + 정리 건수가 있으면 `Debug.LogWarning`.
+ * 2. 인덱서 setter 의 호출부(existed 분기)를 새 이름으로 갱신.
+ *
+ * 이유 ::
+ * 케이스 리포트 09 COR-6. 중복 키 상태에서 공개 API(`TryAddOrReplace`/indexer)로 값을
+ * 갱신해도 stale 둘째 행이 `entries` 에 영구히 남아, 재직렬화마다 `OnAfterDeserialize` 의
+ * dup-key `LogError` 가 계속 재현됐다.
+ *
+ * **1차 시도(값만 모든 매칭 행에 동기화)는 부족했다** — Unity MCP `execute_code` 로 실측한
+ * 결과, 두 행 모두 새 값으로는 갱신되지만 "행이 2개" 라는 사실 자체는 그대로라
+ * `OnAfterDeserialize` 의 dup-key 오류가 여전히 재현됐다(리포트가 지적한 증상이 안 없어짐).
+ * `_RemoveAllEntriesByKey` 와 진짜 대칭이 되려면 "값 동기화" 가 아니라 "중복 행 자체의 정리"
+ * 가 필요해, 매칭 행을 하나로 수렴시키는 형태로 재설계했다. 클래스 헤더의 기존 중복 키
+ * 정책("하드 에러 + first-wins")과 `ForceSyncEntriesFromDictionary` 의 파기 경고 관행을
+ * 그대로 따른다.
+ *
+ * 결과 ::
+ * Unity MCP `execute_code` 로 리플렉션 기반 재현(`entries=[(K,10),(K,99)]` 조성 후
+ * `TryAddOrReplace(K,777)` → 재직렬화 왕복) — 수정 전: stale 둘째 행 잔존 + dup-key 오류
+ * 재발 확인. 1차 시도(값만 동기화): 두 행 다 777 이지만 여전히 2행 → dup-key 오류 재발
+ * 확인. 최종본: 재직렬화 후 `entries.Count == 1`, dup-key 오류 미재현, `dict[K] == 777`
+ * 유지 확인.
+ *
+ * 주의 ::
+ * O(n) 선형 탐색은 동일. 정리된 행이 있으면 경고를 남기므로, 편집자는 Inspector 에서
+ * 근본 원인(중복 키 입력)을 고치라는 신호를 계속 받는다 — 이 정리는 증상 완화이지
+ * 중복 키 입력 자체를 막지는 않는다(그건 `HDictionaryValidator` 3게이트의 역할).
  *
  * =========================================================
  * 2026-04-26 (수정 3) :: 헤더 형틀 복원 + 헤더/Dev Log #if UNITY_EDITOR 가드 적용
