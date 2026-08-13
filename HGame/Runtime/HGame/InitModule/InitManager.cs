@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
  * InitModule 스택의 페이즈 상태머신 싱글톤 베이스 클래스입니다.
@@ -46,16 +46,12 @@ namespace HGame.Flow {
         public InitPhaseType Phase => phase;
 
         // 성공적으로 완료된 전환만 알린다 - 취소·예외 경로에서는 호출하지 않는다.
-        // Start() 의 자동 전환(.Forget()) 도 이 이벤트로 완료를 관측할 수 있다.
         public event System.Action<InitPhaseType> PhaseEntered;
 
 
         protected override void Awake() {
             base.Awake();
-            // base 가 중복 인스턴스를 Destroy 한 경우 초기화를 진행하지 않는다.
             if (instance != this) return;
-            // 인스펙터 슬롯이 비었거나 참조가 Missing 이면 Sort 비교자에서 NRE 가 나고
-            // Awake 가 중단되어 "싱글톤은 살아있는데 정렬은 안 된" 반쯤 초기화된 매니저가 남았다.
             int removed = modules.RemoveAll(m => m == null);
             if (removed > 0) {
                 HLogger.Error($"[InitManager] {removed} null module slot(s) removed from '{name}'. Fix the inspector list.");
@@ -63,8 +59,6 @@ namespace HGame.Flow {
             modules.Sort((a, b) => a.Order.CompareTo(b.Order));
         }
 
-        // 필드명은 "OnEnable 마다" 를 약속했지만 소비 지점은 Start 였고, OnDisable 은 phase 를
-        // None 으로 되돌렸다 — 비활성→재활성 후 매니저가 None 에 갇혔다. 이름대로 재개시킨다.
         protected virtual void OnEnable() {
             if (!hasStarted) return;
             if (autoPrepareOnEnable) GamePrepareAsync().Forget();
@@ -96,8 +90,7 @@ namespace HGame.Flow {
         protected async UniTask SwitchGamePhaseAsync(InitPhaseType phase) {
             if (Phase == phase) return;
 
-            // 종전에는 상태를 먼저 확정한 뒤 유효성을 검사해, 미정의 페이즈를 넘기면
-            // 이전 페이즈만 파괴되고 아무 모듈도 진입하지 않은 채 매니저가 추락했다.
+            // 종전에는 상태를 먼저 확정한 뒤 유효성을 검사해
             if (!_IsSupportedPhase(phase)) {
                 HLogger.Error($"[InitManager] SwitchGamePhaseAsync received an unsupported phase '{phase}'. State unchanged.");
                 return;
