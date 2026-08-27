@@ -258,7 +258,7 @@ namespace HInspector.Editor {
  *   `foldoutStates` 에서 더 이상 존재하지 않는 오브젝트의 항목을 제거
  *
  * # 이유
- * - 근거: `Docs/Code/CaseReport/08_HInspector-에디터-캐시.md` 결함 의심 목록
+ * - 근거: `Docs/02_Code/01_CaseReport/04_HInspector 에디터 캐시.md` 결함 의심 목록
  * - EDG-2 는 리포트 처방(성공 시에만 캐시 + 실패 키 별도 HashSet) 그대로 적용
  * - WST-1 은 완전한 LRU 대신 "선택 변경 시 죽은 항목 정리"로 최소 처리 —
  *   `EditorUtility.InstanceIDToObject` 로 판정하며 살아있는 항목은 그대로 유지

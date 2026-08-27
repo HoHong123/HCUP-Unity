@@ -200,7 +200,7 @@ namespace HGame.Flow {
  * - TST-1: Start() 의 자동 전환이 .Forget() 이라 PlayMode 테스트가 완료를 관측할 수 없었다.
  *
  * # 결과
- * - `Docs/Code/CaseReport/02_InitManager-페이즈-전환.md` 의 RE-1/RE-2/TST-1 반영 완료.
+ * - `Docs/02_Code/01_CaseReport/07_InitManager 페이즈 전환.md` 의 RE-1/RE-2/TST-1 반영 완료.
  *
  * # 주의
  * - EXC-2(취소 시 일반 로그)·RACE-2(context 동시기록)는 이번 변경 범위 밖 - 별도 세션 이월.

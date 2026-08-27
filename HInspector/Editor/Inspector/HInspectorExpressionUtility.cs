@@ -545,7 +545,7 @@ namespace HInspector.Editor {
  *   히트하면 파싱을 재시도하지 않고 즉시 false 반환
  *
  * # 이유
- * - 근거: `Docs/Code/CaseReport/08_HInspector-에디터-캐시.md` WST-2 — 문법 오류
+ * - 근거: `Docs/02_Code/01_CaseReport/04_HInspector 에디터 캐시.md` WST-2 — 문법 오류
  *   표현식은 대상과 무관하게 항상 실패하는데도 리페인트마다 예외를 다시 던졌다
  * - `Parser` 가 던지는 모든 예외는 토큰 구조(괄호 불일치·잘못된 숫자·예상 밖 토큰)에서만
  *   나온다 — 멤버 미해석은 `HInspectorPropertyUtility._TryGetMemberValue` 가 내부에서

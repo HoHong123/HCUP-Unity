@@ -505,7 +505,7 @@ namespace HInspector.Editor {
  * - `_DrawButtons` 의 `Undo.RecordObjects` 호출부에 규약 주석 추가. 코드 동작은 변경 없음
  *
  * # 이유
- * - 근거: `Docs/Code/CaseReport/08_HInspector-에디터-캐시.md` COR-2 — `RecordObjects` 는
+ * - 근거: `Docs/02_Code/01_CaseReport/04_HInspector 에디터 캐시.md` COR-2 — `RecordObjects` 는
  *   직렬화 필드 스냅샷만 기록해 버튼이 오브젝트를 생성/삭제하면 Undo 가 포착하지 못한다
  * - 이 지점에서 무엇이 생성·파괴됐는지 알 수 없어(버튼 메서드 내부 로직) 여기서 일괄
  *   `RegisterCreatedObjectUndo` 를 부를 수 없다 — 계층 변경 책임을 버튼 메서드 쪽 규약으로 명문화

@@ -169,7 +169,7 @@ flowchart TD
    어셈블리에 Addressables 의존이 전파된다.
 5. **`HCore/Runtime/Scene/Demo/` 가 런타임 asmdef 안에 있다.** 테스트 씬 3개와 `SceneTester.cs`
    가 플레이어 빌드에 포함된다.
-6. **문서화 과정에서 발견한 코드 결함 목록**은 저장소 밖 `Docs/Code/CodeReview/` 에 있다
+6. **문서화 과정에서 발견한 코드 결함 목록**은 저장소 밖 `Docs/02_Code/00_CodeReview/` 에 있다
    (이 저장소는 서브모듈이라 상위 프로젝트 경로다).
 
 ---
