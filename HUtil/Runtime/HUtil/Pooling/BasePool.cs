@@ -115,6 +115,17 @@ namespace HUtil.Pooling {
         }
         #endregion
 
+        #region Public - Discard
+        /// <summary> 외부 요인으로 사용 불가가 된 대여 중 객체를 장부에서만 제거한다. 반환 스택에는 넣지 않는다. </summary>
+        public virtual bool Discard(T obj) {
+            if (!activatedPool.Remove(obj)) {
+                HLogger.Warning("[Pool] Discard target is not an activated object. Discard only objects handed out by Get.");
+                return false;
+            }
+            return true;
+        }
+        #endregion
+
         #region Public - Dispose
         public virtual void Dispose() {
             foreach (var obj in pool) {
@@ -137,6 +148,28 @@ namespace HUtil.Pooling {
 
 #if UNITY_EDITOR
 /* Dev Log
+ * =========================================================
+ * 2026-09-02 (수정) :: Discard 추가 - 외부 파괴 객체의 장부 정리 경로
+ * =========================================================
+ * 변경 ::
+ * 1. `Discard(T)` 추가. `activatedPool` 에서만 제거하고 `pool` 스택에는 넣지 않는다.
+ *    대여 중이 아닌 객체를 넘기면 경고 후 false 를 돌려준다.
+ *
+ * 이유 ::
+ * `Return` 은 `onReturn` 을 반드시 거치므로 이미 파괴된 UnityEngine.Object 에는 쓸 수 없다.
+ * `onReturn` 이 `Stop()` / `SetParent()` 같은 인스턴스 API 를 호출해 MissingReferenceException
+ * 이 나기 때문이다. 그렇다고 호출부가 `if (obj)` 로 걸러 건너뛰면 그 객체는 `activatedPool` 에
+ * 영원히 남아 풀이 재고 손실을 인지하지 못한다. 반환과 폐기를 다른 연산으로 가른다.
+ *
+ * 결과 ::
+ * 호출부는 "살아있으면 Return, 죽었으면 Discard" 로 두 경로를 명시적으로 처리할 수 있다.
+ * `CountActivated` 가 실제 대여 수와 다시 일치한다.
+ *
+ * 주의 ::
+ * `Discard` 는 `onDispose` 를 부르지 않는다. 대상이 이미 파괴된 상황을 전제하기 때문이다.
+ * 살아있는 객체를 의도적으로 풀에서 빼내는 용도로 쓰면 그 객체의 해제는 호출부 책임이 된다.
+ *
+ * =========================================================
  * @Jason - PKH
  * 풀링 시스템의 유연성과 일관성을 생각하여 작성한 클래스입니다.
  * 원하는 어떠한 타입이든 모두 적용 가능한 것이 첫번째 목표였습니다.
