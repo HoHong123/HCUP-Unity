@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEditor;
-using UnityEditor.IMGUI.Controls;
 using UnityEditorInternal;
 using UnityEngine;
 
@@ -174,105 +173,6 @@ namespace HInspector.Editor {
         #endregion
     }
 
-    /// <summary>
-    /// 이전 선택 UI. HDropdownSearchPopup 으로 대체되어 현재 호출되지 않는다.
-    /// AdvancedDropdown 은 검색 필드를 켤 공개 API 가 없어 교체했다 (메타데이터 실측).
-    /// 라벨 '/' 계층 접기는 이쪽에만 있으므로, 삭제는 사용자 승인 후에 한다.
-    /// </summary>
-    internal sealed class HDropdownSelector : AdvancedDropdown {
-        #region Constants
-        const int NONE_ID = -1;
-        const string NONE_LABEL = "(None)";
-        #endregion
-
-        #region Fields
-        // id → 실제 값. 어떤 id 도 중복되지 않게 만든다 -
-        // AdvancedDropdownState 가 id 를 키로 선택 위치를 추적하기 때문이다.
-        readonly Dictionary<int, int> valueById = new Dictionary<int, int>();
-        readonly List<HDropdownOption> items = new List<HDropdownOption>();
-        readonly bool allowNone;
-        readonly Action<int> onPicked;
-
-        int nextGroupId = -2;
-        #endregion
-
-        #region Constructors
-        public HDropdownSelector(IReadOnlyList<HDropdownOption> options, bool allowNone, Action<int> onPicked)
-            : base(new AdvancedDropdownState()) {
-
-            this.allowNone = allowNone;
-            this.onPicked = onPicked;
-
-            for (int k = 0; k < options.Count; k++) items.Add(options[k]);
-
-            minimumSize = new Vector2(280f, 340f);
-        }
-        #endregion
-
-        #region AdvancedDropdown
-        protected override AdvancedDropdownItem BuildRoot() {
-            valueById.Clear();
-            nextGroupId = -2;
-
-            var root = new AdvancedDropdownItem("Select");
-
-            if (allowNone) {
-                root.AddChild(new AdvancedDropdownItem(NONE_LABEL) { id = NONE_ID });
-                valueById[NONE_ID] = 0;
-                root.AddSeparator();
-            }
-
-            var groups = new Dictionary<string, AdvancedDropdownItem>(StringComparer.Ordinal);
-
-            for (int k = 0; k < items.Count; k++) {
-                string label = items[k].Label ?? string.Empty;
-
-                int cut = label.LastIndexOf('/');
-                AdvancedDropdownItem parent = root;
-                string leaf = label;
-
-                if (cut >= 0) {
-                    parent = _EnsureGroup(root, groups, label.Substring(0, cut));
-                    leaf = label.Substring(cut + 1);
-                }
-
-                parent.AddChild(new AdvancedDropdownItem(leaf) { id = k });
-                valueById[k] = items[k].Value;
-            }
-
-            return root;
-        }
-
-        protected override void ItemSelected(AdvancedDropdownItem item) {
-            if (item == null) return;
-            if (!valueById.TryGetValue(item.id, out int value)) return;
-
-            onPicked?.Invoke(value);
-        }
-        #endregion
-
-        #region Private
-        AdvancedDropdownItem _EnsureGroup(
-            AdvancedDropdownItem root,
-            Dictionary<string, AdvancedDropdownItem> groups,
-            string path) {
-
-            if (groups.TryGetValue(path, out var existing)) return existing;
-
-            int cut = path.LastIndexOf('/');
-            AdvancedDropdownItem parent = cut >= 0 ? _EnsureGroup(root, groups, path.Substring(0, cut)) : root;
-            string name = cut >= 0 ? path.Substring(cut + 1) : path;
-
-            var created = new AdvancedDropdownItem(name) { id = nextGroupId };
-            nextGroupId--;
-
-            parent.AddChild(created);
-            groups[path] = created;
-
-            return created;
-        }
-        #endregion
-    }
 
 }
 #endif
@@ -281,11 +181,25 @@ namespace HInspector.Editor {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
+ * 2026-09-04 (수정) :: HDropdownSelector 제거
+ *
+ * # 변경
+ * - AdvancedDropdown 기반 HDropdownSelector 클래스와 UnityEditor.IMGUI.Controls using 삭제.
+ *
+ * # 이유
+ * - HDropdownSearchPopup 이 라벨 '/' 계층 접기까지 구현해 이 클래스에만 있던 기능이 없어졌다.
+ *   호출처가 하나도 없는 상태로 남겨두면 두 개의 선택 UI 가 공존하는 것처럼 읽힌다.
+ * - 사용자 승인 후 삭제했다. 복구가 필요하면 이 커밋 직전 이력에 원본이 남아 있다.
+ *
+ * # 결과
+ * - 이 파일은 필드를 그리고 팝업을 여는 일만 한다. 선택 UI 는 HDropdownSearchPopup 이 소유한다.
+ *
+ * =============================================================================
  * 2026-09-04 (수정) :: 선택 UI 를 HDropdownSearchPopup 으로 교체
  *
  * # 변경
  * - _OpenSelector 가 searchThreshold 와 현재 값을 받아 HDropdownSearchPopup 을 연다.
- * - HDropdownSelector(AdvancedDropdown) 는 호출되지 않는다. 삭제는 승인 대기.
+ * - HDropdownSelector(AdvancedDropdown) 는 호출되지 않게 됐다. 아래 항목에서 제거했다.
  *
  * # 이유
  * - AdvancedDropdown 은 검색 필드를 띄울 수 없다. 그 타입이 서브클래스에 여는 멤버는
