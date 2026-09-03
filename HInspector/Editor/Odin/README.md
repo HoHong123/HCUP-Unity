@@ -25,7 +25,7 @@ Odin 렌더러가 그리게 만든다.** 자체 렌더링은 하지 않는다.
 
 | 경로 | 행수 | 역할 |
 |---|---|---|
-| `HInspectorToOdinBridge.cs` | 305 | `OdinAttributeProcessor` 구현. `_MapAll` 이 18종 매핑 메서드 호출 |
+| `HInspectorToOdinBridge.cs` | 411 | `OdinAttributeProcessor` 구현. `_MapAll` 이 18종 매핑 메서드 호출 |
 
 ---
 
@@ -78,9 +78,9 @@ Odin 이 설치돼 있어도 `HInspectorBehaviour` / `HInspectorScriptableObject
 | `HHorizontalGroup` | `HorizontalGroup` | `:232-240` |
 | `HVerticalGroup` | `VerticalGroup` | `:242-250` |
 | `HButton` | `Button` | 라벨 유무로 오버로드 분기 (`:252-264`) |
-| `HShowInInspector` | `ShowInInspector` **+** `LabelText` | 1:2 매핑 — Label 파라미터를 별도 속성으로 (`:266-278`) |
+| `HShowInInspector` | `ShowInInspector` **+** `LabelText` | 1:2 매핑 - Label 파라미터를 별도 속성으로 (`:266-278`) |
 | `HListDrawer` | `ListDrawerSettings` | **`[Obsolete]` 5개 옵션까지 전달** (`:293-299`) |
-| `HDropdown` | `ValueDropdown("@HDropdownOdinItemSource.GetItems(...)")` | `HDropdownSourceRegistry` 재사용. 표현식은 짧은 타입 이름만 지원 — `FullName` 금지 (`:306-318`) |
+| `HDropdown` | `ValueDropdown("@HDropdownOdinItemSource.GetItems(...)")` | `HDropdownSourceRegistry` 재사용. 표현식은 짧은 타입 이름만 지원, `FullName` 금지. `SearchThreshold` -> `NumberOfItemsBeforeEnablingSearch` (기본 0 = 검색 항상 켬, Odin 기본 10 을 덮는다) |
 
 ### `HReadOnly` 의 논리 변환
 
@@ -91,8 +91,8 @@ flowchart TD
     A["HReadOnly"] --> B{"ConditionMemberName 이 비었나"}
     B -->|예| C["Odin ReadOnly"]
     B -->|아니오| D{"Inverse"}
-    D -->|"true — 조건이 false 일 때 잠금"| E["Odin EnableIf(condition)"]
-    D -->|"false — 조건이 true 일 때 잠금"| F["Odin DisableIf(condition)"]
+    D -->|"true - 조건이 false 일 때 잠금"| E["Odin EnableIf(condition)"]
+    D -->|"false - 조건이 true 일 때 잠금"| F["Odin DisableIf(condition)"]
 ```
 
 ---
@@ -115,7 +115,7 @@ private static void _MapHTitle(List<Attribute> attributes) {
 }
 ```
 
-**`_MapHReadOnly` 만 이 패턴에서 벗어난다** — 가드가 메서드 진입부가 아니라 세 분기 안에 각각
+**`_MapHReadOnly` 만 이 패턴에서 벗어난다** - 가드가 메서드 진입부가 아니라 세 분기 안에 각각
 들어 있다 (`:144`, `:152`, `:156`). 조건 유무에 따라 검사할 Odin 속성이 다르기 때문이다.
 
 ---
@@ -142,7 +142,7 @@ private static void _MapHTitle(List<Attribute> attributes) {
    `ShowIfAttribute(memberName, compareValue)` 만 만들고 `CompareType` 을 버린다
    (`:98-103`, `:118-123`). Odin 의 `ShowIf` 는 등가 비교만 지원하므로,
    `[HShowIf(nameof(level), 10, HCompareType.GreaterOrEqual)]` 는 **Odin 환경에서
-   `level == 10` 으로 동작한다.** 부등호 비교가 필요하면 `@표현식` 형태를 써야 한다 —
+   `level == 10` 으로 동작한다.** 부등호 비교가 필요하면 `@표현식` 형태를 써야 한다 -
    표현식은 문자열 그대로 Odin 에 전달되어 Odin 표현식 엔진이 평가한다.
 
 ---
