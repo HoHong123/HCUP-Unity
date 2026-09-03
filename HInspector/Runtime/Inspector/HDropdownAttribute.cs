@@ -10,14 +10,19 @@
  *
  * 사용 예 ::
  * [HDropdown("HAudio.Clips")]
- * [SerializeField] int overrideClickUid;      // 0 = 선택 없음
+ * [SerializeField] int overrideClickUid;      // 0 = 선택 없음, 검색창 항상 표시
+ *
+ * [HDropdown("HAudio.Clips", searchThreshold: 20)]
+ * [SerializeField] int rareClickUid;          // 항목이 20개를 넘을 때만 검색창 표시
  *
  * 주의사항 ::
  * 1. int 필드 전용입니다. 다른 타입에는 기본 필드로 폴백합니다.
  * 2. HInspectorAttribute 파생이므로 [HShowIf] 등 다른 HInspector 속성과 같은 필드에
  *    함께 붙일 수 있습니다 (드로어가 하나로 합성되기 때문).
- * 3. 소스가 등록되지 않았거나 값이 목록에 없으면 "Missing (값)" 으로 붉게 표시합니다 —
- *    조용히 넘어가면 참조가 끊긴 것을 아무도 모른다.
+ * 3. 소스가 등록되지 않았거나 값이 목록에 없으면 "Missing (값)" 으로 붉게 표시합니다.
+ *    조용히 넘어가면 참조가 끊긴 것을 아무도 모릅니다.
+ * 4. SearchThreshold 는 Odin 설치 환경에서만 의미가 있습니다. 비-Odin 경로는
+ *    AdvancedDropdown 이 검색창을 항상 그리고, 그것을 끄는 공개 API 가 없습니다.
  * =========================================================
  */
 #endif
@@ -30,9 +35,17 @@ namespace HInspector {
         /// <summary> true 면 0 을 "(None)" 으로 표시하고 선택지에 포함한다. </summary>
         public bool AllowNone { get; }
 
-        public HDropdownAttribute(string sourceId, bool allowNone = true, int order = 0) : base(order) {
+        /// <summary>
+        /// 검색창을 켜기 시작하는 항목 개수. 0 이면 개수와 무관하게 항상 켠다.
+        /// Odin 의 ValueDropdown.NumberOfItemsBeforeEnablingSearch 로 그대로 전달된다.
+        /// </summary>
+        public int SearchThreshold { get; }
+
+        public HDropdownAttribute(string sourceId, bool allowNone = true, int searchThreshold = 0, int order = 0) : base(order) {
             SourceId = sourceId;
             AllowNone = allowNone;
+            // 음수는 임계값으로 뜻이 없다. 0(항상 켬)으로 접어 Odin 에 이상값을 넘기지 않는다.
+            SearchThreshold = searchThreshold < 0 ? 0 : searchThreshold;
         }
     }
 }
@@ -41,6 +54,31 @@ namespace HInspector {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
+ * 2026-09-03 (수정) :: SearchThreshold 태그 신설
+ *
+ * # 변경
+ * - SearchThreshold(int) 프로퍼티와 생성자 인자 searchThreshold 추가. 기본값 0.
+ * - 음수 입력은 생성자에서 0 으로 접는다.
+ *
+ * # 이유
+ * - Odin 설치 환경에서 [HDropdown] 은 HInspectorToOdinBridge 를 거쳐 Odin
+ *   ValueDropdown 으로 그려진다. 브릿지가 검색 설정을 넘기지 않아 Odin 기본값
+ *   NumberOfItemsBeforeEnablingSearch = 10 이 적용되고, 항목이 10개 이하인 소스는
+ *   검색창이 아예 뜨지 않았다. 저작 시점에 이를 제어할 수단이 없었다.
+ * - 기본값을 Odin 과 같은 10 이 아니라 0 으로 잡았다. 목록은 등록소가 런타임에
+ *   공급하므로 저작 시점에 개수를 알 수 없고, 비-Odin 경로(AdvancedDropdown)는
+ *   검색창을 항상 그린다. 0 이어야 두 렌더 경로의 체감이 같아진다.
+ *
+ * # 결과
+ * - 기존 호출부는 인자를 늘리지 않아도 검색창이 항상 살아있다.
+ *   생성자 인자를 order 앞에 끼웠지만 3번째 인자를 위치로 넘기는 호출부가 없어
+ *   기존 코드의 의미는 바뀌지 않는다 (호출처 2곳 전수 확인).
+ *
+ * # 주의
+ * - 비-Odin 경로에서는 이 값이 무시된다. AdvancedDropdown 의 검색창을 끄는 공개
+ *   API 가 없어서 SearchThreshold 를 크게 줘도 검색창은 남는다.
+ *
+ * =============================================================================
  * @Jason - PKH 2026.08.06 신규 생성
  *
  * # 목적
@@ -48,7 +86,7 @@ namespace HInspector {
  *
  * # 설계 결정
  * - enum 은 컴파일 타임 도구다. 직렬화 필드의 값은 .prefab/.unity YAML 에 들어가므로
- *   컴파일러가 검증하지 않는다 — enum 으로 선언해도 카탈로그에서 항목이 사라질 때
+ *   컴파일러가 검증하지 않는다 - enum 으로 선언해도 카탈로그에서 항목이 사라질 때
  *   컴파일 오류가 나지 않는다. 그래서 직렬화 필드에는 enum 이 아니라
  *   "제한된 편집 UI + 참조 검증" 이 필요하고, 이 속성이 그 앞단이다.
  * - 목록 출처를 문자열 ID 로 간접화해 의존 방향(도메인 → HInspector)을 지켰다.
