@@ -80,7 +80,7 @@ Odin 이 설치돼 있어도 `HInspectorBehaviour` / `HInspectorScriptableObject
 | `HButton` | `Button` | 라벨 유무로 오버로드 분기 (`:252-264`) |
 | `HShowInInspector` | `ShowInInspector` **+** `LabelText` | 1:2 매핑 - Label 파라미터를 별도 속성으로 (`:266-278`) |
 | `HListDrawer` | `ListDrawerSettings` | **`[Obsolete]` 5개 옵션까지 전달** (`:293-299`) |
-| `HDropdown` | `ValueDropdown("@HDropdownOdinItemSource.GetItems(...)")` | `HDropdownSourceRegistry` 재사용. 표현식은 짧은 타입 이름만 지원, `FullName` 금지. `SearchThreshold` -> `NumberOfItemsBeforeEnablingSearch` (기본 0 = 검색 항상 켬, Odin 기본 10 을 덮는다) |
+| `HDropdown` | `ValueDropdown("@HDropdownOdinItemSource.GetItems(...)")` | `HDropdownSourceRegistry` 재사용. 표현식은 짧은 타입 이름만 지원, `FullName` 금지. `SearchThreshold` -> `NumberOfItemsBeforeEnablingSearch` (기본 0 = 검색 항상 켬, Odin 기본 10 을 덮는다). 계약은 `HDropdownAttribute` 가 소유하지만 **비-Odin 렌더러는 미구현**이다. `AdvancedDropdown` 이 검색 관련 멤버를 공개하지 않는다 (검색 상태는 internal `AdvancedDropdownWindow` 소유, 메타데이터 실측) |
 
 ### `HReadOnly` 의 논리 변환
 
