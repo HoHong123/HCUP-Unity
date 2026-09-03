@@ -21,8 +21,10 @@
  *    함께 붙일 수 있습니다 (드로어가 하나로 합성되기 때문).
  * 3. 소스가 등록되지 않았거나 값이 목록에 없으면 "Missing (값)" 으로 붉게 표시합니다.
  *    조용히 넘어가면 참조가 끊긴 것을 아무도 모릅니다.
- * 4. SearchThreshold 는 Odin 설치 환경에서만 의미가 있습니다. 비-Odin 경로는
- *    AdvancedDropdown 이 검색창을 항상 그리고, 그것을 끄는 공개 API 가 없습니다.
+ * 4. SearchThreshold 는 현재 Odin 렌더러에서만 반영됩니다. 비-Odin 경로(HDropdownField)는
+ *    UnityEditor 의 AdvancedDropdown 을 쓰는데, 그 타입이 검색 관련 멤버를 전혀 공개하지
+ *    않아 검색창을 띄울 수 없습니다 (검색 상태는 internal AdvancedDropdownWindow 소유).
+ *    비-Odin 경로에 검색을 넣으려면 AdvancedDropdown 을 버리고 자체 팝업을 구현해야 합니다.
  * =========================================================
  */
 #endif
@@ -36,8 +38,8 @@ namespace HInspector {
         public bool AllowNone { get; }
 
         /// <summary>
-        /// 검색창을 켜기 시작하는 항목 개수. 0 이면 개수와 무관하게 항상 켠다.
-        /// Odin 의 ValueDropdown.NumberOfItemsBeforeEnablingSearch 로 그대로 전달된다.
+        /// 검색창을 켜기 시작하는 항목 개수. 항목 수가 이 값 이하이면 검색창을 숨긴다.
+        /// 0(기본)이면 개수와 무관하게 항상 켠다. "(None)" 도 항목 수에 포함한다.
         /// </summary>
         public int SearchThreshold { get; }
 
@@ -53,6 +55,34 @@ namespace HInspector {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * 2026-09-03 (수정) :: AdvancedDropdown 검색 관련 서술 정정 (메타데이터 실측)
+ *
+ * # 변경
+ * - XML 주석에서 Odin 언급을 제거했다. 임계값의 의미는 이 파일이 정의한다.
+ * - 주의사항 4 를 실측 결과로 교체했다. 비-Odin 경로는 검색창을 띄울 수 없다.
+ *
+ * # 이유
+ * - 이 파일의 이전 서술과 그 앞 서술이 둘 다 틀렸다. 실측 없이 단정한 결과다.
+ *   (1) "AdvancedDropdown 이 검색창을 항상 그린다" 틀림. 사용자가 IMGUI 에서 없음을 확인했다.
+ *   (2) "isSearchFieldDisabled 로 제어 가능" 틀림. 그 멤버는 AdvancedDropdown 에 없다.
+ * - 실측 방법과 결과 : UnityEditor.CoreModule.dll 의 메타데이터를 직접 읽었다.
+ *   AdvancedDropdown(public) 이 서브클래스에 여는 멤버는 minimumSize(protected),
+ *   BuildRoot(protected abstract), ItemSelected(protected virtual) 뿐이다.
+ *   maximumSize / SetFilter / m_Gui / m_WindowInstance 는 전부 internal 이고,
+ *   검색 상태(searchable, isSearchFieldDisabled)는 internal 타입
+ *   AdvancedDropdownWindow 가 갖는다. 외부 어셈블리에서 상속도 호출도 불가하다.
+ *
+ * # 결과
+ * - SearchThreshold 는 Odin 렌더러에서만 반영된다. 이건 어트리뷰트의 결함이 아니라
+ *   비-Odin 렌더러의 미구현이다. 계약의 정의는 이 파일에 있다.
+ *
+ * # 주의
+ * - 비-Odin 경로에 검색을 넣으려면 AdvancedDropdown 을 PopupWindowContent 기반
+ *   자체 팝업으로 교체해야 한다. 계층(라벨의 '/') 재구현이 따라온다. 별도 작업이다.
+ * - 리플렉션으로 internal 멤버를 건드리는 우회는 택하지 않는다. 라이브러리 코드가
+ *   에디터 버전마다 깨진다.
+ *
  * =============================================================================
  * 2026-09-03 (수정) :: SearchThreshold 태그 신설
  *
