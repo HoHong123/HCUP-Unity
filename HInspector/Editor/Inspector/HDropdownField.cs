@@ -4,12 +4,13 @@
  * [HDropdown] 필드의 실제 그리기 담당입니다. HInspectorPropertyDrawer 가 호출합니다.
  *
  * 주요 기능 ::
- * 1. 등록소에서 항목을 받아 검색 가능한 드롭다운(AdvancedDropdown)으로 고르게 합니다.
+ * 1. 등록소에서 항목을 받아 검색 팝업(HDropdownSearchPopup)으로 고르게 합니다.
  * 2. 값이 목록에 없으면 "Missing (값)" 을 붉게 표시합니다.
+ * 3. HDropdownAttribute.SearchThreshold 로 검색 필드 표시를 정합니다.
  *
  * 주의 ::
  * 1. int 필드 전용. 다른 타입은 기본 필드로 폴백합니다.
- * 2. 쓰기 경로가 이중이다 — 콜백에서 즉시 쓰고(빠른 경로), 실패에 대비해 보류 큐에도
+ * 2. 쓰기 경로가 이중이다 - 콜백에서 즉시 쓰고(빠른 경로), 실패에 대비해 보류 큐에도
  *    넣어 다음 OnGUI 에서 살아있는 프로퍼티로 다시 쓴다. 이유는 데브로그 참조.
  * 3. 이 파일은 Odin Inspector 미설치 환경에서만 실제로 그려집니다. Odin 설치 시에는
  *    HInspectorToOdinBridge 가 대신 처리합니다 (HInspector/Editor/Odin/README.md).
@@ -79,7 +80,7 @@ namespace HInspector.Editor {
             if (!pressed) return;
             if (!hasSource) return;
 
-            _OpenSelector(controlRect, property, options, attribute.AllowNone);
+            _OpenSelector(controlRect, property, options, attribute.AllowNone, attribute.SearchThreshold);
         }
         #endregion
 
@@ -121,7 +122,7 @@ namespace HInspector.Editor {
                 serializedObject.ApplyModifiedProperties();
             }
             catch (Exception) {
-                // 콜백 시점 쓰기 실패는 무시한다 — _ApplyPendingPick 보류 경로가 다음 OnGUI 에서 재시도한다.
+                // 콜백 시점 쓰기 실패는 무시한다 - _ApplyPendingPick 보류 경로가 다음 OnGUI 에서 재시도한다.
             }
         }
         #endregion
@@ -149,14 +150,15 @@ namespace HInspector.Editor {
             return false;
         }
 
-        static void _OpenSelector(Rect anchor, SerializedProperty property, IReadOnlyList<HDropdownOption> options, bool allowNone) {
+        static void _OpenSelector(Rect anchor, SerializedProperty property, IReadOnlyList<HDropdownOption> options, bool allowNone, int searchThreshold) {
             string key = _BuildKey(property);
             if (key == null) return;
 
             SerializedObject serializedObject = property.serializedObject;
             string propertyPath = property.propertyPath;
+            int currentValue = property.intValue;
 
-            var selector = new HDropdownSelector(options, allowNone, picked => {
+            var popup = new HDropdownSearchPopup(options, allowNone, searchThreshold, currentValue, anchor.width, picked => {
                 // 빠른 경로 : 콜백에서 바로 쓴다.
                 _WriteNow(serializedObject, propertyPath, picked);
 
@@ -167,11 +169,16 @@ namespace HInspector.Editor {
                 InternalEditorUtility.RepaintAllViews();
             });
 
-            selector.Show(anchor);
+            PopupWindow.Show(anchor, popup);
         }
         #endregion
     }
 
+    /// <summary>
+    /// 이전 선택 UI. HDropdownSearchPopup 으로 대체되어 현재 호출되지 않는다.
+    /// AdvancedDropdown 은 검색 필드를 켤 공개 API 가 없어 교체했다 (메타데이터 실측).
+    /// 라벨 '/' 계층 접기는 이쪽에만 있으므로, 삭제는 사용자 승인 후에 한다.
+    /// </summary>
     internal sealed class HDropdownSelector : AdvancedDropdown {
         #region Constants
         const int NONE_ID = -1;
@@ -179,7 +186,7 @@ namespace HInspector.Editor {
         #endregion
 
         #region Fields
-        // id → 실제 값. 어떤 id 도 중복되지 않게 만든다 —
+        // id → 실제 값. 어떤 id 도 중복되지 않게 만든다 -
         // AdvancedDropdownState 가 id 를 키로 선택 위치를 추적하기 때문이다.
         readonly Dictionary<int, int> valueById = new Dictionary<int, int>();
         readonly List<HDropdownOption> items = new List<HDropdownOption>();
@@ -274,18 +281,41 @@ namespace HInspector.Editor {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
- * @Jason - PKH 2026.08.07 진단 스캐폴딩 제거 — 원인이 이 파일 밖(Odin 브릿지)이었음이 확정됨
+ * 2026-09-04 (수정) :: 선택 UI 를 HDropdownSearchPopup 으로 교체
+ *
+ * # 변경
+ * - _OpenSelector 가 searchThreshold 와 현재 값을 받아 HDropdownSearchPopup 을 연다.
+ * - HDropdownSelector(AdvancedDropdown) 는 호출되지 않는다. 삭제는 승인 대기.
+ *
+ * # 이유
+ * - AdvancedDropdown 은 검색 필드를 띄울 수 없다. 그 타입이 서브클래스에 여는 멤버는
+ *   minimumSize / BuildRoot / ItemSelected 뿐이고 검색 상태는 internal
+ *   AdvancedDropdownWindow 소유다 (UnityEditor.CoreModule.dll 메타데이터 실측).
+ *   그래서 SearchThreshold 가 Odin 경로에서만 동작하는 상태였다.
+ * - HInspector 는 Odin 에 종속되지 않아야 한다. 어트리뷰트가 정의한 계약을 이 렌더러가
+ *   자기 수단으로 지켜야 하므로, 위젯을 갈아끼우는 것이 유일한 정공법이었다.
+ *
+ * # 결과
+ * - Odin 유무와 무관하게 [HDropdown] 에 검색 필드가 뜬다.
+ * - 라벨 '/' 계층 접기는 사라졌다. 평탄 목록 + 검색으로 대체된다.
+ *
+ * # 주의
+ * - 쓰기 이중화(_WriteNow + _ApplyPendingPick)는 그대로 유지했다. 팝업 교체와 무관한
+ *   별개의 안전망이고, 콜백 시점 문제는 PopupWindow 에서도 동일하다.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 진단 스캐폴딩 제거 - 원인이 이 파일 밖(Odin 브릿지)이었음이 확정됨
  *
  * # 변경
  * - HDropdownDiagnostics 클래스, 모든 Log() 호출 지점(PRESS/OPEN/PICK/BUILD-ROOT/
  *   ITEM-SELECTED/WRITE-NOW/PENDING-*), 그 전용으로만 쓰이던 _DescribeTarget 삭제.
- * - 쓰기 이중화(_WriteNow + _ApplyPendingPick)는 그대로 유지 — Odin 문제와 무관한
+ * - 쓰기 이중화(_WriteNow + _ApplyPendingPick)는 그대로 유지 - Odin 문제와 무관한
  *   별개의 안전망이고, 이 IMGUI 경로 자체는 원래 정상 동작이었다.
  *
  * # 이유
  * - "선택해도 값이 안 바뀐다" 증상의 실제 원인은 Odin 설치 환경에서 이 파일의 Draw() 가
  *   아예 호출되지 않는 것이었다(HInspectorToOdinBridge 의 매핑 누락). 재현 클릭 후에도
- *   _diag/hdropdown.log 가 한 줄도 안 찍힌 것으로 확정 — 이 파일 로직은 무죄였다.
+ *   _diag/hdropdown.log 가 한 줄도 안 찍힌 것으로 확정 - 이 파일 로직은 무죄였다.
  *   자세한 근본 원인은 HInspectorToOdinBridge.cs 데브로그(2026.08.07) 참조.
  * - 원인이 확정된 이상 리페인트마다 파일 I/O 를 도는 진단 코드를 남겨둘 이유가 없다.
  *
@@ -295,7 +325,7 @@ namespace HInspector.Editor {
  * # 변경
  * - 콜백에서 즉시 쓰기(_WriteNow) + 다음 OnGUI 보류 쓰기(_ApplyPendingPick) 이중 경로.
  *   둘 중 하나만 통해도 값이 남는다. 즉시 쓰기가 성공하면 보류 경로는 값이 같아 무시된다.
- * - HDropdownDiagnostics 신설 — <프로젝트 루트>/_diag/hdropdown.log 에 단계별 기록.
+ * - HDropdownDiagnostics 신설 - <프로젝트 루트>/_diag/hdropdown.log 에 단계별 기록.
  *   PRESS → OPEN → BUILD-ROOT → ITEM-SELECTED → PICK → WRITE-NOW → PENDING-* 순서로
  *   남으므로 어느 단계에서 끊기는지 파일 하나로 확정된다.
  *
@@ -309,12 +339,12 @@ namespace HInspector.Editor {
  * =============================================================================
  * @Jason - PKH 2026.08.06 선택한 값이 반영되지 않던 문제 1차 수정
  *
- * # 변경 1 — 모든 AdvancedDropdownItem 에 고유 id 부여
+ * # 변경 1 - 모든 AdvancedDropdownItem 에 고유 id 부여
  * - 이전: 그룹 노드 전부가 id = int.MinValue 를 공유했다.
  * - 이유: AdvancedDropdownState 는 id 를 키로 선택 위치를 추적한다. 중복 id 는 그 추적을
  *   엉키게 해 ItemSelected 가 엉뚱한 항목으로 오거나 오지 않을 수 있다.
  *
- * # 변경 2 — id → 값 매핑을 명시 테이블(valueById)로
+ * # 변경 2 - id → 값 매핑을 명시 테이블(valueById)로
  * - 인덱스 산술에 기대지 않으므로 id 규칙을 바꿔도 해석이 깨지지 않는다.
  *
  * =============================================================================
