@@ -1,6 +1,6 @@
-# Overlay — 팝업 · 스피너
+# Overlay - 팝업 · 스피너
 
-> 어셈블리: `HCUP.HUI` — [Runtime/README.md](../Runtime/README.md)
+> 어셈블리: `HCUP.HUI` - [Runtime/README.md](../Runtime/README.md)
 > 네임스페이스: `HUI.Popup`, `HUI.Spinner`
 > 파일: `Runtime/HUI/Popup/` 7개 + `Runtime/HUI/Spinner/` 2개 (858행)
 
@@ -113,7 +113,7 @@ classDiagram
 
 ---
 
-## 데이터 모델 — `LogQue`
+## 데이터 모델 - `LogQue`
 
 ```csharp
 // Popup/PopupManager.cs:24-68 (요약)
@@ -137,14 +137,14 @@ public class LogQue {
 "취소 전용 팝업"을 구분할 수 있는 유일한 정보가 `HasOk` 다.
 
 ```csharp
-// Popup/TextPopup.cs:39-52 — showOk 를 별도 인자로 받는 이유
+// Popup/TextPopup.cs:39-52 - showOk 를 별도 인자로 받는 이유
 var isOkActive = showOk && (okEvent != null);
 okBtn.gameObject.SetActive(isOkActive);
 ```
 
 ---
 
-## 흐름 1 — ShowLog 와 큐 진행
+## 흐름 1 - ShowLog 와 큐 진행
 
 ```mermaid
 sequenceDiagram
@@ -157,7 +157,7 @@ sequenceDiagram
     C->>M: ShowLog(level, title, message, ok, cancel)
     M->>M: uid = ++logCreatStack, 레벨별 HLogger 출력
     alt logHistory.Count >= MAX_LOG_QUEUE (256)
-        M-->>C: HLogger.Error 후 드롭 — 재진입 폭주 방지
+        M-->>C: HLogger.Error 후 드롭 - 재진입 폭주 방지
     end
     M->>B: SetActive(true)
     M->>M: hasOk = (onClickOk != null)
@@ -168,7 +168,7 @@ sequenceDiagram
     alt textInstance == null
         M->>T: Instantiate(textPrefab, logParent)
         M->>T: OnClosed += _OnPopupClosed
-        M->>T: Close() — 만들자마자 숨긴다
+        M->>T: Close() - 만들자마자 숨긴다
     end
 
     alt textInstance 가 비활성
@@ -186,7 +186,7 @@ sequenceDiagram
 
 ---
 
-## 흐름 2 — 배경 해제 판정
+## 흐름 2 - 배경 해제 판정
 
 이 시스템에서 **가장 최근에 고쳐진 부분**이다. 코드 주석이 종전 동작과 그 실패를 명시한다.
 
@@ -229,13 +229,13 @@ protected bool IsAllClosed =>
     && (vidInstnace == null || !vidInstnace.IsActive);
 ```
 
-`OnClosed` 는 **실제로 열려 있던 팝업이 닫힐 때만** 발화한다 — `Close()` 진입 시 `IsActive` 를
+`OnClosed` 는 **실제로 열려 있던 팝업이 닫힐 때만** 발화한다 - `Close()` 진입 시 `IsActive` 를
 먼저 읽어 두고, 참이었을 때만 쏜다 (`BasePopupUi.cs:48-52`). 중복 `Close` 호출이 배경 계산을
 흔들지 않는다.
 
 ---
 
-## 흐름 3 — ImagePopup 의 에셋 수명
+## 흐름 3 - ImagePopup 의 에셋 수명
 
 `HResource` 를 직접 쓰는 HUI 내 유일한 컴포넌트다. **"스프라이트를 하나만 유지"** 를 필드 교체로
 보장한다.
@@ -244,46 +244,46 @@ protected bool IsAllClosed =>
 sequenceDiagram
     participant C as 호출자
     participant P as ImagePopup
-    participant AP as AssetProvider~string, Sprite~
-    participant G as AssetOwnerIdGenerator
+    participant AP as IAssetSource~string, Sprite~
 
     C->>P: await SetUiFromResourcesAsync(fullPath)
-    P->>P: _EnsureResourcesProvider — 최초 1회 팩토리 생성
+    P->>P: _EnsureResourcesProvider - 최초 1회 팩토리 생성
     P->>P: _ReleasePreviousIfAny
     Note over P: currentKey/currentMode 로 직전 자원 Release 후 두 필드를 null 로
-    P->>G: OwnerId 접근 — 무효하면 NewId(this)
-    P->>AP: GetAsync(key, mode, CacheFirst, OwnerId)
+    P->>AP: GetAsync(this, key, mode, CacheFirst)
+    Note over AP: 첫 호출에서 지문 발급 + 이 GameObject 에 파괴 프로브 부착
     AP-->>P: Sprite
     alt null
-        P-->>C: HLogger.Error 후 종료 — currentKey 는 갱신하지 않는다
+        P-->>C: HLogger.Error 후 종료 - currentKey 는 갱신하지 않는다
     else
         P->>P: currentMode = mode, currentKey = key
-        P->>P: _DisplaySpriteRatio — 뷰포트 폭 기준 비율 맞춤
+        P->>P: _DisplaySpriteRatio - 뷰포트 폭 기준 비율 맞춤
     end
 
     C->>P: (파괴)
-    P->>AP: resourcesProvider.ReleaseOwner(ownerId)
-    P->>AP: addressableProvider.ReleaseOwner(ownerId)
-    P->>G: NotifyReleased(ownerId)
+    P->>AP: resourcesProvider.ReleaseOwner(this)
+    P->>AP: addressableProvider.ReleaseOwner(this)
+    Note over P,AP: 이 두 줄을 빠뜨려도 파괴 프로브가 같은 회수를 한다
 ```
 
-`ownerId` 는 **지연 발급**된다 (`ImagePopup.cs:48-53`). `SetUi(Sprite)` 로만 쓰는 팝업은 id 를
-발급받지 않고, `OnDestroy` 의 `if (ownerId.IsValid)` 가드가 그 경우를 거른다 (`:69`).
+이 팝업은 `AssetOwnerId` 를 들지 않는다. 소유자로 자기 자신을 넘길 뿐이고, 지문 발급과
+파괴 감지는 provider 안에서 일어난다. `SetUi(Sprite)` 로만 쓰는 팝업은 provider 를 만들지
+않으므로 지문도 발급되지 않는다.
 
 ---
 
-## 흐름 4 — SpinnerManager 참조 카운트
+## 흐름 4 - SpinnerManager 참조 카운트
 
 ```mermaid
 stateDiagram-v2
     [*] --> Hidden
-    Hidden --> Visible : Show(caller) — callers[caller] = 1, IsVisible = true
-    Visible --> Visible : Show(다른 caller) — 항목 추가
-    Visible --> Visible : Show(같은 caller) — 카운트 증가
-    Visible --> Visible : Hide(caller) — 카운트 감소, 남은 호출자 있음
-    Visible --> Hidden : Hide — callers.Count == 0
-    Visible --> Hidden : CleanUp — 파괴된 호출자 수거 후 0
-    Hidden --> Hidden : Hide(등록되지 않은 caller) — 무시
+    Hidden --> Visible : Show(caller) - callers[caller] = 1, IsVisible = true
+    Visible --> Visible : Show(다른 caller) - 항목 추가
+    Visible --> Visible : Show(같은 caller) - 카운트 증가
+    Visible --> Visible : Hide(caller) - 카운트 감소, 남은 호출자 있음
+    Visible --> Hidden : Hide - callers.Count == 0
+    Visible --> Hidden : CleanUp - 파괴된 호출자 수거 후 0
+    Hidden --> Hidden : Hide(등록되지 않은 caller) - 무시
 ```
 
 `await` 오버로드 5종은 전부 `try/finally` 로 감싸 **취소·예외에도 반드시 내린다.**
@@ -327,7 +327,7 @@ null 키를 담지 못하므로 종전의 `key != null` 검사는 항상 no-op �
 ## 사용 예
 
 ```csharp
-// 1) 프로젝트 매니저 정의 — PopupManager<T> 는 추상이다
+// 1) 프로젝트 매니저 정의 - PopupManager<T> 는 추상이다
 public sealed class MyPopupManager : PopupManager<MyPopupManager> { }
 
 // 2) 확인/취소 팝업
@@ -337,19 +337,19 @@ MyPopupManager.Instance.ShowLog(
     onClickCancel: null,
     okTxt: "재시도", cancelTxt: "그만두기");
 
-// 3) 취소 전용 팝업 — onClickOk 를 null 로 두면 HasOk = false 로 OK 버튼이 숨는다
+// 3) 취소 전용 팝업 - onClickOk 를 null 로 두면 HasOk = false 로 OK 버튼이 숨는다
 MyPopupManager.Instance.ShowLog(PopLevel.Log, "안내", "저장했습니다.");
 
-// 4) 스피너 — 수동 쌍
+// 4) 스피너 - 수동 쌍
 SpinnerManager.Instance.Show(this, "불러오는 중...");
 try { await LoadAsync(); }
 finally { SpinnerManager.Instance.Hide(this); }
 
-// 5) 스피너 — await 오버로드가 finally 를 대신한다
+// 5) 스피너 - await 오버로드가 finally 를 대신한다
 await SpinnerManager.Instance.Show(this, LoadAsync());
 var result = await SpinnerManager.Instance.Show(this, FetchAsync<Profile>());
 
-// 6) 고착 조사 — 릴리즈 빌드에서도 호출 가능
+// 6) 고착 조사 - 릴리즈 빌드에서도 호출 가능
 Debug.Log(SpinnerManager.Instance.GetCallerData());
 ```
 
@@ -362,7 +362,7 @@ Debug.Log(SpinnerManager.Instance.GetCallerData());
 1. **`ShowLog` 의 큐 진행 콜백은 OK/Cancel 양쪽에 합성된다** (`PopupManager.cs:140-143`).
    호출자가 넘긴 `onClickOk` 안에서 `ShowLog` 를 다시 부르면 재진입이 된다. 상한
    `MAX_LOG_QUEUE = 256` 이 유일한 방어이며, 초과분은 `HLogger.Error` 와 함께 **버려진다**
-   (`:131-134`) — 호출자에게 실패가 반환되지 않는다.
+   (`:131-134`) - 호출자에게 실패가 반환되지 않는다.
 2. **`TextPopup.SetText` 의 `showOk` 는 별도 인자다.** `okEvent != null` 로 판정하면 합성된
    래퍼 때문에 항상 참이 된다 (`TextPopup.cs:37-38` 주석). 직접 호출할 때 이 인자를 빠뜨리면
    기본값 `true` 로 OK 버튼이 항상 뜬다.
@@ -382,12 +382,12 @@ Debug.Log(SpinnerManager.Instance.GetCallerData());
    `PopupManager` 는 이 타입을 알지 못하고, `OnReturn(AlertPopup)` / `OnDispose(AlertPopup)` 는
    풀 콜백 시그니처를 흉내내지만 이 클래스를 담는 풀이 없다. `OnDispose` 는 `panel` 만
    `Destroy` 하고 자기 `gameObject` 는 남긴다 (`:26`).
-8. **필드명 오타가 공개 상태에 노출되어 있다** — `imgInstnace`, `vidInstnace`
+8. **필드명 오타가 공개 상태에 노출되어 있다** - `imgInstnace`, `vidInstnace`
    (`PopupManager.cs:97-98`). `protected` 라 파생 클래스가 그대로 쓴다.
 9. **`LogQue.uid` 는 로그 문자열에만 쓰이고 팝업을 식별하지 않는다** (`PopupManager.cs:121-127`).
    특정 팝업을 취소하거나 찾아오는 API 가 없다.
 10. **`HSpinner` 확장 메서드는 `this IDisposable` 을 요구한다** (`Spinner/HSpinner.cs:24-31`).
-    `SpinnerManager.Show` 는 `object` 를 받으므로 이 제약에는 근거가 없다 —
+    `SpinnerManager.Show` 는 `object` 를 받으므로 이 제약에는 근거가 없다 -
     `MonoBehaviour` 는 `IDisposable` 이 아니라서 가장 흔한 호출자가 확장 메서드를 못 쓴다.
     **패키지 내 `ShowSpinner`/`HideSpinner` 호출처는 0건**이다.
 11. **`HSpinner` 는 `Show(caller, UniTask)` / `Show<T>(caller, UniTask<T>)` 오버로드를 노출하지
@@ -400,7 +400,7 @@ Debug.Log(SpinnerManager.Instance.GetCallerData());
     상태를 건드리지는 않으므로 무해하지만, `SpinnerManager` 의 `instance != this` 가드
     (`:79`)와 규약이 다르다.
 14. **`VideoPopup` 은 `RenderTexture` 를 `Destroy` 하지 않는다** (`VideoPopup.cs:48-49`). 인스펙터로
-    배선된 에셋을 `width`/`height` 만 덮어쓰므로 — **에셋을 런타임에 변형한다.** 에디터에서는
+    배선된 에셋을 `width`/`height` 만 덮어쓰므로 - **에셋을 런타임에 변형한다.** 에디터에서는
     이 변경이 에셋 파일에 남을 수 있다.
 
 ---
@@ -412,7 +412,7 @@ Debug.Log(SpinnerManager.Instance.GetCallerData());
 | 프로젝트 팝업 매니저 | `PopupManager<T>` 상속 + `background`/`textPrefab`/`imagePrefab`/`videoPrefab`/parent 3종 배선 |
 | 새 팝업 종류 | `BasePopupUi` 상속 (`panel`·`closeBtn` 필수) + `PopupManager` 에 인스턴스 필드·`Show*`·`_Dispose*Instance`·`IsAllClosed` 항 추가 |
 | 팝업 큐 정책 변경 | `MAX_LOG_QUEUE` (`PopupManager.cs:103`) + `_SetTextPopup` |
-| 팝업 열림/닫힘 애니메이션 | `BasePopupUi.Open`/`Close` 오버라이드 — `OnClosed` 발화 시점을 유지할 것 |
-| 스피너 연출 교체 | `SpinnerManager` 의 `spinner` GameObject — 매니저는 `SetActive` 만 한다 |
+| 팝업 열림/닫힘 애니메이션 | `BasePopupUi.Open`/`Close` 오버라이드 - `OnClosed` 발화 시점을 유지할 것 |
+| 스피너 연출 교체 | `SpinnerManager` 의 `spinner` GameObject - 매니저는 `SetActive` 만 한다 |
 | 스피너 고착 조사 | `SpinnerManager.GetCallerData()` / `ActiveCallers` |
 | 이미지 로드 경로 추가 | `ImagePopup._LoadAndApplyAsync` + 새 `_Ensure*Provider` |
