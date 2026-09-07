@@ -4,8 +4,8 @@
  * AssetHandler 캐시의 저장 책임만 분리한 ISP 계약 인터페이스.
  *
  * 주요 기능 ::
- * Save(key, asset) — 익명 점유로 저장.
- * Save(key, asset, ownerId) — owner 점유 등록과 함께 저장.
+ * Save(key, asset, ownerId) - owner 를 점유자로 등록하며 저장.
+ * 소유자 없는 저장 오버로드는 2026-09-04 에 삭제했다. 귀속 없는 점유를 만들지 않는다.
  *
  * 사용법 ::
  * AssetProvider 가 source 로드 후 cache 에 결과 저장 시 호출.
@@ -22,7 +22,6 @@ using HResource.Subscription;
 
 namespace HResource.Cache {
     public interface IAssetWriter<TKey, TAsset> {
-        bool Save(TKey key, TAsset asset);
         bool Save(TKey key, TAsset asset, AssetOwnerId ownerId);
     }
 }
