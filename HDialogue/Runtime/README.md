@@ -36,18 +36,18 @@ HDialogue 는 **노드 그래프로 저작된 대화를 런타임에 순회해 �
 
 ```mermaid
 flowchart TD
-    subgraph 저작["저작 — HCUP.HDialogue.Editor"]
+    subgraph 저작["저작 - HCUP.HDialogue.Editor"]
     W["DialogueNodeWindow<br/>(HGraphWindow&lt;DialogueCatalogSO&gt;)"]
     NV["HGraphDialogue*Node ×9<br/>DialogueNodeViewRegistrar"]
     W --> NV
     end
 
-    subgraph 검증["검증 — Editor, 수동 실행"]
+    subgraph 검증["검증 - Editor, 수동 실행"]
     CV["DialogueCatalogValidator<br/>E001~E010 / W001~W007"]
     TV["DialogueTextValidator<br/>태그 구조"]
     end
 
-    subgraph 데이터["데이터 — ScriptableObject"]
+    subgraph 데이터["데이터 - ScriptableObject"]
     CAT["DialogueCatalogSO<br/>: NodeCatalogSO"]
     NODES["DialogueLineNode / ChoiceNode /<br/>BranchNode / … 9종"]
     REG["CharacterRegistrySO"]
@@ -57,7 +57,7 @@ flowchart TD
     CAT -.->|"카탈로그 전용"| LAY
     end
 
-    subgraph 순회["순회 — Runtime"]
+    subgraph 순회["순회 - Runtime"]
     MGR["DialogueManager<br/>SingletonBehaviour"]
     DIR["DialogueDirector<br/>_PlayCatalogAsync 루프"]
     VAR["IDialogueVariableContext"]
@@ -65,7 +65,7 @@ flowchart TD
     DIR <-->|"Branch / Variable"| VAR
     end
 
-    subgraph 표시["표시 — Runtime"]
+    subgraph 표시["표시 - Runtime"]
     TC["DialogueTextController<br/>타이프라이터"]
     PARSE["DialogueTagParser<br/>→ DialogueToken"]
     FX["TextEffectHandler"]
@@ -171,7 +171,7 @@ flowchart TD
 
     subgraph 외부의존
     HA["HAudio.AudioManager"]
-    HR["HResource<br/>IAssetProvider&lt;string, Sprite&gt;"]
+    HR["HResource<br/>IAssetSource&lt;string, Sprite&gt;"]
     HL["HUI.TextUI.HTextLocalizer"]
     TMP["TextMeshPro"]
     IS["Unity.InputSystem"]
@@ -196,7 +196,7 @@ flowchart TD
 ```
 
 `DialogueChoiceNode` 와 `DialogueBranchNode` 만 `HubNode` 를 상속한다. 나머지 7종은
-`BaseNode` 직속이고 출구 엣지가 하나뿐이다 — 이 상속 차이가 곧 `_ResolveNextNode` 의
+`BaseNode` 직속이고 출구 엣지가 하나뿐이다 - 이 상속 차이가 곧 `_ResolveNextNode` 의
 두 갈래다 (`DialogueDirector.cs:249-275`).
 
 ---
@@ -236,7 +236,7 @@ flowchart LR
 
 ---
 
-## 흐름 1 — 초기화와 배선
+## 흐름 1 - 초기화와 배선
 
 ```mermaid
 sequenceDiagram
@@ -248,8 +248,8 @@ sequenceDiagram
     participant HC as DialogueHistoryController
 
     U->>M: Awake
-    M->>M: base.Awake — 중복 인스턴스면 종료
-    M->>M: _ValidateRefs — director / textController / uiController
+    M->>M: base.Awake - 중복 인스턴스면 종료
+    M->>M: _ValidateRefs - director / textController / uiController
     Note over M: 셋 중 하나라도 null 이면 Error 로그 후 배선 전체 스킵
     M->>SD: Bind(defaultRegistry, defaultLayout, textController)
     M->>D: Bind(textController, variableContext)
@@ -263,7 +263,7 @@ sequenceDiagram
 
 ---
 
-## 흐름 2 — 카탈로그 재생 한 사이클
+## 흐름 2 - 카탈로그 재생 한 사이클
 
 ```mermaid
 sequenceDiagram
@@ -274,7 +274,7 @@ sequenceDiagram
     participant SD as CharacterStageDirector
 
     C->>M: PlayCatalog(catalog)
-    M->>M: _RebindStageDirector — catalog.Registry/Layout 우선, 없으면 씬 기본값
+    M->>M: _RebindStageDirector - catalog.Registry/Layout 우선, 없으면 씬 기본값
     M->>D: PlayCatalog(catalog)
     D->>D: startNode 결정 (override → RootNode)
     D->>D: _CancelCurrentCatalog("Replaced")
@@ -305,7 +305,7 @@ sequenceDiagram
 
 ---
 
-## 흐름 3 — 라인 하나가 화면에 뿌려지기까지
+## 흐름 3 - 라인 하나가 화면에 뿌려지기까지
 
 ```mermaid
 sequenceDiagram
@@ -346,7 +346,7 @@ sequenceDiagram
 ## 사용 예
 
 ```csharp
-// 1) 씬 배선 — DialogueManager 인스펙터에 director / textController / uiController 필수 연결.
+// 1) 씬 배선 - DialogueManager 인스펙터에 director / textController / uiController 필수 연결.
 //    나머지(stageDirector, audioController, inputController, historyController)는 선택.
 
 // 2) 재생
@@ -356,10 +356,10 @@ DialogueManager.Instance.PlayDefault();                 // targetCatalog, 없으
 
 // 3) 종료 구독
 DialogueManager.Instance.OnCatalogExit += (catalog, exitKey) => {
-    if (exitKey == "Error") { /* 그래프 결함 — 검증기 실행 */ }
+    if (exitKey == "Error") { /* 그래프 결함 - 검증기 실행 */ }
 };
 
-// 4) 변수 주입 — 기본값은 MemoryDialogueVariableContext(세션 한정).
+// 4) 변수 주입 - 기본값은 MemoryDialogueVariableContext(세션 한정).
 //    영구 저장이 필요하면 IDialogueVariableContext 를 구현해 director.Bind 로 넣는다.
 director.Bind(textController, new SaveBackedVariableContext());
 
@@ -383,7 +383,7 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
    상태에서 호출하면 `NullReferenceException` 이다.
 3. **인라인 `<event=...>` 와 `DialogueEventNode` 는 다른 채널이다.** 전자는
    `CharacterStageDirector` 만 받고, 후자는 `DialogueDirector.OnEventFired` 로만 나간다.
-   인라인 태그로 SFX 를 울릴 수는 없다 — [`Audio.md`](../docs/Audio.md) 참조.
+   인라인 태그로 SFX 를 울릴 수는 없다 - [`Audio.md`](../docs/Audio.md) 참조.
 4. **`Play` 계열 오디오는 prewarm 을 요구한다.** HDialogue 는 토큰만 넘기고 로드하지
    않는다. `AudioManager.PrewarmCatalog` 는 게임 코드 책임이다.
 5. **스프라이트는 `CharacterStageDirector` 가 소유한다.** `Awake` 에서 Addressable
@@ -395,7 +395,7 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
 6. **`DialogueUiController` 의 텍스트 슬롯 3종 중 `dialogueContentText` 는 런타임에 쓰이지
    않는다.** `ShowDialogueContent`(`:87`) / `SetPlayButtonInteractable`(`:95`) /
    `DialogueContentText`(`:124`) 전부 호출처 0건(패키지 전역 grep). 실제 대사는
-   `DialogueTextController.tmpText` 가 그린다 — 두 슬롯을 같은 오브젝트에 물려야 하는
+   `DialogueTextController.tmpText` 가 그린다 - 두 슬롯을 같은 오브젝트에 물려야 하는
    암묵 규칙이 남아 있다.
 7. **호출처 0건 공개 API 목록** (패키지 전역 grep, 주석 제외):
    `DialogueTextController.Clear` / `Pause` / `Resume` / `SetSpeedMode` / `SetHoldAccelerate`
@@ -407,7 +407,7 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
    `DialogueLine.Simple`. 외부 게임 코드용 확장점인 것과 순수 사문(死文)인 것이 섞여 있다.
 8. **`CharacterPortraitSetSO.pivotOffset` 은 읽는 코드가 없다** (`:41`, `:51`).
    슬롯 기준 보정은 `PortraitPose.PoseOffset` 이 담당한다
-   (`CharacterPortraitController.cs:338`) — 필드가 중복 설계로 남았다.
+   (`CharacterPortraitController.cs:338`) - 필드가 중복 설계로 남았다.
 9. **`PortraitTransitionType.SlideIn` / `Scale` 은 팩토리만 있고 처리 분기가 없다.**
    `PortraitTransition.SlideIn`(`:36`) / `Scale`(`:46`) 은 타입만 채우고,
    `CharacterPortraitController` 의 분기는 `Instant` / `Crossfade` / 그 외(=Fade) 셋뿐이다
@@ -429,7 +429,7 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
     (`:79`). Assert 는 릴리즈 빌드에서 제거되므로, 배선 누락은 릴리즈에서 조용히
     `tmpText == null` 가드로 흡수되어 **글자가 한 자도 안 나오는 무증상 실패**가 된다.
     같은 패키지의 `CharacterStageDirector.Awake`(`:67-69`)와
-    `DialogueManager._ValidateRefs`(`:189-203`)는 `HLogger.Error` 를 쓴다 — 기준이 갈린다.
+    `DialogueManager._ValidateRefs`(`:189-203`)는 `HLogger.Error` 를 쓴다 - 기준이 갈린다.
 
 ---
 
@@ -444,4 +444,4 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
 | 새 텍스트 이펙트 | `DialogueTagRegistry.EffectTags` + `TextEffectHandler.Update` 의 `range.EffectName` switch |
 | 포트레이트 트랜지션 추가 | `PortraitTransitionType` + `CharacterPortraitController` 의 `transition.Type` 분기 |
 | 입력 바인딩 변경 | `Runtime/Input/DialogueInputActions.inputactions` 의 `"Dialogue"` 액션맵 |
-| 카탈로그별 무대 교체 | `DialogueCatalogSO.registry` / `layout` — null 이면 `DialogueManager` 씬 기본값 |
+| 카탈로그별 무대 교체 | `DialogueCatalogSO.registry` / `layout` - null 이면 `DialogueManager` 씬 기본값 |
