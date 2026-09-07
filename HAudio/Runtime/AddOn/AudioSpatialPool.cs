@@ -123,7 +123,10 @@ namespace HAudio.AddOn {
                 // 파괴/취소 시 무시
             }
             finally {
-                if (audio) audioPool.Return(audio);
+                // 파괴 여부를 가리지 않고 반드시 반납한다. 외부 부모로 넘긴 AudioSource 는
+                // 그 부모와 함께 파괴되는데, 여기서 건너뛰면 풀의 활성 목록에 구멍이 남는다.
+                // 파괴된 객체는 BasePool.Return 이 재사용 스택에 넣지 않고 목록에서만 지운다.
+                audioPool.Return(audio);
             }
         }
     }
