@@ -3,7 +3,6 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HAudio.Core;
 using HResource.Data;
-using HResource.Subscription;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -22,45 +21,38 @@ namespace HAudio.Repository {
     public interface IAudioClipRepository : IDisposable {
         AssetLoadMode LoadMode { get; }
 
-        // uid 축 — 재생 경로. 문자열 정규화·할당이 없다.
+        // uid 축 - 재생 경로. 문자열 정규화·할당이 없다.
         bool TryGet(int uid, out AudioClip clip);
 
         UniTask<AudioClip> GetOrLoadAsync(
             int uid,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         UniTask PrewarmTokenAsync(
             int uid,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         bool Release(int uid);
-        bool Release(int uid, AssetOwnerId ownerId);
 
-        // token 축 — 저작·에디터·디버그.
+        // token 축 - 저작·에디터·디버그.
         bool TryGet(string token, out AudioClip clip);
 
         UniTask<AudioClip> GetOrLoadAsync(
             string token,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         UniTask PrewarmTokenAsync(
             string token,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         UniTask PrewarmCatalogAsync(
             AudioCatalogSO catalog,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst);
 
         bool Release(string token);
-        bool Release(string token, AssetOwnerId ownerId);
         void ReleaseCatalog(AudioCatalogSO catalog);
-        void ReleaseCatalog(AudioCatalogSO catalog, AssetOwnerId ownerId);
-        int ReleaseOwner(AssetOwnerId ownerId);
+
+        /// <summary> 이 저장소 소유자의 점유를 전부 반납한다. </summary>
         void ReleaseAll();
     }
 }
@@ -70,7 +62,7 @@ namespace HAudio.Repository {
  * @Jason - PKH
  * 주요 기능 ::
  * 1. 즉시 조회, 로드, preload, release 계약을 제공합니다.
- * 2. owner 기반 release 경로를 노출합니다.
+ * 2. 소유자는 생성자에서 한 번만 받습니다. 메서드마다 ownerId 를 넘기지 않습니다.
  *
  * 사용법 ::
  * 1. AudioManager는 source loader 대신 이 인터페이스를 참조합니다.
