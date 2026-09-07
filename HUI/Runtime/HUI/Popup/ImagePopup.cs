@@ -5,11 +5,10 @@ using UnityEngine.UI;
 using HInspector;
 using HResource.Data;
 using HResource.Provider;
-using HResource.Subscription;
 using HDiagnosis.Logger;
 
 namespace HUI.Popup {
-    public class ImagePopup : BasePopupUi, IAssetOwner {
+    public class ImagePopup : BasePopupUi {
         #region Fields
         [HTitle("Viewport")]
         [SerializeField]
@@ -29,12 +28,13 @@ namespace HUI.Popup {
 
         // AssetProvider
         // - Resources/Addressable 에셋의 실제 Load/Cache/Validate/Release 를 소유.
-        // - OnDestroy의 ReleaseOwner(ownerId)로 이 인스턴스 소유 자산을 일괄 회수한다.
+        // - OnDestroy의 ReleaseOwner(this)로 이 인스턴스 소유 자산을 일괄 회수한다.
+        // - 그것을 잊어도 provider 의 파괴 프로브가 같은 회수를 수행한다.
         // currentMode / currentKey
         // - 직전 로드 요청의 (mode, key). 새 요청 시 이전 자원을 Release
         // - "단 하나의 스프라이트만 유지" 제약을 단순 필드 교체로 보장한다.
-        AssetProvider<string, Sprite> resourcesProvider;
-        AssetProvider<string, Sprite> addressableProvider;
+        IAssetSource<string, Sprite> resourcesProvider;
+        IAssetSource<string, Sprite> addressableProvider;
         AssetLoadMode? currentMode;
         string currentKey;
         #endregion
@@ -43,15 +43,6 @@ namespace HUI.Popup {
         public event Action OnClickPanel;
         #endregion
 
-        #region Properties
-        AssetOwnerId ownerId;
-        public AssetOwnerId OwnerId {
-            get {
-                if (!ownerId.IsValid) ownerId = AssetOwnerIdGenerator.NewId(this);
-                return ownerId;
-            }
-        }
-        #endregion
 
         #region Unity Lifecycle
         protected override void Start() {
@@ -64,15 +55,15 @@ namespace HUI.Popup {
 
             panelBtn.onClick.RemoveAllListeners();
 
-            resourcesProvider?.ReleaseOwner(ownerId);
-            addressableProvider?.ReleaseOwner(ownerId);
+            // 정상 플로우로 자기 몫을 먼저 내려놓는다. 이 호출을 빠뜨려도 파괴 프로브가
+            // 같은 회수를 수행하지만, 명시적 반납이 기본 경로다.
+            resourcesProvider?.ReleaseOwner(this);
+            addressableProvider?.ReleaseOwner(this);
             // 두 provider 모두 이 팝업이 지연 생성한 것이라 폐기 책임도 여기에 있다.
-            // ReleaseOwner 로 자기 몫을 내려놓은 뒤, 남은 점유와 cache 구독을 Dispose 가 마감한다.
             resourcesProvider?.Dispose();
             addressableProvider?.Dispose();
             resourcesProvider = null;
             addressableProvider = null;
-            if (ownerId.IsValid) AssetOwnerIdGenerator.NotifyReleased(ownerId);
         }
         #endregion
 
@@ -98,14 +89,14 @@ namespace HUI.Popup {
         #endregion
 
         #region Private - Asset Handling
-        private AssetProvider<string, Sprite> _EnsureResourcesProvider() {
+        private IAssetSource<string, Sprite> _EnsureResourcesProvider() {
             if (resourcesProvider == null) {
                 resourcesProvider = AssetProviderFactory.CreateResources<Sprite>(resourcesRootPath: string.Empty);
             }
             return resourcesProvider;
         }
 
-        private AssetProvider<string, Sprite> _EnsureAddressableProvider() {
+        private IAssetSource<string, Sprite> _EnsureAddressableProvider() {
             if (addressableProvider == null) {
                 addressableProvider = AssetProviderFactory.CreateAddressable<Sprite>();
             }
@@ -113,13 +104,13 @@ namespace HUI.Popup {
         }
 
         private async UniTask _LoadAndApplyAsync(
-            AssetProvider<string, Sprite> provider,
+            IAssetSource<string, Sprite> provider,
             string key,
             AssetLoadMode mode) {
 
             _ReleasePreviousIfAny();
 
-            var sprite = await provider.GetAsync(key, mode, AssetFetchMode.CacheFirst, OwnerId);
+            var sprite = await provider.GetAsync(this, key, mode, AssetFetchMode.CacheFirst);
             if (sprite == null) {
                 HLogger.Error($"[ImagePopup] Failed to load sprite. mode={mode}, key={key}");
                 return;
@@ -135,7 +126,7 @@ namespace HUI.Popup {
             var provider = currentMode.Value == AssetLoadMode.Resources
                 ? resourcesProvider
                 : addressableProvider;
-            provider?.Release(currentKey, ownerId);
+            provider?.Release(this, currentKey);
 
             currentMode = null;
             currentKey = null;
