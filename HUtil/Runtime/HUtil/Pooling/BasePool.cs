@@ -102,10 +102,26 @@ namespace HUtil.Pooling {
         }
         #endregion
 
+        #region Protected - Validation
+        /// <summary> 풀 객체가 아직 쓸 수 있는 상태인지 판정한다. Unity 객체 파생은 fake-null 을 보도록 재정의한다. </summary>
+        protected virtual bool IsAlive(T obj) => obj != null;
+        #endregion
+
         #region Public - Return
         public virtual void Return(T obj) {
             if (!activatedPool.Contains(obj)) {
                 HLogger.Warning("[Pool] None pool object try return.");
+                return;
+            }
+
+            // 파괴된 객체는 재사용 스택으로 되돌리지 않는다. 활성 목록에서만 지워 구멍을 메운다.
+            // onReturn 도 부르지 않는다. 파괴된 대상을 건드리면 MissingReferenceException 이 난다.
+            if (!IsAlive(obj)) {
+                activatedPool.Remove(obj);
+                HLogger.Warning(
+                    $"[Pool] Destroyed object of type '{typeof(T).Name}' was returned and dropped. " +
+                    $"The pool will create a new instance on the next Get. " +
+                    $"Check the caller that destroyed it while it was still rented.");
                 return;
             }
 
@@ -137,6 +153,26 @@ namespace HUtil.Pooling {
 
 #if UNITY_EDITOR
 /* Dev Log
+ * =========================================================
+ * 2026-09-04 (수정) :: 파괴된 객체의 Return 처리
+ * =========================================================
+ * 변경 ::
+ * IsAlive(T) 가상 훅 신설. Return 이 파괴된 객체를 받으면 재사용 스택에 넣지 않고
+ * activatedPool 에서만 제거한다. ComponentPool / GameObjectPool 이 Unity fake-null 로 재정의.
+ *
+ * 이유 ::
+ * AudioSpatialPool.PlayAt(clip, newParent) 로 외부 객체의 자식이 된 AudioSource 는 그 부모가
+ * 파괴되면 함께 파괴된다. 기존 Return 은 파괴 여부를 보지 않고 pool.Push 하여 파괴된 객체가
+ * 재사용 대상으로 들어갔고, 다음 Get 이 그것을 반환했다.
+ *
+ * 결과 ::
+ * 파괴된 객체가 Get 으로 다시 나오지 않는다. CountTotal 이 줄지만 Get 이 필요 시 새로 만든다.
+ *
+ * 주의 ::
+ * Dispose 의 activatedPool 순회는 여전히 파괴된 객체에도 onDispose 를 호출한다. 같은 성격의
+ * 수정 대상이지만 이번 범위 밖이다.
+ * =========================================================
+ *
  * @Jason - PKH
  * 풀링 시스템의 유연성과 일관성을 생각하여 작성한 클래스입니다.
  * 원하는 어떠한 타입이든 모두 적용 가능한 것이 첫번째 목표였습니다.
