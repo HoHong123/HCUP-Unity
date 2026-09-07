@@ -33,6 +33,11 @@ namespace HUtil.Pooling {
         }
         #endregion
 
+        #region Protected - Validation
+        // Unity 객체는 파괴 후에도 C# 래퍼가 살아 있으므로 fake-null 로 판정한다.
+        protected override bool IsAlive(GameObject obj) => obj;
+        #endregion
+
         #region Protected - Create
         protected override GameObject Create() {
             var obj = GameObject.Instantiate(prefab, parent);

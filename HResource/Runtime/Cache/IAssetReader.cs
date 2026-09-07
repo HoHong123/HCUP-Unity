@@ -4,14 +4,14 @@
  * AssetHandler 캐시의 조회 책임만 분리한 ISP 계약 인터페이스.
  *
  * 주요 기능 ::
- * TryGet(key) — 점유 갱신 없이 단순 존재 확인.
+ * TryGet(key) - 점유 갱신 없이 단순 존재 확인.
  *
  * 사용법 ::
  * IAssetCache 가 본 인터페이스 + IAssetWriter + IAssetReleaser 를 합집합으로 노출.
  * 읽기 전용 cache decorator 구현 시 본 인터페이스만 구현 가능.
  *
  * 주의 ::
- * 조회는 점유를 바꾸지 않는다 — 점유 등록은 IAssetWriter.Save 만 담당한다.
+ * 조회는 점유를 바꾸지 않는다 - 점유 등록은 IAssetWriter.Save 만 담당한다.
  * "조회하며 점유를 올리는" API 는 의도적으로 두지 않는다 (AssetProvider 의 호출자별
  * 1:1 등록/해제 규약과 이중 카운트가 나기 때문. 2026-08-06 TryLoad 제거 참조).
  * =========================================================

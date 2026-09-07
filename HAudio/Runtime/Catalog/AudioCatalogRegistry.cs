@@ -108,7 +108,7 @@ namespace HAudio.Catalog {
         #endregion
 
         #region Public - Lookup
-        /// <summary> uid 로 조회한다. 재생 경로의 기본 진입점 — 문자열을 만지지 않는다. </summary>
+        /// <summary> uid 로 조회한다. 재생 경로의 기본 진입점 - 문자열을 만지지 않는다. </summary>
         public bool TryGetEntry(int uid, out AudioCatalogSO.Entry entry) {
             entry = null;
             if (uid == 0) return false;
@@ -176,7 +176,7 @@ namespace HAudio.Catalog {
 
             string normalizedToken = _NormalizeToken(entry.Token);
 
-            // token 축의 제거 여부를 반환값으로 삼는다 — 자산 해제의 기준은 종전과 동일하게 token 축이다.
+            // token 축의 제거 여부를 반환값으로 삼는다 - 자산 해제의 기준은 종전과 동일하게 token 축이다.
             // uid 축은 같은 시점에 함께 내려놓기만 하고 판정에는 관여하지 않는다.
             if (_TryResolveUid(entry, normalizedToken, out int uid)) {
                 _ReleaseEntry(uidEntryTable, uid);
@@ -186,7 +186,7 @@ namespace HAudio.Catalog {
         }
 
         // uid 는 Entry.uid 필드가 정본이다. 다만 필드가 도입되기 전에 만들어진 카탈로그는 0 이므로,
-        // 그 경우에 한해 token 규약("{uid}_{이름}")에서 복구한다 — 등록 시점 1회뿐이고
+        // 그 경우에 한해 token 규약("{uid}_{이름}")에서 복구한다 - 등록 시점 1회뿐이고
         // 재생 경로에서는 절대 파싱하지 않는다.
         private bool _TryResolveUid(AudioCatalogSO.Entry entry, string normalizedToken, out int uid) {
             uid = entry.Uid;

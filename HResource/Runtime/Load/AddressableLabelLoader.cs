@@ -76,7 +76,7 @@ namespace HResource.Load {
 
             var handle = Addressables.LoadAssetsAsync<TAsset>(label, null);
             try {
-                // 실패한 handle 의 await 는 예외를 throw 한다 (UniTask) — 사후 Status 검사는 도달 불가.
+                // 실패한 handle 의 await 는 예외를 throw 한다 (UniTask) - 사후 Status 검사는 도달 불가.
                 await handle.ToUniTask();
             }
             catch (System.Exception e) {
@@ -159,7 +159,7 @@ namespace HResource.Load {
 
             var locationHandle = Addressables.LoadResourceLocationsAsync(label, typeof(TAsset));
             try {
-                // location await 도 try 안 — 실패 예외 시 finally 의 Release 가 실행되도록.
+                // location await 도 try 안 - 실패 예외 시 finally 의 Release 가 실행되도록.
                 await locationHandle.ToUniTask();
 
                 var location = resolveLocation(locationHandle.Result);

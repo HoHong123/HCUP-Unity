@@ -4,7 +4,7 @@
  * 동일 key 동시 로드를 합치는 게이트 계약 인터페이스.
  *
  * 주요 기능 ::
- * RunAsync(key, factory) — key 별 비동기 작업을 공유. 같은 key 동시 요청은 한 UniTask 로 dedupe.
+ * RunAsync(key, factory) - key 별 비동기 작업을 공유. 같은 key 동시 요청은 한 UniTask 로 dedupe.
  *
  * 사용법 ::
  * AssetProvider 가 _GetAsync 에서 source 로드 호출을 본 게이트로 감쌈. 같은 key 가 동시에
@@ -12,7 +12,7 @@
  *
  * 주의 ::
  * factory 는 동일 key 에 대해 재진입 가능성 고려. 게이트는 진행 중 작업 공유만 책임지고
- * cache 정책 (저장/만료) 은 다루지 않음 — 책임 분리.
+ * cache 정책 (저장/만료) 은 다루지 않음 - 책임 분리.
  * =========================================================
  */
 #endif
@@ -46,7 +46,7 @@ namespace HResource.Load {
  * =========================================================
  * 동일 key 동시 로드 dedupe 라는 단일 책임만 노출. 결과 캐시 (cache 정책) 와 명확히 분리.
  * 기본 구현체 SharedAssetLoadGate 가 17 줄짜리 finally cleanup 패턴으로 진행 중 task 공유.
- * 게이트 자체는 source 종류와 무관한 공통 도구 — Resources/Addressable 어느 loader 에도 적용.
+ * 게이트 자체는 source 종류와 무관한 공통 도구 - Resources/Addressable 어느 loader 에도 적용.
  * =========================================================
  */
 #endif

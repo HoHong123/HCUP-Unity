@@ -6,7 +6,6 @@ using HAudio.Catalog;
 using HAudio.Core;
 using HResource.Data;
 using HResource.Provider;
-using HResource.Subscription;
 
 #if UNITY_EDITOR
 /* =========================================================
@@ -24,13 +23,12 @@ namespace HAudio.Repository {
     public sealed class AudioClipRepository : IAudioClipRepository {
         #region Fields
         readonly AudioCatalogRegistry catalogRegistry;
-        readonly IAssetProvider<string, AudioClip> assetProvider;
-        // uid → 최종 loadKey 해석 캐시. loadKey 생성은 문자열 할당을 동반하므로(Resources 모드의
-        // BuildResourcesLoadKey) uid 당 1회만 수행하고 이후 재생은 조회만 한다.
-        // AudioClip 자체는 캐시하지 않는다 — 자산 수명은 AssetProvider 한 곳이 소유해야 하고,
-        // 여기에 두 번째 캐시를 두면 해제 경로가 둘로 갈라진다.
+        readonly IAssetSource<string, AudioClip> assetProvider;
+        // 이 저장소가 잡는 모든 자산의 소유자. 생성자에서 한 번만 받는다.
+        // 소유자가 파괴되면 provider 의 프로브가 이 저장소 몫을 자동 회수한다.
+        readonly Component owner;
+        // uid → 최종 loadKey 해석 캐시.
         readonly Dictionary<int, string> loadKeyByUid = new();
-        // provider 를 주입받았다면 소유자는 호출자다 — 이 저장소가 폐기하면 안 된다.
         readonly bool ownsAssetProvider;
         bool disposed;
         #endregion
@@ -38,9 +36,6 @@ namespace HAudio.Repository {
         #region Properties
         public AssetLoadMode LoadMode { get; }
 
-        // disposed/ownsAssetProvider 가 private 이라 "폐기됐는가" · "provider 를 소유하는가"
-        // 를 테스트가 단정할 수 없었다(케이스 리포트 07 TST-2). 진단 전용 읽기 프로퍼티만
-        // 노출한다 — 상태를 바꾸지 않는다.
         public bool IsDisposed => disposed;
         public bool OwnsAssetProvider => ownsAssetProvider;
         #endregion
@@ -49,10 +44,16 @@ namespace HAudio.Repository {
         public AudioClipRepository(
             AssetLoadMode loadMode,
             AudioCatalogRegistry catalogRegistry,
-            IAssetProvider<string, AudioClip> assetProvider = null) {
+            Component owner,
+            IAssetSource<string, AudioClip> assetProvider = null) {
 
             if (catalogRegistry == null) {
                 HLogger.Throw(new System.ArgumentNullException(nameof(catalogRegistry), "[AudioClipRepository] catalogRegistry is null."));
+            }
+            if (owner == null) {
+                HLogger.Throw(new System.ArgumentNullException(
+                    nameof(owner),
+                    "[AudioClipRepository] owner is null or destroyed. Every occupancy must be attributable to a live Component."));
             }
             if (loadMode != AssetLoadMode.Resources && loadMode != AssetLoadMode.Addressable) {
                 HLogger.Throw(new System.ArgumentException($"[AudioClipRepository] Unsupported load mode. loadMode={loadMode}", nameof(loadMode)));
@@ -60,13 +61,14 @@ namespace HAudio.Repository {
 
             LoadMode = loadMode;
             this.catalogRegistry = catalogRegistry;
+            this.owner = owner;
             ownsAssetProvider = assetProvider == null;
             this.assetProvider = assetProvider ?? _CreateDefaultProvider(loadMode);
         }
         #endregion
 
         #region Public - Get
-        /// <summary> uid 로 조회한다. 재생 경로의 기본 진입점 — 문자열 정규화·할당이 없다. </summary>
+        /// <summary> uid 로 조회한다. 재생 경로의 기본 진입점 - 문자열 정규화·할당이 없다. </summary>
         public bool TryGet(int uid, out AudioClip clip) {
             clip = null;
             if (!_TryBuildLoadKey(uid, out string loadKey)) return false;
@@ -81,59 +83,54 @@ namespace HAudio.Repository {
 
         public UniTask<AudioClip> GetOrLoadAsync(
             int uid,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
             if (!_TryBuildLoadKey(uid, out string loadKey)) {
                 return UniTask.FromResult<AudioClip>(null);
             }
 
-            return assetProvider.GetAsync(loadKey, LoadMode, fetchMode, ownerId);
+            return assetProvider.GetAsync(owner, loadKey, LoadMode, fetchMode);
         }
 
         public UniTask<AudioClip> GetOrLoadAsync(
             string token,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
             if (!_TryBuildLoadKey(token, out string loadKey)) {
                 return UniTask.FromResult<AudioClip>(null);
             }
 
-            return assetProvider.GetAsync(loadKey, LoadMode, fetchMode, ownerId);
+            return assetProvider.GetAsync(owner, loadKey, LoadMode, fetchMode);
         }
         #endregion
 
         #region Public - Prewarm
         public async UniTask PrewarmTokenAsync(
             int uid,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
-            await GetOrLoadAsync(uid, ownerId, fetchMode);
+            await GetOrLoadAsync(uid, fetchMode);
         }
 
         public async UniTask PrewarmTokenAsync(
             string token,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
-            await GetOrLoadAsync(token, ownerId, fetchMode);
+            await GetOrLoadAsync(token, fetchMode);
         }
 
         public async UniTask PrewarmCatalogAsync(
             AudioCatalogSO catalog,
-            AssetOwnerId ownerId = default,
             AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
-            if (!catalog) return;   // null/파괴 가드 — Assert 는 릴리즈에서 제거되므로 런타임 가드만 유지
+            if (!catalog) return;   // null/파괴 가드. Assert 는 릴리즈에서 제거되므로 런타임 가드만 유지
 
             catalogRegistry.RegisterCatalog(catalog);
 
             List<UniTask> tasks = new List<UniTask>(catalog.Entries.Count);
             foreach (var entry in catalog.Entries) {
                 if (entry == null) continue;
-                tasks.Add(GetOrLoadAsync(entry.Token, ownerId, fetchMode));
+                tasks.Add(GetOrLoadAsync(entry.Token, fetchMode));
             }
 
             await UniTask.WhenAll(tasks);
@@ -143,29 +140,15 @@ namespace HAudio.Repository {
         #region Public - Release
         public bool Release(int uid) {
             if (!_TryBuildLoadKey(uid, out string loadKey)) return false;
-            return assetProvider.Release(loadKey);
-        }
-
-        public bool Release(int uid, AssetOwnerId ownerId) {
-            if (!_TryBuildLoadKey(uid, out string loadKey)) return false;
-            return assetProvider.Release(loadKey, ownerId);
+            return assetProvider.Release(owner, loadKey);
         }
 
         public bool Release(string token) {
             if (!_TryBuildLoadKey(token, out string loadKey)) return false;
-            return assetProvider.Release(loadKey);
-        }
-
-        public bool Release(string token, AssetOwnerId ownerId) {
-            if (!_TryBuildLoadKey(token, out string loadKey)) return false;
-            return assetProvider.Release(loadKey, ownerId);
+            return assetProvider.Release(owner, loadKey);
         }
 
         public void ReleaseCatalog(AudioCatalogSO catalog) {
-            ReleaseCatalog(catalog, default);
-        }
-
-        public void ReleaseCatalog(AudioCatalogSO catalog, AssetOwnerId ownerId) {
             if (!catalog) return;
 
             List<AudioCatalogSO.Entry> removedEntries = new List<AudioCatalogSO.Entry>();
@@ -173,29 +156,20 @@ namespace HAudio.Repository {
             if (refCount > 0) return;
 
             foreach (var entry in removedEntries) {
-                // 해석 캐시를 함께 버린다. 같은 uid 가 경로가 다른 카탈로그로 재등록되면
-                // 남아있던 loadKey 가 옛 경로를 가리켜 조용히 엉뚱한 자산을 찾게 된다.
+                // 같은 uid 가 경로가 다른 카탈로그로 재등록하면 남아있던 loadKey 가 옛 경로를 가리켜 조용히 잘못된 자산을 찾음.
                 if (entry != null && entry.Uid != 0) loadKeyByUid.Remove(entry.Uid);
 
                 string loadKey = _ResolveLoadKey(entry);
                 if (string.IsNullOrWhiteSpace(loadKey)) continue;
 
-                if (ownerId.IsValid) {
-                    assetProvider.Release(loadKey, ownerId);
-                    continue;
-                }
-
-                assetProvider.Release(loadKey);
+                assetProvider.Release(owner, loadKey);
             }
         }
 
-        public int ReleaseOwner(AssetOwnerId ownerId) {
-            return assetProvider.ReleaseOwner(ownerId);
-        }
-
+        /// <summary> 이 저장소 소유자의 점유를 전부 반납한다. 다른 소유자의 점유는 건드리지 않는다. </summary>
         public void ReleaseAll() {
             loadKeyByUid.Clear();
-            assetProvider.ReleaseAll();
+            assetProvider.ReleaseOwner(owner);
         }
 
         /// <summary>
@@ -208,10 +182,9 @@ namespace HAudio.Repository {
 
             loadKeyByUid.Clear();
 
-            // 주입받은 provider 에 ReleaseAll 을 걸면 owner 를 가리지 않고 캐시를 통째로 비우므로
-            // 주입한 쪽의 다른 점유까지 파괴된다 (케이스 리포트 07 COR-1). 이 저장소는 자기 몫만
-            // 식별할 수단(자체 ownerId)이 없으므로, 비소유 경로에서는 손대지 않는 것이 유일하게
-            // 안전한 선택이다 — 해제 책임은 provider 를 주입한 쪽에 있다.
+            // 이제 이 저장소는 자기 몫을 소유자로 식별할 수 있다.
+            // 주입받은 provider 라도 자기 점유만 정확히 내려놓을 수 있으므로 그냥 두지 않는다 (케이스 리포트 07 COR-1 해소).
+            assetProvider.ReleaseOwner(owner);
             if (!ownsAssetProvider) return;
 
             assetProvider.Dispose();
@@ -220,7 +193,7 @@ namespace HAudio.Repository {
 
         #region Private - Resolve
         private bool _TryBuildLoadKey(int uid, out string loadKey) {
-            // 히트하면 여기서 끝난다 — int 해시 1회, 할당 0.
+            // 히트하면 여기서 끝난다 - int 해시 1회, 할당 0.
             if (loadKeyByUid.TryGetValue(uid, out loadKey)) {
                 return !string.IsNullOrWhiteSpace(loadKey);
             }
@@ -267,7 +240,7 @@ namespace HAudio.Repository {
             return _NormalizeToken(entry.Token);
         }
 
-        private IAssetProvider<string, AudioClip> _CreateDefaultProvider(AssetLoadMode loadMode) {
+        private IAssetSource<string, AudioClip> _CreateDefaultProvider(AssetLoadMode loadMode) {
             return loadMode switch {
                 AssetLoadMode.Resources => AssetProviderFactory.CreateResources<AudioClip>(string.Empty),
                 AssetLoadMode.Addressable => AssetProviderFactory.CreateAddressable<AudioClip>(),
@@ -285,6 +258,8 @@ namespace HAudio.Repository {
 
 #if UNITY_EDITOR
 /* =========================================================
+ *  Dev Log
+ * =========================================================
  * @Jason - PKH
  * 주요 기능 ::
  * 1. token과 catalog를 실제 load key로 해석합니다.
@@ -304,13 +279,6 @@ namespace HAudio.Repository {
  * 1. Addressable 모드에서는 token 직접 해석 fallback을 허용합니다.
  * 2. 실제 source 호출은 AssetProvider가 담당합니다.
  * =========================================================
- */
-#endif
-
-#if UNITY_EDITOR
-/* =============================================================================
- *  Dev Log
- * =============================================================================
  * @Jason - PKH 2026.08.07 IsDisposed/OwnsAssetProvider 진단 프로퍼티 추가 (케이스 리포트 07 TST-2)
  *
  * # 변경
@@ -321,6 +289,6 @@ namespace HAudio.Repository {
  * - COR-1(주입받은 공유 provider 에 `ReleaseAll`)의 분기(`ownsAssetProvider`)를 테스트가
  *   생성자 인자로만 추론해야 했다. 둘 다 private 이라 관측 수단이 없었다
  * - 상태를 바꾸지 않는 읽기 전용이라 `Dispose()` 의 기존 분기 로직에는 영향이 없다
- * =============================================================================
+ * =========================================================
  */
 #endif

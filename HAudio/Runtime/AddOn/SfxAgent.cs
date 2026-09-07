@@ -73,7 +73,7 @@ namespace HAudio.AddOn {
 
         private async UniTaskVoid _ReleaseViewsAfterPrewarm() {
             // prewarm 이 in-flight 인 채로 release 가 먼저 실행되면 등록이 뒤늦게 도착해
-            // registry refCount 가 영구 잔류한다 — 완료를 기다린 뒤 해제한다.
+            // registry refCount 가 영구 잔류한다 - 완료를 기다린 뒤 해제한다.
             await prewarmTask;
             if (!AudioManager.HasInstance) return;
             AudioManager.Instance.ReleaseSfxView(preloadCatalogs);
@@ -89,7 +89,7 @@ namespace HAudio.AddOn {
  * @Jason - PKH 2026.08.06 클립 단위 재생 API 4종 제거 + 데브로그 정정
  *
  * # 삭제
- * - Play / PlayUI / Play3D(Transform) / Play3D(Vector3) — 전부 string token 을 받아
+ * - Play / PlayUI / Play3D(Transform) / Play3D(Vector3) - 전부 string token 을 받아
  *   AudioManager.Instance 로 그대로 넘기는 포워딩이었다.
  *
  * # 이유

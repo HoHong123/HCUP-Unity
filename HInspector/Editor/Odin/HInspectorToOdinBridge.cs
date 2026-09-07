@@ -315,11 +315,19 @@ namespace HInspector.Odin.Editor {
             // 다른 인자를 넘겨 HDropdownOdinItemSource.GetItems를 호출하게 만든다.
             //
             // 주의 : Odin의 '@' 표현식은 네임스페이스로 정규화된 경로(Namespace.Type.Method)를
-            // 지원하지 않는다 — 짧은 타입 이름(Type.Name)만으로 전역 검색해 타입을 찾는다.
+            // 지원하지 않는다 - 짧은 타입 이름(Type.Name)만으로 전역 검색해 타입을 찾는다.
             // typeof(...).FullName을 쓰면 "Unable to locate identifier" 로 실패한다(실측 확인).
             // 그래서 이 창구는 public top-level 클래스여야 하고, 표현식에는 Name만 넣는다.
             string expr = $"@{typeof(HDropdownOdinItemSource).Name}.GetItems(\"{h.SourceId}\", {(h.AllowNone ? "true" : "false")})";
-            attributes.Add(new ValueDropdownAttribute(expr));
+
+            // Odin 기본값은 10 이라 항목이 10개 이하인 소스는 검색창이 아예 뜨지 않는다.
+            // HDropdown 의 목록은 등록소가 런타임에 공급해 저작 시점에 개수를 알 수 없으므로
+            // SearchThreshold 기본값 0 을 그대로 넘겨 항상 검색이 살아있게 한다.
+            ValueDropdownAttribute odinAttr = new ValueDropdownAttribute(expr) {
+                NumberOfItemsBeforeEnablingSearch = h.SearchThreshold
+            };
+
+            attributes.Add(odinAttr);
         }
     }
 
@@ -345,24 +353,46 @@ namespace HInspector.Odin.Editor {
 /* =============================================================================
  *  Dev Log
  * =============================================================================
- * @Jason - PKH 2026.08.07 [HDropdown] Odin 매핑 누락 수정 — 근본 원인
+ * 2026-09-03 (수정) :: [HDropdown] 검색 임계값을 Odin 으로 전달
+ *
+ * # 변경
+ * - _MapHDropdown 이 ValueDropdownAttribute 를 지역 변수로 만들고
+ *   NumberOfItemsBeforeEnablingSearch = h.SearchThreshold 를 대입한 뒤 추가한다.
+ *
+ * # 이유
+ * - 이전에는 new ValueDropdownAttribute(expr) 만 넘겨 Odin 기본값 10 이 그대로
+ *   적용됐다. AudioManager.initialDefaultClickUid 처럼 항목이 적은 소스는 검색창이
+ *   뜨지 않았고, [HDropdown] 쪽에 이를 제어할 태그도 없었다.
+ * - 멤버 이름과 기본값은 리플렉션으로 실측했다. Sirenix.OdinInspector.Attributes.dll 의
+ *   ValueDropdownAttribute 는 NumberOfItemsBeforeEnablingSearch(public int 필드,
+ *   기본 10)를 갖는다. Enable 이 아니라 Enabling 이다.
+ *
+ * # 결과
+ * - SearchThreshold 기본값이 0 이라 기존 [HDropdown] 필드 전부가 검색창을 얻는다.
+ *   비-Odin 경로(AdvancedDropdown)와 체감이 같아진다.
+ *
+ * # 주의
+ * - _MapHListDrawer 와 달리 #pragma 억제가 필요 없다. 이 필드는 [Obsolete] 가 아니다.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.08.07 [HDropdown] Odin 매핑 누락 수정 - 근본 원인
  *
  * # 문제
  * - Odin 설치 환경(ODIN_INSPECTOR)에서 [HDropdown] 필드가 평범한 int 필드로 그려지고
  *   값이 절대 바뀌지 않았다. 지난 세션이 HDropdownField.cs(IMGUI 드로어)를 두 차례 수정했지만
- *   그 코드는 애초에 호출되지 않고 있었다 — _MapAll 매핑 표에 HDropdown 항목이 없어서
+ *   그 코드는 애초에 호출되지 않고 있었다 - _MapAll 매핑 표에 HDropdown 항목이 없어서
  *   Odin이 [HDropdown]을 인식하지 못하고 무시했다.
  * - 실측 근거 : `_diag/hdropdown.log`(HDropdownField.cs의 진입 로그)가 재현 클릭 후에도
  *   한 줄도 기록되지 않음 = Draw()가 아예 호출되지 않음. 콘솔 에러도 0건.
  *
  * # 변경
- * - `_MapHDropdown` 추가 — HDropdownAttribute를 Odin `ValueDropdownAttribute`로 매핑.
- * - `HDropdownOdinItemSource`(public top-level) 신설 — Odin의 '@정적메서드(...)' 표현식이
+ * - `_MapHDropdown` 추가 - HDropdownAttribute를 Odin `ValueDropdownAttribute`로 매핑.
+ * - `HDropdownOdinItemSource`(public top-level) 신설 - Odin의 '@정적메서드(...)' 표현식이
  *   호출할 항목 공급 창구. HDropdownSourceRegistry(등록소)를 그대로 재사용해 목록 출처를
  *   중복 관리하지 않는다.
  * - asmdef에 `HCUP.HInspector.Editor` 참조 추가 (등록소가 그 어셈블리에 있어서 필요).
  *
- * # 주의 — Odin 표현식 제약 (실측 확인)
+ * # 주의 - Odin 표현식 제약 (실측 확인)
  * - Odin의 '@' 표현식은 네임스페이스로 정규화된 경로(`Namespace.Type.Method`)를 지원하지
  *   않는다. 짧은 타입 이름(`Type.Name`)만으로 전역 검색해 타입을 찾는다.
  *   `typeof(X).FullName`을 넣으면 "Unable to locate identifier" 로 즉시 실패한다.
@@ -372,7 +402,7 @@ namespace HInspector.Odin.Editor {
  * # 후속 과제
  * - HDropdownField.cs의 진단 로그(`HDropdownDiagnostics`)는 이번 조사로 원인이 확정됐으므로
  *   제거 대상이다. IMGUI 경로(Odin 미설치 환경) 자체는 정상 동작하므로 그 파일 로직은
- *   손대지 않았다 — 진단 스캐폴딩 제거만 남은 작업이다.
+ *   손대지 않았다 - 진단 스캐폴딩 제거만 남은 작업이다.
  * - `HInspector/Editor/Odin/README.md`의 매핑 표에 HDropdown 행 추가 필요.
  *
  * =============================================================================

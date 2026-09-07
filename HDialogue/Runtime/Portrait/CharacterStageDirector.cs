@@ -4,17 +4,18 @@
  * -- 캐릭터 포트레이트 무대 감독 MonoBehaviour.
  *
  * 특징 / 지원기능 ::
- * + Bind(registry, layout, textController) — 레지스트리·레이아웃·텍스트컨트롤러 연결
- * + EnterLine(LineStageContext)  — 화자 등장·포즈·슬롯·하이라이트 5단계 처리
+ * + Bind(registry, layout, textController) - 레지스트리·레이아웃·텍스트컨트롤러 연결
+ * + EnterLine(LineStageContext)  - 화자 등장·포즈·슬롯·하이라이트 5단계 처리
  * + ShowCharacter / HideCharacter / SetPose / MoveToSlot / SetFacing / ClearAll
  * + portrait.* 인라인 이벤트: textController.OnEventTagFired 구독
  *
  * 주의사항 ::
- * controllerPrefab / registry / layout 필수 연결 — Awake Debug.Assert 로 검증.
+ * controllerPrefab / registry / layout 필수 연결 - Awake Debug.Assert 로 검증.
  * leftSlotRoot / rightSlotRoot : 씬의 정확한 위치에 배치할 것. 미연결 시 this.transform 사용.
  * spriteProvider 소유권 :: Awake에서 이 디렉터가 생성하고 OnDestroy에서 Dispose 한다.
  * _GetOrCreateController 가 자식 컨트롤러에 BindProvider 로 같은 인스턴스를 넘기지만,
- * 이는 참조 공유일 뿐 소유권 이전이 아니다 — 컨트롤러는 절대 Dispose 하지 않는다.
+ * 이는 참조 공유일 뿐 소유권 이전이 아니다. 컨트롤러는 절대 Dispose 하지 않는다.
+ * 각 컨트롤러는 자기 자신을 소유자로 자산을 잡으므로, 컨트롤러가 파괴되면 그 몫만 회수된다.
  * Unity 는 계층 파괴 순서를 보장하지 않으므로 디렉터가 먼저 파괴될 수 있는데, 그때 컨트롤러의
  * 뒤늦은 요청은 AssetProvider 의 폐기 후 진입 가드가 경고와 함께 거부한다 (리포트 07 USR-3).
  * OnDestroy에서 OnEventTagFired 구독 해제 + spriteProvider.Dispose.
@@ -51,7 +52,7 @@ namespace HDialogue {
         StageLayoutSO layout;
 
         DialogueTextController textController;
-        IAssetProvider<string, Sprite> spriteProvider;
+        IAssetSource<string, Sprite> spriteProvider;
 
         readonly Dictionary<string, CharacterPortraitController> controllers = new();
         readonly Dictionary<string, StageSlot> characterToSlot = new();
@@ -82,7 +83,7 @@ namespace HDialogue {
             // Dispose 가 ReleaseAll 을 먼저 태운 뒤 cache 구독을 끊는다.
             // 자식 컨트롤러가 BindProvider 로 같은 인스턴스를 들고 있지만 소유자는 아니다.
             // 파괴 순서가 뒤집혀 컨트롤러가 뒤늦게 요청하면 provider 의 폐기 후 진입 가드가
-            // 경고와 함께 거부한다 — 조용한 핸들 누수가 되지 않는다 (리포트 07 USR-3).
+            // 경고와 함께 거부한다 - 조용한 핸들 누수가 되지 않는다 (리포트 07 USR-3).
             spriteProvider?.Dispose();
             spriteProvider = null;
         }
@@ -129,7 +130,7 @@ namespace HDialogue {
             if (ctx.AutoHighlightSpeaker) {
                 // controllers 는 한 번이라도 생성된 모든 캐릭터를 담는다(퇴장한 캐릭터도 포함).
                 // 그 전체를 순회하면 퇴장 캐릭터마다 매 라인 하이라이트 트랜지션 태스크가 새로
-                // 생긴다 — 현재 무대 위(characterToSlot)에 있는 캐릭터만 대상으로 좁힌다.
+                // 생긴다 - 현재 무대 위(characterToSlot)에 있는 캐릭터만 대상으로 좁힌다.
                 foreach (string charKey in characterToSlot.Keys) {
                     if (controllers.TryGetValue(charKey, out CharacterPortraitController controller)) {
                         controller.SetHighlight(charKey == ctx.SpeakerKey);
@@ -324,10 +325,10 @@ namespace HDialogue {
 
         private Transform _GetSlotRoot(StageSlot slot) {
             if (slot == StageSlot.Right) {
-                if (rightSlotRoot == null) HLogger.Warning("[CharacterStageDirector] rightSlotRoot 미연결 — this.transform 사용.");
+                if (rightSlotRoot == null) HLogger.Warning("[CharacterStageDirector] rightSlotRoot 미연결 - this.transform 사용.");
                 return rightSlotRoot != null ? rightSlotRoot : transform;
             }
-            if (leftSlotRoot == null) HLogger.Warning("[CharacterStageDirector] leftSlotRoot 미연결 — this.transform 사용.");
+            if (leftSlotRoot == null) HLogger.Warning("[CharacterStageDirector] leftSlotRoot 미연결 - this.transform 사용.");
             return leftSlotRoot != null ? leftSlotRoot : transform;
         }
 
@@ -369,7 +370,7 @@ namespace HDialogue {
  * # 변경
  * - IAssetProvider<string, Sprite> spriteProvider 필드 추가
  * - Awake: AssetProviderFactory.CreateAddressable<Sprite>() 로 spriteProvider 생성
- * - OnDestroy: spriteProvider?.ReleaseAll() 추가 — Addressable 핸들 일괄 해제
+ * - OnDestroy: spriteProvider?.ReleaseAll() 추가 - Addressable 핸들 일괄 해제
  * - _GetOrCreateController: 신규 컨트롤러 생성 시 ctrl.BindProvider(spriteProvider) 호출
  *
  * # 이유
@@ -377,7 +378,7 @@ namespace HDialogue {
  * - Provider 수명: Awake 생성 + OnDestroy 해제로 StageDirector 수명과 일치
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: HideCharacter — SetActive 비활성화를 Controller에 위임
+ * @Jason - PKH 2026.05.17 (수정) :: HideCharacter - SetActive 비활성화를 Controller에 위임
  *
  * # 변경
  * - HideCharacter(): ctrl.Hide(transition) 뒤의 `if (!ctrl.IsVisible) ctrl.gameObject.SetActive(false)` 제거.
@@ -386,7 +387,7 @@ namespace HDialogue {
  * # 이유
  * - AgentReview Warning #8 (2026-05-17 19:13:03).
  * - CharacterPortraitController.Hide()/_HideAsync()가 직접 SetActive(false)를 처리하도록 변경됨.
- *   기존 구조: Instant=즉시 비활성화, Fade=미비활성화(IsVisible 아직 true) — 두 경로 불일치.
+ *   기존 구조: Instant=즉시 비활성화, Fade=미비활성화(IsVisible 아직 true) - 두 경로 불일치.
  *   Controller 내부에서 통일 처리. StageDirector의 중복 체크 불필요.
  *
  * =============================================================================
@@ -398,13 +399,13 @@ namespace HDialogue {
  * - ShowCharacter / _ShowCharacterCore / MoveToSlot slot 파라미터 → StageSlot.
  * - HideCharacter / EnterLine 내부 out var → StageSlot.
  * - _GetSlotRoot(FacingDirection) → _GetSlotRoot(StageSlot).
- * - _TryParseSlot(string, out StageSlot) 헬퍼 추가 — Slot/Show 동사 전용.
+ * - _TryParseSlot(string, out StageSlot) 헬퍼 추가 - Slot/Show 동사 전용.
  * - Slot 동사: _TryParseFacing → _TryParseSlot + FacingDirection slotDir → StageSlot slotDir.
  * - Show 동사: _TryParseFacing(슬롯 파싱) → _TryParseSlot. FacingDirection.Left fallback → StageSlot.Left.
  * - Face 동사 / parsedFacing: FacingDirection 유지 (방향 개념).
  *
  * # 이유
- * - AgentReview Warning #7. _TryParseFacing이 "방향"과 "슬롯 위치" 두 개념 모두에 재사용 —
+ * - AgentReview Warning #7. _TryParseFacing이 "방향"과 "슬롯 위치" 두 개념 모두에 재사용 -
  *   컴파일 타임에 의미 혼동을 차단하려면 타입 분리 필수.
  *
  * =============================================================================
@@ -448,7 +449,7 @@ namespace HDialogue {
  * - Inspector 그룹 세분화로 각 필드 용도를 한 눈에 파악 가능.
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: Warning 보강 — ShowCharacterCore 분리·풀링 명시·default·facing·WaitForTransitions
+ * @Jason - PKH 2026.05.17 (수정) :: Warning 보강 - ShowCharacterCore 분리·풀링 명시·default·facing·WaitForTransitions
  *
  * # 변경
  * - ShowCharacter → _ShowCharacterCore 분리: public 경계의 registry.TryGet과 내부 로직 분리.
@@ -456,12 +457,12 @@ namespace HDialogue {
  * - _Apply Show case: args[2] facing 파싱 지원 + 미지정 시 set.DefaultFacing 사용.
  * - _Apply switch: default case 추가 (HLogger.Warning).
  * - HideCharacter: Instant 전환 후 IsVisible=false 시 SetActive(false). 풀링 의도 주석 명시.
- * - _GetOrCreateController: 기존 컨트롤러 재사용 시 SetActive(true) — HideCharacter로 비활성화된 풀 객체 복원.
+ * - _GetOrCreateController: 기존 컨트롤러 재사용 시 SetActive(true) - HideCharacter로 비활성화된 풀 객체 복원.
  * - WaitForActiveTransitionsAsync 신규 추가: controllers 순회로 IsTransitioning 감시. CinematicNode용.
  * - using Cysharp.Threading.Tasks / System.Threading 추가.
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: _GetOrCreateController — Bind 신규 생성 시에만 호출
+ * @Jason - PKH 2026.05.17 (수정) :: _GetOrCreateController - Bind 신규 생성 시에만 호출
  *
  * # 변경
  * - _GetOrCreateController: ctrl.Bind(set, style) 호출을 신규 컨트롤러 생성 분기 내부로 이동.
@@ -473,7 +474,7 @@ namespace HDialogue {
  *   1프레임 플래시 발생 가능. Bind는 초기화 전용, 포즈 관리는 ShowCharacter/SetPose 책임.
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: OnDestroy — Unity Life Cycle region으로 이동
+ * @Jason - PKH 2026.05.17 (수정) :: OnDestroy - Unity Life Cycle region으로 이동
  *
  * # 변경
  * - OnDestroy : #region Private Helpers → 신규 #region Unity Life Cycle로 이동
@@ -496,7 +497,7 @@ namespace HDialogue {
  * @Jason - PKH 2026.05.15 CharacterStageDirector 전체 구현 (스텁 교체)
  *
  * # 목적
- * - HCUP-2.3.0 Phase 4-D/E — 포트레이트 오케스트레이션 + 인라인 이벤트 처리 완성
+ * - HCUP-2.3.0 Phase 4-D/E - 포트레이트 오케스트레이션 + 인라인 이벤트 처리 완성
  *
  * # 상태 관리
  * - controllers:      characterKey → Controller (alive 모든 컨트롤러)

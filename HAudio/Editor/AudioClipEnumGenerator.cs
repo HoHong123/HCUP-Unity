@@ -12,17 +12,17 @@ using HAudio.Core;
  * 카탈로그에서 게임 쪽 AudioClips enum 과 재생 확장 메서드를 생성하는 스크립트입니다.
  *
  * 주요 기능 ::
- * Generate(catalogs, outputDirectory, ns, enumTypeName) — enum + 확장 메서드 2파일 방출.
- * enum 원소 값 = Entry.Uid, 원소 이름 = token 의 "{uid}_" 접두를 뗀 이름부.
+ * Generate(catalogs, outputDirectory, ns, enumTypeName) - enum + 확장 메서드 2파일 방출.
+ * enum 원소 값과 이름 모두 token 을 파싱해 얻는다. Entry.Uid 필드는 읽지 않는다.
  *
  * 사용법 ::
  * SoundToolsWindow 의 "Enum Generator" 탭(AudioClipEnumPanel)이 호출합니다.
- * 출력 위치는 반드시 게임(프로젝트) 어셈블리 폴더여야 합니다 — HCUP 안에 두면 안 됩니다.
+ * 출력 위치는 반드시 게임(프로젝트) 어셈블리 폴더여야 합니다 - HCUP 안에 두면 안 됩니다.
  *
  * 주의 ::
  * 1. 생성물은 프로젝트마다 내용이 완전히 다릅니다. HCUP(공유 서브모듈)에 두면 프로젝트끼리
  *    서로의 enum 을 덮어씁니다. 그래서 출력 경로를 인자로 받고 기본값을 두지 않습니다.
- * 2. 이름 충돌(서로 다른 uid 인데 이름부가 같음)은 생성 실패로 처리합니다 — 자동 개명하지
+ * 2. 이름 충돌(서로 다른 uid 인데 이름부가 같음)은 생성 실패로 처리합니다 - 자동 개명하지
  *    않습니다. 자동 개명은 어느 이름이 어느 클립인지 모르게 만들어 오히려 실수를 늘립니다.
  * 3. 확장 메서드는 enum 과 같은 생성기에서 나오므로 시그니처가 어긋날 수 없습니다.
  * =========================================================
@@ -148,7 +148,7 @@ namespace HAudio.Editor {
                     if (nameSeen.TryGetValue(name, out string nameOwner)) {
                         result.Errors.Add(
                             $"Name collision. member=\"{name}\", tokens=\"{nameOwner}\" vs \"{token}\". " +
-                            "Rename one of the source files — generation is aborted by design.");
+                            "Rename one of the source files - generation is aborted by design.");
                         continue;
                     }
 
@@ -237,7 +237,7 @@ namespace HAudio.Editor {
 
         private static void _AppendHeader(StringBuilder sb, string title) {
             sb.AppendLine("// =============================================================================");
-            sb.AppendLine($"//  {title} — 자동 생성 파일입니다. 직접 수정하지 마세요.");
+            sb.AppendLine($"//  {title} - 자동 생성 파일입니다. 직접 수정하지 마세요.");
             sb.AppendLine("//  생성기 : HAudio.Editor.AudioClipEnumGenerator");
             sb.AppendLine("//  원본   : AudioCatalogSO 의 token (\"{uid}_{name}\" 규약)");
             sb.AppendLine("//  변경이 필요하면 원본 클립 파일명을 바꾼 뒤 카탈로그와 함께 재생성하세요.");

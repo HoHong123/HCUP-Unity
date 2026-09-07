@@ -4,9 +4,9 @@
  * 기본 AssetProvider 조합을 만드는 정적 팩토리. 편의 생성 계층.
  *
  * 주요 기능 ::
- * CreateResources<TAsset>(rootPath) — Resources 기본 조합.
- * CreateAddressable<TAsset>() — Addressable 기본 조합.
- * Create<TAsset>(loaders, store) — 사용자 정의 loader 조합.
+ * CreateResources<TAsset>(rootPath) - Resources 기본 조합.
+ * CreateAddressable<TAsset>() - Addressable 기본 조합.
+ * Create<TAsset>(loaders, store) - 사용자 정의 loader 조합.
  *
  * 사용법 ::
  * 도메인 코드가 빠르게 provider 를 조립할 때 사용. 기본 store 가 필요하면 인자로 전달.
@@ -30,7 +30,7 @@ using HResource.Validation;
 namespace HResource.Provider {
     public static class AssetProviderFactory {
         #region Public - Create
-        public static AssetProvider<string, TAsset> CreateResources<TAsset>(
+        public static IAssetSource<string, TAsset> CreateResources<TAsset>(
             string resourcesRootPath,
             IAssetStore<string, TAsset> assetStore = null)
             where TAsset : Object {
@@ -39,7 +39,7 @@ namespace HResource.Provider {
             return Create(new[] { assetLoader }, assetStore);
         }
 
-        public static AssetProvider<string, TAsset> CreateAddressable<TAsset>(
+        public static IAssetSource<string, TAsset> CreateAddressable<TAsset>(
             IAssetStore<string, TAsset> assetStore = null)
             where TAsset : Object {
 
@@ -47,7 +47,7 @@ namespace HResource.Provider {
             return Create(new[] { assetLoader }, assetStore);
         }
 
-        public static AssetProvider<string, TAsset> Create<TAsset>(
+        public static IAssetSource<string, TAsset> Create<TAsset>(
             IEnumerable<IAssetLoader<string, TAsset>> assetLoaders,
             IAssetStore<string, TAsset> assetStore = null)
             where TAsset : Object {

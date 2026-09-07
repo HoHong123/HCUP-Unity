@@ -5,7 +5,7 @@
  *
  * 특징 / 지원기능 ::
  * + Bind(set)             - 캐릭터 포트레이트 집합 연결
- * + BindProvider(p)       - IAssetProvider<string, Sprite> 주입 (SpriteKey 로드 전제)
+ * + BindProvider(p)       - IAssetSource<string, Sprite> 주입 (SpriteKey 로드 전제)
  * + SetSlot(config)        - RectTransform 슬롯 이동 + 정렬 순서
  * + SetPose(key, t)       - SpriteKey Addressable 비동기 로드 후 교체 또는 Animator.Play(ClipKey)
  * + SetFacing(dir)         - localScale.x 부호 반전으로 좌우 플립
@@ -15,13 +15,13 @@
  *
  * 주의사항 ::
  * BindProvider 미주입 시 Static 포즈 스프라이트 표시 안 됨 (spriteProvider == null 무시).
- * image 필수 연결 — Awake Debug.Assert 로 검증.
+ * image 필수 연결 - Awake Debug.Assert 로 검증.
  * 동시 트랜지션: Appearance(alpha+pose) / Highlight(RGB tint+scale) / Motion 채널 독립 관리.
  * 같은 채널 내 신규 호출은 기존 취소 → 새 트랜지션 시작. 다른 채널은 간섭 없음.
  * anchoredPosition = currentSlot.AnchorPos + currentPoseOffset + motionOffset 삼분리 구조.
- *   Motion 취소/종료 시 finally에서 motionOffset = 0 복구 — SetSlot/SetPose와 충돌 없음.
- * Show: gameObject.SetActive(true) — 비활성화된 풀 컨트롤러 재등장 대응.
- * Hide: 완료 시 gameObject.SetActive(false) — IsVisible=false와 동시 설정.
+ *   Motion 취소/종료 시 finally에서 motionOffset = 0 복구 - SetSlot/SetPose와 충돌 없음.
+ * Show: gameObject.SetActive(true) - 비활성화된 풀 컨트롤러 재등장 대응.
+ * Hide: 완료 시 gameObject.SetActive(false) - IsVisible=false와 동시 설정.
  * CharacterStageDirector 가 풀/인스턴스화 후 Bind + BindProvider + SetSlot 순서 보장 필요.
  * =========================================================
  */
@@ -59,8 +59,8 @@ namespace HDialogue {
         [SerializeField]
         Animator animator;
 
-        IAssetProvider<string, Sprite> spriteProvider;
-        // 포즈를 바꿀 때마다 이전 점유를 반납하는 데 쓴다 — 반납하지 않으면 대화가 길어질수록
+        IAssetSource<string, Sprite> spriteProvider;
+        // 포즈를 바꿀 때마다 이전 점유를 반납하는 데 쓴다 - 반납하지 않으면 대화가 길어질수록
         // 캐시 점유가 계속 쌓인다(최종 회수는 CharacterStageDirector.OnDestroy 의 Dispose 뿐).
         string loadedSpriteKey;
         CharacterPortraitSetSO portraitSet;
@@ -102,7 +102,7 @@ namespace HDialogue {
         #endregion
 
         #region Public API
-        public void BindProvider(IAssetProvider<string, Sprite> provider) {
+        public void BindProvider(IAssetSource<string, Sprite> provider) {
             spriteProvider = provider;
         }
 
@@ -344,12 +344,13 @@ namespace HDialogue {
 
         private async UniTaskVoid _LoadAndSetSpriteAsync(string key, string poseKey, CancellationToken ct) {
             if (spriteProvider == null || string.IsNullOrEmpty(key)) return;
-            Sprite sprite = await spriteProvider.GetAsync(key, AssetLoadMode.Addressable, AssetFetchMode.CacheFirst);
+            // 이 컨트롤러 자신이 소유자다. 파괴되면 provider 의 프로브가 이 몫을 자동 회수한다.
+            Sprite sprite = await spriteProvider.GetAsync(this, key, AssetLoadMode.Addressable, AssetFetchMode.CacheFirst);
             if (ct.IsCancellationRequested || image == null) return;
             if (CurrentPoseKey != poseKey) return;
-            // 이전 포즈의 점유를 반납한다 — 반납 없이 매번 GetAsync 만 호출하면 포즈를 바꿀
+            // 이전 포즈의 점유를 반납한다 - 반납 없이 매번 GetAsync 만 호출하면 포즈를 바꿀
             // 때마다 점유가 누적돼, 대화가 길어질수록 캐시 점유가 계속 쌓인다.
-            if (loadedSpriteKey != null && loadedSpriteKey != key) spriteProvider.Release(loadedSpriteKey);
+            if (loadedSpriteKey != null && loadedSpriteKey != key) spriteProvider.Release(this, loadedSpriteKey);
             loadedSpriteKey = key;
             image.sprite = sprite;
         }
@@ -401,7 +402,7 @@ namespace HDialogue {
  * # 변경
  * - `loadedSpriteKey` 필드 추가.
  * - `_LoadAndSetSpriteAsync`: 새 스프라이트 적용 성공 시 이전 `loadedSpriteKey` 를
- *   `spriteProvider.Release` 로 반납 후 갱신.
+ *   `spriteProvider.Release(this, key)` 로 반납 후 갱신.
  *
  * # 이유
  * - `GetAsync` 호출마다 호출자 단위 점유가 등록되는데(HResource 등록/해제 1:1 규약),
@@ -414,13 +415,13 @@ namespace HDialogue {
  *   빈도가 낮고 별도 검증이 필요해 이번에는 손대지 않았다.
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: Show/Hide — gameObject 활성·비활성화 계약 명확화
+ * @Jason - PKH 2026.05.17 (수정) :: Show/Hide - gameObject 활성·비활성화 계약 명확화
  *
  * # 변경
- * - Show(): 첫 줄 gameObject.SetActive(true) 추가 — 비활성화된 풀 컨트롤러 재등장 대응.
+ * - Show(): 첫 줄 gameObject.SetActive(true) 추가 - 비활성화된 풀 컨트롤러 재등장 대응.
  * - Hide() Instant 경로: image.enabled=false 뒤 gameObject.SetActive(false) 추가.
  * - _HideAsync(): image.enabled=false 뒤 gameObject.SetActive(false) 추가.
- *   Fade 완료 후 IsVisible=false와 동시에 GameObject 비활성화 — 두 상태가 동기화됨.
+ *   Fade 완료 후 IsVisible=false와 동시에 GameObject 비활성화 - 두 상태가 동기화됨.
  *
  * # 이유
  * - AgentReview Warning #8 (2026-05-17 19:13:03).
@@ -434,7 +435,7 @@ namespace HDialogue {
  *
  * # 변경
  * - `public FacingDirection CurrentSlot` → `public StageSlot CurrentSlot`.
- * - currentFacing / CurrentFacing / SetFacing(FacingDirection) — 방향 필드 유지.
+ * - currentFacing / CurrentFacing / SetFacing(FacingDirection) - 방향 필드 유지.
  *
  * # 이유
  * - AgentReview Warning #7. SlotConfig.Slot 타입 변경에 따른 연쇄 수정.
@@ -465,7 +466,7 @@ namespace HDialogue {
  * - _LoadAndSetSpriteAsync poseKey 검증: 빠른 포즈 전환 시 늦게 도착한 응답이 현재 포즈를 덮는 race 차단
  *
  * =============================================================================
- * @Jason - PKH 2026.05.18 (수정) :: Motion finally ABA 수정 — token 소유권 확인 후 motionOffset 리셋
+ * @Jason - PKH 2026.05.18 (수정) :: Motion finally ABA 수정 - token 소유권 확인 후 motionOffset 리셋
  *
  * # 변경
  * - _ShakeAsync / _BounceAsync finally: motionOffset = Vector2.zero 앞에
@@ -479,7 +480,7 @@ namespace HDialogue {
  * - _Cleanup은 token 검증을 하지만 그 전에 이미 offset 리셋이 실행되어 순서 문제 발생.
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: motionOffset 도입 — Shake/Bounce 취소 시 anchoredPosition 정합성 복구
+ * @Jason - PKH 2026.05.17 (수정) :: motionOffset 도입 - Shake/Bounce 취소 시 anchoredPosition 정합성 복구
  *
  * # 변경
  * - Vector2 currentPoseOffset, motionOffset 필드 추가.
@@ -494,14 +495,14 @@ namespace HDialogue {
  * - 옵션 B: origin try-외부 끌어내기(옵션 A)는 motion 중 SetSlot/SetPose 호출 시 stale origin 회귀 위험.
  *
  * =============================================================================
- * @Jason - PKH 2026.05.17 (수정) :: Warning 보강 — 상수화·CurrentSlot·_ApplyScale 주석·destroyCancellationToken 연결
+ * @Jason - PKH 2026.05.17 (수정) :: Warning 보강 - 상수화·CurrentSlot·_ApplyScale 주석·destroyCancellationToken 연결
  *
  * # 변경
  * - SHAKE_DURATION/MAGNITUDE / BOUNCE_DURATION/HEIGHT 상수 추출 (매직 넘버 제거)
- * - CurrentSlot: `currentSlot.Slot` — FacingDirection 직접 반환 (string 프로퍼티 → enum 타입 변경)
+ * - CurrentSlot: `currentSlot.Slot` - FacingDirection 직접 반환 (string 프로퍼티 → enum 타입 변경)
  * - _ApplyScale: "원본 스프라이트는 Left facing 기준" 주석 추가
  * - _RegisterToken: `CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken)`
- *   — Unity 객체 파괴 시 destroyCancellationToken 신호를 CTS와 연동하는 이중 안전망 확보
+ *   - Unity 객체 파괴 시 destroyCancellationToken 신호를 CTS와 연동하는 이중 안전망 확보
  *
  * =============================================================================
  * @Jason - PKH 2026.05.17 (수정) :: Show IsVisible 순서 수정 + _HighlightAsync Cleanup 추가
@@ -544,7 +545,7 @@ namespace HDialogue {
  * # 이유
  * - 확장성: 채널 추가 시 enum 한 줄만 늘어남. 기존 2채널/4헬퍼 패턴의 선형 증가 차단.
  * - RGBA 충돌 수정: Highlight(RGB) + Appearance(alpha) 병렬 실행 시 alpha 덮어쓰기 제거.
- * - _Cleanup token 검증: ABA 패턴 차단 — 취소 후 신규 등록된 CTS를 옛 finally가 지우지 않음.
+ * - _Cleanup token 검증: ABA 패턴 차단 - 취소 후 신규 등록된 CTS를 옛 finally가 지우지 않음.
  *
  * =============================================================================
  * @Jason - PKH 2026.05.17 Awake 초기 상태 숨김 처리
@@ -571,13 +572,13 @@ namespace HDialogue {
  * @Jason - PKH 2026.05.15 CharacterPortraitController 베이스 코드 생성
  *
  * # 목적
- * - HCUP-2.3.0 Phase 4-C — 슬롯 단위 포트레이트 렌더/트랜지션 핵심 컴포넌트
+ * - HCUP-2.3.0 Phase 4-C - 슬롯 단위 포트레이트 렌더/트랜지션 핵심 컴포넌트
  *
  * # 설계 결정
  * - Facing: localScale.x 부호 반전. 비대칭 의상은 Phase 5+에서 LeftSprite 필드 확장.
  * - async UniTaskVoid + try/catch OperationCanceledException: .Forget()보다 명확한 취소 핸들링.
  * - Crossfade: 절반 Fade out → 스프라이트 교체 → 절반 Fade in.
- * - highlightStyle은 Bind() 시 전달 — Controller가 StageLayoutSO를 직접 참조하지 않음.
+ * - highlightStyle은 Bind() 시 전달 - Controller가 StageLayoutSO를 직접 참조하지 않음.
  *
  * =============================================================================
  */

@@ -10,6 +10,9 @@
  * 3. TUnit은 MonoBehaviour 및 IDropUnit을 구현해야 합니다.
  * 4. 실제 유닛 초기화와 선택 후 처리 로직은 파생 클래스에서 반드시 구현해야 합니다.
  * 5. unitPrefab은 TUnit 컴포넌트를 포함하거나, 런타임에 AddComponent 가능한 구조여야 합니다.
+ * 6. 검색은 searchInput 슬롯이 연결된 경우에만 동작합니다. 비어 있으면 검색 경로 자체가 꺼집니다.
+ * 7. searchInput을 연결하려면 파생 클래스가 GetSearchKey를 반드시 override해야 합니다.
+ *    기본 구현은 빈 문자열을 돌려주므로 override 없이 검색어를 입력하면 모든 항목이 숨습니다.
  * =========================================================
  */
 #endif
@@ -18,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using HInspector;
 
 namespace HUI.Dropdown {
@@ -59,6 +63,11 @@ namespace HUI.Dropdown {
         [SerializeField]
         protected List<TUnit> units = new();
 
+        [HTitle("Search")]
+        [SerializeField]
+        [Tooltip("Item filter input. Leave it empty to disable search. (Not mandatory)")]
+        protected TMP_InputField searchInput;
+
         public event Action<int> OnItemSelected;
 
         int value = 0;
@@ -77,6 +86,7 @@ namespace HUI.Dropdown {
 
             dropTg.onValueChanged.AddListener(SetActive);
             OnItemSelected += SelectByIndex;
+            if (searchInput != null) searchInput.onValueChanged.AddListener(_OnSearchChanged);
             SetActive(false);
 
             if (datas.Count == 0) return;
@@ -89,10 +99,13 @@ namespace HUI.Dropdown {
         public virtual void Open() => table.SetActive(true);
         public virtual void Close() => table.SetActive(false);
         public virtual void SetActive(bool isOn) {
-            if (isOn)
+            if (isOn) {
+                ClearSearch();
                 Open();
-            else
+            }
+            else {
                 Close();
+            }
         }
 
         public void OnSelect(int index) {
@@ -173,6 +186,43 @@ namespace HUI.Dropdown {
 
 
         /// <summary>
+        /// Hides every unit whose search key does not contain the query.
+        /// A blank query restores all units.
+        /// </summary>
+        protected void ApplyFilter(string query) {
+            // 항목마다 Trim 하지 않는다 - 키 입력 한 번에 한 번만 다듬어 할당을 줄인다.
+            string keyword = string.IsNullOrWhiteSpace(query) ? string.Empty : query.Trim();
+
+            // CreateUnits가 units를 Clear하지 않으므로 인스펙터 선입력 시 units.Count > datas.Count가 될 수 있다.
+            int count = Mathf.Min(datas.Count, units.Count);
+            for (int k = 0; k < count; k++) {
+                var unit = units[k];
+                if (unit == null) continue;
+
+                unit.gameObject.SetActive(_IsMatch(GetSearchKey(datas[k]), keyword));
+            }
+        }
+
+        /// <summary>Clears the query so that the next Open shows every unit.</summary>
+        protected void ClearSearch() {
+            if (searchInput == null) return;
+
+            searchInput.text = string.Empty;
+            ApplyFilter(string.Empty);
+        }
+
+
+        void _OnSearchChanged(string query) => ApplyFilter(query);
+
+        static bool _IsMatch(string key, string keyword) {
+            if (string.IsNullOrEmpty(keyword)) return true;
+            if (string.IsNullOrEmpty(key)) return false;
+
+            return key.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+
+        /// <summary>
         /// After create unit game object by calling 'CreateUnits' function.
         /// Init all units using 'TData' in 'InitUnits' function.
         /// </summary>
@@ -182,12 +232,46 @@ namespace HUI.Dropdown {
         /// </summary>
         /// <param name="index"></param>
         protected abstract void SelectByIndex(int index);
+        /// <summary>
+        /// Search key of 'TData'. The query is matched against this string.
+        /// Default is empty, which means this dropdown does not support search.
+        /// Override it whenever 'searchInput' is connected.
+        /// </summary>
+        protected virtual string GetSearchKey(TData data) => string.Empty;
     }
 }
 
 
 #if UNITY_EDITOR
 /* Dev Log
+ * =============================================================================
+ * 2026-09-03 (수정) :: 검색(필터) 파이프라인을 베이스로 승격
+ *
+ * # 변경
+ * - searchInput(TMP_InputField) 슬롯, ApplyFilter / ClearSearch, _OnSearchChanged / _IsMatch 추가.
+ * - 파생 훅 GetSearchKey(TData)를 virtual로 신설. 기본 구현은 string.Empty.
+ * - SetActive(true)에서 ClearSearch를 먼저 호출하도록 분기에 중괄호 도입.
+ *
+ * # 이유
+ * - IDropData가 빈 마커 인터페이스라 베이스는 항목의 검색 문자열을 꺼낼 수단이 없다.
+ *   abstract로 추가하면 외부 파생 클래스가 전부 깨지므로 virtual + 빈 문자열 기본값을 택했다.
+ * - 초기화를 Close()에 두지 않은 이유 : HDropDown.Close()는 base.Close()를 호출하지 않고
+ *   완전히 덮어쓴다. 토글 경로가 반드시 지나는 유일한 공통 관문이 SetActive다.
+ * - 재생성이 아니라 gameObject.SetActive 토글로 필터한 이유 : 선택 상태(ToggleGroup)가
+ *   유지되고 GC 부담이 0이며 재배치는 LayoutGroup이 대신한다.
+ *
+ * # 결과
+ * - searchInput이 비면 리스너를 달지 않아 검색 경로 자체가 꺼진다. 기존 프리팹은 무영향.
+ * - 매칭은 IndexOf(query, OrdinalIgnoreCase) >= 0 부분일치. HData StringUtil.FilterText와 같은 관용구다.
+ *
+ * # 주의
+ * - searchInput을 연결했는데 GetSearchKey를 override하지 않으면 검색어 입력 시 모든 항목이 숨는다.
+ *   의도된 동작이다(빈 검색 키 = 검색 불가 항목). 조용히 통과시키지 않고 즉시 드러낸다.
+ * - Open()을 SetActive 없이 직접 호출하면 이전 검색어가 남는다. 토글 경로는 항상 SetActive를 지난다.
+ * - ApplyFilter는 Mathf.Min(datas.Count, units.Count)로 순회한다. CreateUnits가 units를
+ *   Clear하지 않아 인스펙터 선입력 시 개수가 어긋날 수 있다.
+ *
+ * =============================================================================
  * @Jason - PKH
  * 네이티브 드롭다운 런타임에 신규 캔버스 레이아웃에 생성되기에 기존 레이아웃 시스템이 무시됩니다.
  * =================================================================================

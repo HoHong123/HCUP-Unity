@@ -4,8 +4,8 @@
  * source release 가 필요한 loader 를 위한 확장 계약 인터페이스 (IAssetLoader 상속).
  *
  * 주요 기능 ::
- * Release(key) — key 단위 source 핸들 정리.
- * ReleaseAll() — 전체 source 핸들 정리.
+ * Release(key) - key 단위 source 핸들 정리.
+ * ReleaseAll() - 전체 source 핸들 정리.
  *
  * 사용법 ::
  * Addressable 같이 명시 release 가 필요한 loader 만 본 인터페이스 구현. AssetProvider 는 key 를
@@ -15,7 +15,7 @@
  * 주의 ::
  * cache release 와 source release 는 다른 책임. Resources 같이 release 가 불필요한 loader 는
  * 본 인터페이스 미구현 (IAssetLoader 만 구현). provider 는 이 key 를 로드한 loader 하나만
- * 골라 release — 등록된 releasable loader 전체를 도매금으로 건드리지 않는다.
+ * 골라 release - 등록된 releasable loader 전체를 도매금으로 건드리지 않는다.
  * =========================================================
  */
 #endif
@@ -45,7 +45,7 @@ namespace HResource.Load {
  * =========================================================
  * 2026-04-25 (최초 설계) :: IAssetReleasableLoader 초기 구현
  * =========================================================
- * IAssetLoader 의 확장 — release 책임이 있는 loader 만 추가 구현. provider 가 등록된
+ * IAssetLoader 의 확장 - release 책임이 있는 loader 만 추가 구현. provider 가 등록된
  * loader 들을 두 List 로 분리 (모든 loader / releasable loader 만) 하여 release 연쇄 시
  * release 가능한 것들만 순회. Resources 같은 release 불필요 loader 는 본 계약 미구현으로
  * release 순회에서 자연 제외 (성능 + 의도 표현 동시 달성).
