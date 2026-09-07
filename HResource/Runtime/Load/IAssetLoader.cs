@@ -5,7 +5,7 @@
  *
  * 주요 기능 ::
  * LoadMode 프로퍼티 (Resources / Addressable 구분).
- * LoadAsync(key) — 비동기 로드 진입점.
+ * LoadAsync(key) - 비동기 로드 진입점.
  *
  * 사용법 ::
  * AssetProvider 가 loaderTable[LoadMode] = loader 로 등록 후 _ResolveLoader 로 조회.
