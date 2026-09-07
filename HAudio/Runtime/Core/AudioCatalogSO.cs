@@ -90,7 +90,7 @@ namespace HAudio.Core {
 
             for (int k = 0; k < entries.Count; k++) {
                 Entry entry = entries[k];
-                // Assert 는 릴리즈에서 제거된다 — 유효하지 않은 행은 런타임에도 건너뛴다.
+                // Assert 는 릴리즈에서 제거된다 - 유효하지 않은 행은 런타임에도 건너뛴다.
                 if (entry == null) {
                     Debug.LogError($"[AudioCatalogSO] Entry is null. index={k}", this);
                     continue;
@@ -142,7 +142,7 @@ namespace HAudio.Core {
                 if (!char.IsDigit(trimmed[k])) return false;
             }
 
-            // int.Parse 대신 TryParse — 자릿수가 int 범위를 넘는 token 도 조용히 통과시키지 않는다.
+            // int.Parse 대신 TryParse - 자릿수가 int 범위를 넘는 token 도 조용히 통과시키지 않는다.
             return int.TryParse(
                 trimmed.Substring(0, separator),
                 System.Globalization.NumberStyles.None,
@@ -198,7 +198,7 @@ namespace HAudio.Core {
             entry.EditorSetPath(_NormalizeFolderPath(path));
             entry.EditorSetClip(clip);
 
-            // uid 는 여기 한 곳에서만 채워진다 — 카탈로그로 들어오는 모든 경로가 이 함수를 지난다.
+            // uid 는 여기 한 곳에서만 채워진다 - 카탈로그로 들어오는 모든 경로가 이 함수를 지난다.
             // 규약 위반은 조용히 0 으로 두지 않고 드러낸다 (0 이면 재생 경로에서 조회가 실패한다).
             if (TryParseUid(normalizedToken, out int uid)) {
                 entry.EditorSetUid(uid);
