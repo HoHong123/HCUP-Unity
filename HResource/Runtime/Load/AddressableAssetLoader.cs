@@ -41,7 +41,7 @@ namespace HResource.Load {
 
             var handle = Addressables.LoadAssetAsync<TAsset>(normalizedKey);
             try {
-                // 실패한 handle 의 await 는 예외를 throw 한다 (UniTask) — 사후 Status 검사는 도달 불가.
+                // 실패한 handle 의 await 는 예외를 throw 한다 (UniTask) - 사후 Status 검사는 도달 불가.
                 await handle.ToUniTask();
             }
             catch (System.Exception e) {
