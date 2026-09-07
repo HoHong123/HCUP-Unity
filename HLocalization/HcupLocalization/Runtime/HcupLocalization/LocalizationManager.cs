@@ -4,12 +4,12 @@
  * 로컬리제이션 언어 SO 로드·교체 및 HTextLocalizer 델리게이트 연결을 담당하는 싱글톤 매니저.
  *
  * 특징 ::
- * - SingletonBehaviour<T> 상속 — DontDestroyOnLoad Inspector 옵션으로 씬 간 유지
- * - 언어 타입: LocalizationLanguage 열거형 — 타입 안정성 보장, 문자열 오타 방지
+ * - SingletonBehaviour<T> 상속 - DontDestroyOnLoad Inspector 옵션으로 씬 간 유지
+ * - 언어 타입: LocalizationLanguage 열거형 - 타입 안정성 보장, 문자열 오타 방지
  * - _LoadSavedLanguage(): PlayerPrefs 복원 시 Enum.TryParse 로 유효성 검증 후 폴백
  *
  * 주의사항 ::
- * - InitializeAsync() 는 반드시 1회 호출 — 미호출 시 HTextLocalizer.GetText 는 passthrough
+ * - InitializeAsync() 는 반드시 1회 호출 - 미호출 시 HTextLocalizer.GetText 는 passthrough
  * - Addressable key 규약: Localization_{language} (예: Localization_Korean)
  * - DontDestroyOnLoad 옵션은 Inspector 에서 수동으로 활성화할 것
  *
@@ -41,7 +41,7 @@ namespace HcupLocalization {
         [SerializeField]
         LocalizationLanguage? currentLanguage;
 
-        AssetProvider<string, LocalizationSO> provider;
+        IAssetSource<string, LocalizationSO> provider;
         LocalizationSO currentSO;
         #endregion
 
@@ -90,7 +90,7 @@ namespace HcupLocalization {
             if (!loaded) return;
 
             // 새 SO 완전히 로드된 후 구 SO 해제 (교체 간 gap 방지 + 실패 시 구 SO 유지)
-            if (prevKey != null) provider.Release(prevKey);
+            if (prevKey != null) provider.Release(this, prevKey);
             PlayerPrefsHandler.SetString(PREFS_LANGUAGE_KEY, language.ToString());
             HTextLocalizer.RaiseLanguageChanged(language.ToString());
         }
@@ -99,7 +99,7 @@ namespace HcupLocalization {
         #region Private - Load
         private async UniTask<bool> _LoadLanguageAsync(LocalizationLanguage language) {
             string key = _ToKey(language);
-            var so = await provider.GetAsync(key, AssetLoadMode.Addressable);
+            var so = await provider.GetAsync(this, key, AssetLoadMode.Addressable);
 
             if (so == null) {
                 HLogger.Error(
@@ -151,10 +151,10 @@ namespace HcupLocalization {
  *
  * # 변경
  * - 네임스페이스: HLocalization → HcupLocalization
- * - PlayerPrefs 키 / Addressable 키 규약은 유지 — 기존 세이브·에셋 호환
+ * - PlayerPrefs 키 / Addressable 키 규약은 유지 - 기존 세이브·에셋 호환
  *
  * =============================================================================
- * @Jason - PKH 2026.05.13 HUI.TextUI 에서 HLocalization 으로 이전 — Enum 타입 전환
+ * @Jason - PKH 2026.05.13 HUI.TextUI 에서 HLocalization 으로 이전 - Enum 타입 전환
  *
  * # 변경
  * - 네임스페이스: HUI.TextUI → HLocalization
@@ -163,19 +163,19 @@ namespace HcupLocalization {
  * - SwitchLanguageAsync(string) → SwitchLanguageAsync(LocalizationLanguage)
  * - _LoadLanguageAsync(string) → _LoadLanguageAsync(LocalizationLanguage)
  * - _ToKey(string) → _ToKey(LocalizationLanguage)
- * - _LoadSavedLanguage() 추가 — PlayerPrefs 복원 시 Enum.TryParse 유효성 검증
+ * - _LoadSavedLanguage() 추가 - PlayerPrefs 복원 시 Enum.TryParse 유효성 검증
  * - const DEFAULT_LANGUAGE = LocalizationLanguage.Korean (문자열 상수 제거)
  * - HCUP.HLocalization.asmdef 로 어셈블리 분리 (HCUP.HUI 에서 독립)
  *
  * # 설계 결정
- * - currentLanguage: LocalizationLanguage? — 초기화 전 미로드 상태를 null 로 표현
+ * - currentLanguage: LocalizationLanguage? - 초기화 전 미로드 상태를 null 로 표현
  *   (enum default 0 = Korean 과 "Korean 으로 초기화됨" 을 구분)
- * - SwitchLanguageAsync prevKey: currentLanguage.HasValue 조건부 — 초기화 전 호출 시
+ * - SwitchLanguageAsync prevKey: currentLanguage.HasValue 조건부 - 초기화 전 호출 시
  *   존재하지 않는 키 해제 방지
  * - _LoadSavedLanguage(): PlayerPrefs 손상 / 잘못된 언어코드 저장 시 defaultLanguage 폴백
  *
  * =============================================================================
- * @Jason - PKH 2026.05.13 Phase 4 정적 검토 — _LoadLanguageAsync 실패 처리 버그 수정
+ * @Jason - PKH 2026.05.13 Phase 4 정적 검토 - _LoadLanguageAsync 실패 처리 버그 수정
  *
  * # 변경
  * - _LoadLanguageAsync 반환형 UniTask → UniTask<bool>
@@ -186,7 +186,7 @@ namespace HcupLocalization {
  * @Jason - PKH 2026.05.13 최초 작성 (Phase 3)
  *
  * # 목적
- * - HCUP-2.1.0 Localization Phase 3 — LocalizationManager 구현
+ * - HCUP-2.1.0 Localization Phase 3 - LocalizationManager 구현
  * =============================================================================
  */
 #endif
