@@ -5,7 +5,7 @@
  *
  * 주요 기능 ::
  * IAssetReader + IAssetWriter + IAssetReleaser 를 한 인터페이스로 통합 노출.
- * OnAssetRemoved 이벤트 추가 — cache → loader 자동 release 연쇄의 trigger.
+ * OnAssetRemoved 이벤트 추가 - cache → loader 자동 release 연쇄의 trigger.
  *
  * 사용법 ::
  * AssetProvider 가 본 인터페이스로 cache 컴포넌트를 주입받아 조회/저장/해제 통합 호출.
@@ -13,7 +13,7 @@
  *
  * 주의 ::
  * OnAssetRemoved 는 실제 테이블 제거 시점에만 발생 (점유가 모두 비었을 때).
- * 단순 Release 호출은 점유 카운터 감소만 일으키고 이벤트는 안 발생할 수 있음.
+ * 다른 소유자가 남아 있으면 Release 가 그 소유자만 지우고 이벤트는 안 발생할 수 있음.
  * =========================================================
  */
 #endif
