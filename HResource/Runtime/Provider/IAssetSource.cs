@@ -21,13 +21,16 @@ using UnityEngine;
  * 주의 ::
  * 이 계약에 GetAsync(key, ...) 는 없다. 소유자를 생략한 획득을 타입 수준에서 막기 위해서다.
  * Leash 의 anchor 도 같은 이유로 필수다. 상한 없는 점유를 코드로 적을 수 없게 한다.
+ * 순수 C# 소유자의 창구 반납은 의무다. anchor 에 맡기면 그 점유가 anchor 수명까지 유지된다.
+ * Component 소유자에는 해당하지 않는다. 프로브가 자기 GameObject 에 붙어 회수 시점이
+ * 소유자 수명과 일치하므로, 명시 반납은 점유 기간을 줄이려는 선택이다.
  *
  * 거부 계약 ::
  * 수명 상한을 걸 수 없으면 획득을 성립시키지 않는다. 파괴가 진행 중인 GameObject 에는
  * 파괴 프로브를 붙일 수 없으므로, 그 소유자의 GetAsync 는 로드를 시작하지 않고 default 를,
  * Leash 는 null 을 돌려준다. 두 경우 모두 HLogger.Error 로 원인을 남긴다.
  * 즉 teardown 도중의 획득은 실패할 수 있다. 자산은 파괴 전에 확보할 것.
- * Dispose 는 provider 자체 폐기다. 소유자 단위 반납은 ReleaseOwner 나 IAssetLeash.Dispose 다.
+ * Dispose 는 provider 자체 폐기다. 소유자 단위 반납은 ReleaseOwner 나 ICSharpAssetLeash.Dispose 다.
  *
  * 유일한 사각 :: Destroy(component)
  * 프로브는 GameObject 파괴만 본다. Destroy(gameObject) 는 잡지만, Destroy(component) 로
@@ -55,9 +58,9 @@ namespace HResource.Provider {
         #region Plain Owner
         /// <summary>
         /// 순수 C# 소유자용 창구. anchor 가 수명 상한이다.
-        /// 창구를 Dispose 하지 않고 버려도 anchor 가 파괴되면 그 점유는 회수된다.
+        /// 다 쓰면 반드시 Dispose 한다. anchor 는 최후 방어선이지 정상 반납 경로가 아니다.
         /// </summary>
-        IAssetLeash<TKey, TAsset> Leash(object owner, Component anchor);
+        ICSharpAssetLeash<TKey, TAsset> Leash(object owner, Component anchor);
         #endregion
 
         #region Owner Independent
@@ -75,9 +78,29 @@ namespace HResource.Provider {
 /* =========================================================
  * Dev Log
  * =========================================================
+ * 2026-09-08 (수정) :: Leash 반납 규격을 의무형으로 명시
  *
- * 2026-09-07 (수정) :: ReclaimOrphans 설명 정정
+ * 변경 ::
+ * 창구 반납을 허용형에서 의무형으로 다시 적었다. "Dispose 하지 않고 버려도 anchor 가
+ * 파괴되면 회수된다" 를 "다 쓰면 반드시 Dispose 한다. anchor 는 최후 방어선" 으로 바꿨다.
+ * 적용 범위를 순수 C# 소유자로 못박고, Component 소유자는 해당 없음을 함께 적었다.
+ *
+ * 이유 ::
+ * 같은 날 liveEntries 를 제거해 GC 된 순수 소유자를 ReclaimOrphans() 로 걷지 못하게
+ * 됐다. 회수 시점이 anchor 파괴 하나로 좁아졌으므로 호출자가 지켜야 할 몫이 커졌다.
+ * 종전 문구는 반납을 빠뜨려도 되는 것처럼 읽혔다.
+ *
+ * 결과 ::
+ * 계약이 실제 회수 능력과 일치한다. 호출자가 anchor 에 기대는 비용을 문장에서 안다.
+ *
+ * 주의 ::
+ * 강제 수단은 없다. 반납을 빠뜨려도 경고가 나오지 않는다. anchor 파괴 시점에 경고를
+ * 내는 안은 검토 후 기각했다. anchor 에 맡기는 것 자체는 계약이 허용하는 종료라
+ * 정상 사용을 실수로 신고하게 된다. 규격은 문서와 주석으로만 세운다.
+ *
  * =========================================================
+ * 2026-09-07 (수정) :: ReclaimOrphans 설명 정정
+ *
  * 변경 ::
  * "살아있는 회수 창구가 없는" 을 "소유자가 이미 사라졌는데 남아있는" 으로 고쳤다.
  *
@@ -92,7 +115,7 @@ namespace HResource.Provider {
  *
  * =========================================================
  * 2026-09-06 (수정) :: ReclaimOrphans 추가
- * =========================================================
+ *
  * 변경 ::
  * 창구를 잃은 점유를 일괄 회수하는 public 메서드를 계약에 넣었다.
  *
@@ -107,9 +130,8 @@ namespace HResource.Provider {
  * int 를 public 런타임에 열면 임의 정수로 남의 점유를 내려놓을 수 있다.
  *
  * =========================================================
- * =========================================================
  * 2026-09-04 (최초 설계) :: IAssetProvider 를 대체
- * =========================================================
+ *
  * 변경 ::
  * IAssetProvider 를 폐기하고, 소유자를 요구하는 멤버만 남긴 IAssetSource 로 교체했다.
  * ownerId 를 직접 받던 오버로드는 전부 AssetProvider 의 internal 로 강등했다.

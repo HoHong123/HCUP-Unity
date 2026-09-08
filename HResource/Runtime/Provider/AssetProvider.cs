@@ -35,7 +35,7 @@ using UnityEngine;
  * 역할 경계 ::
  * - Provider (이 클래스) : cache/store/loader 조율 + owner 별 점유 소유.
  * - AssetLeashManager   : 지문 발급 + 파괴 프로브 부착 + 소유자 단위 회수.
- * - IAssetLeash         : 순수 C# 객체용 창구. using 으로 반납을 보증한다.
+ * - ICSharpAssetLeash         : 순수 C# 객체용 창구. using 으로 반납을 보증한다.
  *
  * 두 소유자 경로 ::
  * - Component  → GetAsync(this, ...). 파괴되면 프로브가 자동 회수한다.
@@ -123,16 +123,16 @@ namespace HResource.Provider {
 
             if (_RejectIfDisposed(nameof(GetAsync))) return UniTask.FromResult<TAsset>(default);
 
-            var ownerId = leashManager.Fingerprint(owner);
-            if (!ownerId.IsValid) return UniTask.FromResult<TAsset>(default);
+            var liveToken = leashManager.Fingerprint(owner);
+            if (!liveToken.IsLive) return UniTask.FromResult<TAsset>(default);
 
-            return GetForOwnerAsync(key, loadMode, fetchMode, ownerId);
+            return GetForOwnerAsync(key, loadMode, fetchMode, liveToken);
         }
 
         /// <summary>
         /// 순수 C# 객체용 창구를 발급한다. using 으로 감싸는 것이 정상 플로우이고, 그것을 빠뜨려도 anchor 가 파괴되면 회수된다.
         /// </summary>
-        public IAssetLeash<TKey, TAsset> Leash(object owner, Component anchor) {
+        public ICSharpAssetLeash<TKey, TAsset> Leash(object owner, Component anchor) {
             if (_RejectIfDisposed(nameof(Leash))) return null;
             return leashManager.Leash(owner, anchor);
         }
@@ -142,17 +142,18 @@ namespace HResource.Provider {
             TKey key,
             AssetLoadMode loadMode,
             AssetFetchMode fetchMode,
-            AssetOwnerId ownerId) {
+            AssetLeashManager<TKey, TAsset>.OwnerLiveToken liveToken) {
 
             if (_RejectIfDisposed(nameof(GetForOwnerAsync))) return UniTask.FromResult<TAsset>(default);
 
+            // 신원은 토큰에서만 꺼낸다. 따로 받으면 어긋난 조합이 표현 가능해진다.
             var request = new AssetRequest<TKey>(
                 key: key,
                 loadMode: loadMode,
                 fetchMode: fetchMode,
-                ownerId: ownerId);
+                ownerId: liveToken.IssuedId);
 
-            return _GetAsync(request);
+            return _GetAsync(request, liveToken);
         }
 
         public bool TryGet(TKey key, out TAsset asset) {
@@ -245,7 +246,9 @@ namespace HResource.Provider {
         #endregion
 
         #region Private - Get
-        private async UniTask<TAsset> _GetAsync(AssetRequest<TKey> request) {
+        private async UniTask<TAsset> _GetAsync(
+            AssetRequest<TKey> request,
+            AssetLeashManager<TKey, TAsset>.OwnerLiveToken liveToken) {
             if (!assetValidator.CanLoad(request.Key)) {
                 return default;
             }
@@ -296,7 +299,7 @@ namespace HResource.Provider {
                 // SharedGate 가 같은 key 요청을 하나로 합치므로 핸들을 직접 반납하면 살아있는 B 의 자산까지 무효화된다.
                 // 정상 해제 경로를 태우면 마지막 점유일 때만 OnAssetRemoved 로 반납된다.
                 // ============================================================
-                if(!leashManager.IsLive(request.OwnerId)) {
+                if (!liveToken.IsLive) {
                     HLogger.Warning(
                         $"[AssetProvider] The owner died while loading key '{request.Key}'." +
                         " Releasing the occupancy it would have taken.");
@@ -507,8 +510,45 @@ namespace HResource.Provider {
 /* =========================================================
  * Dev Log
  * =========================================================
- * 2026-09-07 (수정) :: ReclaimOrphans 판정을 leash 계층으로 옮김
+ * 2026-09-08 (수정 2) :: 신원을 토큰에서만 꺼낸다
+ *
+ * 변경 ::
+ * GetAsync 진입 검사를 ownerId.IsValid 에서 liveToken.IsLive 로 바꿨다.
+ * GetForOwnerAsync 의 ownerId 지역 변수를 없애고 요청 생성 시 토큰에서 직접 꺼낸다.
+ *
+ * 이유 ::
+ * Fingerprint 가 토큰만 돌려주도록 바뀌었다. 지역 변수로 신원을 복사해 두면
+ * 그 변수와 토큰이 어긋난 채 흘러갈 여지가 다시 생긴다.
+ *
+ * 결과 ::
+ * 이 파일에서 AssetOwnerId 를 만들어 내는 지점이 없다. 전부 토큰 경유다.
+ *
+ * 주의 ::
+ * ReleaseForOwner / ReleaseOwnerId 는 여전히 AssetOwnerId 를 직접 받는다.
+ * 반납은 소유자가 이미 죽은 뒤에도 성립해야 하므로 생존 토큰을 요구하면 안 된다.
+ *
  * =========================================================
+ * 2026-09-08 (수정) :: GetForOwnerAsync 가 토큰 하나만 받는다
+ *
+ * 변경 ::
+ * ownerId 파라미터를 없애고 OwnerLiveToken 에서 꺼내 쓴다.
+ * 로드 완료 시 생존 판정을 leashManager.IsLive 에서 liveToken.IsLive 로 바꿨다.
+ *
+ * 이유 ::
+ * 신원과 생존 판정을 따로 받으면 어긋난 조합이 표현 가능해진다.
+ * default(OwnerLiveToken) 과 유효한 ownerId 를 함께 넘기면 멀쩡한 소유자가
+ * 죽었다고 경고를 받고 점유가 즉시 회수된다.
+ *
+ * 결과 ::
+ * 한 값에서 둘을 꺼내므로 그 조합이 성립하지 않는다.
+ *
+ * 주의 ::
+ * 토큰은 async 상태 기계의 필드로 await 를 건너 살아남는다. LeashEntry 를 강하게 들지만
+ * LeashEntry 에 owner 로 가는 필드가 없어 소유자 수명은 늘어나지 않는다.
+ *
+ * =========================================================
+ * 2026-09-07 (수정) :: ReclaimOrphans 판정을 leash 계층으로 옮김
+ *
  * 변경 ::
  * 캐시의 소유자 목록을 훑던 본문을 버리고 leashManager.ReclaimDeadOwners 에 위임한다.
  *
@@ -525,7 +565,7 @@ namespace HResource.Provider {
  *
  * =========================================================
  * 2026-09-06 (수정) :: ReclaimOrphans 구현
- * =========================================================
+ *
  * 변경 ::
  * 캐시의 소유자 목록을 떠 IsLive 가 false 인 신원을 leash 계층에 넘겨 회수한다.
  *

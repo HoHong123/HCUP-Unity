@@ -12,10 +12,11 @@ using UnityEngine;
  * 소유자의 지문(AssetOwnerId) 발급과 수명 신호를 전담한다. provider 의 상주 객체다.
  *
  * 주요 기능 ::
- * Fingerprint(Component) - 지문 발급 + 파괴 프로브 부착. 같은 소유자는 항상 같은 지문.
+ * Fingerprint(Component) - 파괴 프로브를 붙이고 OwnerLiveToken 을 발급한다.
+ * OwnerLiveToken - 발급 시점의 항목과 신원을 담는다. 신원 조회와 O(1) 생존 판정을 겸한다.
  * Leash(object, Component anchor) - 순수 C# 소유자용 창구. 수명 상한을 anchor 가 준다.
  * Reclaim / ReclaimEntry - 그 소유자의 점유를 일괄 회수하고 지문을 폐기한다.
- * ReclaimDeadOwners() - 소유자가 죽은 항목을 약한 표 대조로 찾아 회수한다. 수동 호출이다.
+ * ReclaimDeadOwners() - 약한 표를 훑어 파괴된 Unity 소유자의 항목을 회수한다. 수동 호출이다.
  *
  * 사용법 ::
  * 직접 만들지 않는다. AssetProvider 생성자가 하나를 들고, IAssetSource 공개 API 가 위임한다.
@@ -25,7 +26,7 @@ using UnityEngine;
  * 서비스한 모든 소유자를 영원히 살려두어, 소유권 누수를 고치려던 물건이 더 큰 누수가 된다.
  *
  * 캡처 경계 ::
- * 프로브 핸들러와 AssetLeash 는 소유자 객체를 절대 참조하지 않는다. 둘 다 LeashEntry 만 든다.
+ * 프로브 핸들러와 CSharpAssetLeash 는 소유자 객체를 절대 참조하지 않는다. 둘 다 LeashEntry 만 든다.
  * 하나라도 owner 를 캡처하면 앵커(다른 GameObject)가 순수 객체의 수명을 늘리는 역전이 생긴다.
  * 그래서 LeashEntry 에는 owner 로 가는 필드가 없다.
  *
@@ -48,24 +49,49 @@ namespace HResource.Subscription {
     internal sealed class AssetLeashManager<TKey, TAsset> : System.IDisposable {
         #region Nested
         // owner 로 가는 필드를 두지 않는다. 캡처 경계 참조.
-        sealed class LeashEntry {
+        // internal 인 이유는 Dev Log 2026-09-08 항목 참조.
+        internal sealed class LeashEntry {
             internal AssetOwnerId Id;
             internal OwnerLeashProbe Probe;
             internal System.Action Handler;
-            internal AssetLeash Leash;
+            internal CSharpAssetLeash Leash;
             internal bool Reclaimed;
             // 프로브 부착이 실패한 적이 있는가. 재부착 시 조용히 앵커가 바뀌는 것을 알린다.
             internal bool AnchorAttachFailed;
         }
 
-        sealed class AssetLeash : IAssetLeash<TKey, TAsset> {
+        /// <summary>
+        /// 발급 시점의 항목과 신원을 함께 담은 생존 판정 토큰. 목록 탐색 없이 O(1) 로 답한다
+        /// entry 가 회수됐거나 부활해 신원이 바뀌었으면 죽은 것으로 본다
+        /// </summary>
+        internal readonly struct OwnerLiveToken {
+            readonly LeashEntry entry;
+            readonly AssetOwnerId issuedId;
+
+            /// <summary> 발급 시점의 신원. 호출부가 별도 인자로 들고 다니지 않게 한다 </summary>
+            internal AssetOwnerId IssuedId => issuedId;
+
+            // 발급은 이 어셈블리 안에서만 일어난다. 접근성 연쇄는 Dev Log 참조.
+            private OwnerLiveToken(LeashEntry entry) {
+                this.entry = entry;
+                this.issuedId = entry != null ? entry.Id : AssetOwnerId.None;
+            }
+
+            internal static OwnerLiveToken Issue(LeashEntry entry) => new OwnerLiveToken(entry);
+
+            internal bool IsLive =>
+                entry != null && !entry.Reclaimed && entry.Id == issuedId && issuedId.IsValid;
+        }
+
+        // LeashEntry.Leash 필드가 이 타입을 담으므로 접근성을 맞춘다(CS0052).
+        internal sealed class CSharpAssetLeash : ICSharpAssetLeash<TKey, TAsset> {
             readonly AssetLeashManager<TKey, TAsset> manager;
             readonly LeashEntry entry;
             // 발급 시점의 신원. entry 가 회수 후 되살아나면 Id 가 바뀌므로 이 값과 어긋난다.
             readonly AssetOwnerId issuedId;
             bool disposed;
 
-            internal AssetLeash(AssetLeashManager<TKey, TAsset> manager, LeashEntry entry) {
+            internal CSharpAssetLeash(AssetLeashManager<TKey, TAsset> manager, LeashEntry entry) {
                 this.manager = manager;
                 this.entry = entry;
                 this.issuedId = entry.Id;
@@ -77,7 +103,7 @@ namespace HResource.Subscription {
                 AssetFetchMode fetchMode = AssetFetchMode.CacheFirst) {
 
                 if (_RejectIfClosed(nameof(GetAsync))) return UniTask.FromResult<TAsset>(default);
-                return manager.provider.GetForOwnerAsync(key, loadMode, fetchMode, entry.Id);
+                return manager.provider.GetForOwnerAsync(key, loadMode, fetchMode, OwnerLiveToken.Issue(entry));
             }
 
             public bool TryGet(TKey key, out TAsset asset) {
@@ -88,7 +114,7 @@ namespace HResource.Subscription {
 
             public bool Release(TKey key) {
                 if (_RejectIfClosed(nameof(Release))) return false;
-                return manager.provider.ReleaseForOwner(key, entry.Id);
+                return manager.provider.ReleaseForOwner(key, issuedId);
             }
 
             public void Dispose() {
@@ -140,9 +166,7 @@ namespace HResource.Subscription {
         #region Fields
         readonly AssetProvider<TKey, TAsset> provider;
         // 키를 약하게 잡는다. 이 테이블이 소유자 수명을 붙잡으면 안 된다.
-        readonly ConditionalWeakTable<object, LeashEntry> table = new();
-        // 폐기 시 정리할 대상. LeashEntry 는 owner 를 참조하지 않으므로 강하게 들어도 안전.
-        readonly List<LeashEntry> liveEntries = new();
+        readonly ConditionalWeakTable<object, LeashEntry> leashTable = new();
         bool disposed;
         #endregion
 
@@ -155,17 +179,17 @@ namespace HResource.Subscription {
 
         #region Internal - Fingerprint
         /// <summary> Component 소유자의 지문을 확보한다. 자기 GameObject 가 곧 앵커다. </summary>
-        internal AssetOwnerId Fingerprint(Component owner) {
+        internal OwnerLiveToken Fingerprint(Component owner) {
             if (disposed) {
                 HLogger.Warning("[AssetLeash] Fingerprint called after the provider was disposed.");
-                return AssetOwnerId.None;
+                return default;
             }
             // Unity 의 == 오버로드가 파괴된 컴포넌트도 걸러낸다.
             if (owner == null) {
                 HLogger.Error(
                     "[AssetLeash] The owner is null or already destroyed, so this request cannot be attributed." +
                     " Pass a live Component as the owner.");
-                return AssetOwnerId.None;
+                return default;
             }
 
             LeashEntry entry = _EnsureEntry(owner);
@@ -175,36 +199,17 @@ namespace HResource.Subscription {
             // GetAsync 진입부가 로드 전에 빠지므로 로더 핸들도 잡히지 않는다.
             if (entry.Probe == null) {
                 _ReclaimEntry(entry);
-                return AssetOwnerId.None;
+                return default;
             }
-            return entry.Id;
-        }
 
-        /// <summary>
-        /// 이 지문이 아직 살아있는지. 회수된 항목은 liveEntries 에서 빠지므로
-        /// "목록에 없다" 가 곧 "회수됐거나 신원이 갱신됐다" 이다.
-        /// 로드 완료 시점에 소유자 생존을 판정하는 데 쓴다.
-        ///
-        /// 선형 탐색이고 로드 성공마다 돈다. Dictionary 를 병행하면 O(1) 이 되지만 동기화할
-        /// 자료구조가 하나 늘어난다. 살아있는 소유자 수는 수십 규모라 그 교환이 남는 장사가
-        /// 아니다. 소유자가 수천 단위로 늘어나면 그때 바꾼다.
-        /// </summary>
-        internal bool IsLive(AssetOwnerId ownerId) {
-            if (disposed || !ownerId.IsValid) return false;
-
-            for (int k = 0; k < liveEntries.Count; k++) {
-                LeashEntry entry = liveEntries[k];
-                if (entry == null || entry.Reclaimed) continue;
-                if (entry.Id.Value == ownerId.Value) return true;
-            }
-            return false;
+            return OwnerLiveToken.Issue(entry);
         }
 
         /// <summary> 이미 지문이 있는 소유자만 조회한다. 없으면 발급하지 않는다. </summary>
         internal bool TryFingerprint(Component owner, out AssetOwnerId ownerId) {
             ownerId = AssetOwnerId.None;
             if (disposed || owner == null) return false;
-            if (!table.TryGetValue(owner, out LeashEntry entry)) return false;
+            if (!leashTable.TryGetValue(owner, out LeashEntry entry)) return false;
             if (entry.Reclaimed) return false;
 
             ownerId = entry.Id;
@@ -217,7 +222,7 @@ namespace HResource.Subscription {
         /// 순수 C# 소유자용 창구를 발급한다. anchor 가 수명 상한이다.
         /// 창구를 Dispose 하지 않고 버려도 anchor 가 파괴되면 그 점유는 회수된다.
         /// </summary>
-        internal IAssetLeash<TKey, TAsset> Leash(object owner, Component anchor) {
+        internal ICSharpAssetLeash<TKey, TAsset> Leash(object owner, Component anchor) {
             if (owner == null) {
                 HLogger.Throw(new System.ArgumentNullException(
                     nameof(owner), "[AssetLeash] Leash(owner, anchor) requires a non-null owner."));
@@ -242,7 +247,7 @@ namespace HResource.Subscription {
             }
 
             LeashEntry entry = _EnsureEntry(owner);
-            entry.Leash ??= new AssetLeash(this, entry);
+            entry.Leash ??= new CSharpAssetLeash(this, entry);
 
             if (entry.Probe == null) {
                 if (entry.AnchorAttachFailed) {
@@ -252,7 +257,7 @@ namespace HResource.Subscription {
                 }
                 _AttachProbe(anchor, entry);
             }
-            else if (entry.Probe != null && entry.Probe.gameObject != anchor.gameObject) {
+            else if (entry.Probe.gameObject != anchor.gameObject) {
                 // 한 소유자는 하나의 수명 상한만 갖는다. 조용히 버리면 호출자는 자기가 준
                 // 앵커가 상한이라고 오해한 채로 남는다.
                 HLogger.Warning(
@@ -273,30 +278,27 @@ namespace HResource.Subscription {
         /// <summary> 이 소유자의 점유를 일괄 회수한다. 회수한 key 수를 돌려준다. </summary>
         internal int Reclaim(object owner) {
             if (disposed || owner == null) return 0;
-            if (!table.TryGetValue(owner, out LeashEntry entry)) return 0;
+            if (!leashTable.TryGetValue(owner, out LeashEntry entry)) return 0;
             return _ReclaimEntry(entry);
         }
 
         /// <summary>
         /// 소유자를 잃은 점유의 수동 회수. 반환값은 회수한 key 수
         /// 프로브가 GameObject 파괴만 보므로 Destroy(component) 로 죽은 소유자의 유일한 출구
+        /// GC 된 순수 C# 소유자는 약한 표에서 쌍이 사라져 여기 걸리지 않는다. 앵커가 상한이다
         /// </summary>
         internal int ReclaimDeadOwners() {
             if (disposed) return 0;
 
-            // 약한 표에 남은 것이 살아있는 소유자. 파괴된 Unity 객체는 == 오버로드로 제외
-            var aliveEntries = new HashSet<LeashEntry>();
-            foreach (KeyValuePair<object, LeashEntry> pair in table) {
-                if (pair.Key is UnityEngine.Object unityOwner && unityOwner == null) continue;
-                aliveEntries.Add(pair.Value);
-            }
-
-            // 대상 선수집. _ReclaimEntry 가 liveEntries 를 줄이므로 순회 중 회수 금지
+            // 대상 선수집. _ReclaimEntry 의 NotifyReleased 가 외부 구독자를 깨우고,
+            // 그 구독자가 Fingerprint 를 부르면 leashTable.Add 가 일어난다. 순회 중 회수 금지.
             var deadEntries = new List<LeashEntry>();
-            for (int k = 0; k < liveEntries.Count; k++) {
-                LeashEntry entry = liveEntries[k];
+            foreach (KeyValuePair<object, LeashEntry> pair in leashTable) {
+                // 파괴된 Unity 소유자만 대상. 관리 래퍼는 살아 있어 쌍이 표에 남는다.
+                if (!(pair.Key is UnityEngine.Object unityOwner) || unityOwner != null) continue;
+
+                LeashEntry entry = pair.Value;
                 if (entry == null || entry.Reclaimed) continue;
-                if (aliveEntries.Contains(entry)) continue;
 
                 deadEntries.Add(entry);
             }
@@ -315,7 +317,6 @@ namespace HResource.Subscription {
             // 순서 주의 : 표시를 먼저 세운다. 회수 중 재진입해도 두 번 회수되지 않는다.
             entry.Reclaimed = true;
             _DetachProbe(entry);
-            liveEntries.Remove(entry);
 
             int released = provider.ReleaseOwnerId(entry.Id);
             AssetOwnerIdGenerator.NotifyReleased(entry.Id);
@@ -327,23 +328,26 @@ namespace HResource.Subscription {
         public void Dispose() {
             if (disposed) return;
             // 아래 NotifyReleased 는 public static 이벤트를 쏘므로 외부 구독자가 재진입할 수 있다.
-            // 이 플래그가 _ReclaimEntry 를 막아 순회 도중 liveEntries 가 변형되는 것을 방지.
+            // 이 플래그를 먼저 세우면 재진입 경로인 Fingerprint 와 Leash 가 모두 거부되어
+            // 순회 도중 leashTable 에 항목이 추가되지 않는다. _ReclaimEntry 도 함께 막힌다.
             disposed = true;
 
-            for (int k = 0; k < liveEntries.Count; k++) {
-                LeashEntry entry = liveEntries[k];
+            // GC 된 소유자의 항목은 약한 표에서 이미 사라져 여기 걸리지 않는다.
+            // 그 몫의 프로브는 앵커 파괴 시 핸들러가 돌지만 disposed 를 보고 즉시 반환한다.
+            foreach (KeyValuePair<object, LeashEntry> pair in leashTable) {
+                LeashEntry entry = pair.Value;
                 if (entry == null || entry.Reclaimed) continue;
+
                 entry.Reclaimed = true;
                 _DetachProbe(entry);
                 AssetOwnerIdGenerator.NotifyReleased(entry.Id);
             }
-            liveEntries.Clear();
         }
         #endregion
 
         #region Private
         LeashEntry _EnsureEntry(object owner) {
-            if (table.TryGetValue(owner, out LeashEntry entry)) {
+            if (leashTable.TryGetValue(owner, out LeashEntry entry)) {
                 // 회수된 뒤 같은 소유자가 다시 요청하면 새 지문 제공.
                 // 폐기된 id 를 재사용하면 이미 끝난 수명 위에 점유가 증가.
                 if (!entry.Reclaimed) return entry;
@@ -352,13 +356,11 @@ namespace HResource.Subscription {
                 entry.Leash = null;
                 entry.Reclaimed = false;
                 entry.AnchorAttachFailed = false;
-                liveEntries.Add(entry);
                 return entry;
             }
 
             entry = new LeashEntry { Id = AssetOwnerIdGenerator.NewId(owner) };
-            table.Add(owner, entry);
-            liveEntries.Add(entry);
+            leashTable.Add(owner, entry);
             return entry;
         }
 
@@ -399,6 +401,136 @@ namespace HResource.Subscription {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-08 (수정 6) :: AssetLeash 를 CSharpAssetLeash 로
+ *
+ * 변경 ::
+ * IAssetLeash -> ICSharpAssetLeash, 중첩 구현 AssetLeash -> CSharpAssetLeash.
+ * 파일과 .meta 도 함께 옮겼다(GUID 보존). 참조 14 파일을 갱신했다.
+ *
+ * 이유 ::
+ * 이 타입은 순수 C# 소유자 전용인데 이름만 봐서는 Component 소유자도 쓰는 것으로
+ * 읽힌다. 반납 의무가 이쪽에만 붙으므로 적용 범위가 이름에서 드러나야 한다.
+ * 사람과 에이전트 모두 파일명 단계에서 걸러낼 수 있게 하려는 것이다.
+ *
+ * 결과 ::
+ * 타입 이름에 CSharp 이 있으면 순수 C# 소유자 전용이라는 규칙이 선다.
+ *
+ * 주의 ::
+ * IAssetSource 는 개명 대상이 아니다. GetAsync(Component) / Release(Component) /
+ * ReleaseOwner(Component) 를 직접 들고 있어 Component 경로가 본체다. Leash 하나만
+ * 순수 C# 용이므로 여기에 CSharp 을 붙이면 나머지 멤버를 잘못 표기하게 된다.
+ * 로그 태그 [AssetLeash] 는 그대로 둔다. Fingerprint 등 Component 경로도 이 태그로
+ * 남기므로 계층 이름이지 타입 이름이 아니다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정 5) :: liveEntries 제거. 판정을 약한 표 하나로
+ *
+ * 변경 ::
+ * 강한 목록 liveEntries 를 지웠다. 필드 / _EnsureEntry 의 Add 2 곳 /
+ * _ReclaimEntry 의 Remove / Dispose 의 순회가 함께 사라졌다.
+ * ReclaimDeadOwners 와 Dispose 가 leashTable 을 직접 훑는다. HashSet 할당도 없앴다.
+ *
+ * 이유 ::
+ * 소유자 사망 경로 다섯 중 넷은 이미 이벤트이거나 약한 표만으로 판정된다.
+ * 목록이 유일하게 일하던 칸은 "GC 된 순수 C# 소유자를 앵커 파괴 전에 코드로 회수"
+ * 하나였고, 그 경로의 호출부는 테스트 샘플 하나다. ICSharpAssetLeash 헤더가 약속하는
+ * 보증도 "using 은 즉시 반납, anchor 는 최후 보증" 둘뿐이라 목록은 계약에 없는
+ * 세 번째 보증이었다. 대가로 소유자 전원이 항목 하나씩을 잔류시키고,
+ * _ReclaimEntry 의 List.Remove 가 O(n) 이라 씬 정리가 O(N^2) 였다.
+ *
+ * 결과 ::
+ * 잔류 상태가 약한 표 하나로 줄었다. 소유자가 죽으면 표가 스스로 쌍을 버린다.
+ * 워처의 ORPHAN 표시와 Orphan Clean 버튼, 앵커 파괴 시 자동 회수는 그대로다.
+ * 셋 다 이 목록을 보지 않고 캐시 점유와 프로브 이벤트로 동작하기 때문이다.
+ *
+ * 주의 ::
+ * GC 된 순수 C# 소유자는 이제 ReclaimOrphans() 로 잡히지 않는다. 앵커가 죽어야
+ * 회수된다. 점유 누수는 아니다. provider Dispose 는 assetCache.ReleaseAll 이 비운다.
+ * 되살릴 근거는 이 항목이 아니라 그때의 필요다. 순수 C# 소유자가 실제로 쓰이고
+ * 앵커 수명이 너무 길어 조기 회수가 필요해진 사례가 먼저 있어야 한다. 그때는
+ * 목록을 되살리지 말고 MemoryAssetCache.ownerTable 과의 뺄셈을 먼저 검토한다.
+ * 이미 있는 역인덱스라 새 잔류 상태를 만들지 않는다.
+ * 제거 결정은 2026-09-08 사용자 승인으로 진행했다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정 4) :: 지문 표 이름을 leashTable 로
+ *
+ * 변경 ::
+ * 필드 table 을 leashTable 로 바꿨다. 파일 안 6 곳.
+ *
+ * 이유 ::
+ * MemoryAssetCache 에도 table 이 있다. 그쪽은 key 로 에셋을 찾는 강한 Dictionary 고
+ * 이쪽은 소유자로 항목을 찾는 약한 CWT 다. 고아 판정을 논할 때 두 표의 뺄셈을
+ * 이야기하게 되는데 이름이 같으면 어느 쪽 표인지가 문장에서 사라진다.
+ *
+ * 결과 ::
+ * 소속을 붙이지 않아도 이름만으로 어느 계층의 표인지 드러난다.
+ *
+ * 주의 ::
+ * private 필드라 외부 영향 없음. 헤더의 "지문 테이블" 서술은 그대로 둔다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정 3) :: CSharpAssetLeash.Release 의 신원 표기를 통일
+ *
+ * 변경 ::
+ * ReleaseForOwner 에 넘기던 entry.Id 를 issuedId 로 바꿨다.
+ *
+ * 이유 ::
+ * 같은 클래스의 Dispose 와 _RejectIfClosed 는 issuedId 로 판정하는데 Release 만
+ * entry.Id 를 썼다. 바로 위 _RejectIfClosed 가 둘의 동일성을 통과시킨 뒤라 값은
+ * 반드시 같지만, 읽는 쪽이 "여기만 다른 값일 수 있나" 를 확인하게 만든다.
+ *
+ * 결과 ::
+ * 이 클래스가 신원을 꺼내는 지점이 issuedId 하나로 모인다.
+ *
+ * 주의 ::
+ * 동작 변화 없음. 가드를 걷어내면 둘이 갈라지므로 _RejectIfClosed 선행이 전제다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정 2) :: Fingerprint 가 토큰만 돌려준다
+ *
+ * 변경 ::
+ * 반환형을 AssetOwnerId 에서 OwnerLiveToken 으로 바꾸고 out 파라미터를 없앴다.
+ * 실패 출구 셋은 default 를 돌려준다. IsValid 와 IsLive 가 함께 false 다.
+ * OwnerLiveToken.issuedId 를 int 에서 AssetOwnerId 로 바꿨다.
+ *
+ * 이유 ::
+ * 두 값을 함께 돌려주면 호출부가 둘을 따로 들고 다닐 수 있다. 어긋난 조합을
+ * 없애려던 직전 변경이 정작 발급 지점에서는 그 조합을 여전히 표현 가능하게 뒀다.
+ * int 로 들면 "0 초과가 유효" 라는 규칙이 AssetOwnerId 밖에 복제된다.
+ *
+ * 결과 ::
+ * 신원이 토큰 안에만 존재한다. 형제 타입 CSharpAssetLeash 도 AssetOwnerId issuedId 를
+ * 들고 있어 두 타입의 관용구가 같아졌다.
+ *
+ * 주의 ::
+ * IsValid 검사로 걸러내던 자리가 IsLive 검사로 바뀌었다. IsLive 는 발급 이후의
+ * 회수까지 보므로 판정이 더 좁다. 발급 직후에는 둘의 결과가 같다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정) :: IsLive 선형 탐색을 OwnerLiveToken 으로 대체
+ *
+ * 변경 ::
+ * OwnerLiveToken 중첩 구조체 신설. Fingerprint 가 out 으로 함께 돌려준다.
+ * 호출처 0 건이 된 IsLive(AssetOwnerId) 를 제거했다.
+ * LeashEntry 와 CSharpAssetLeash 를 private 에서 internal 로 올렸다.
+ *
+ * 이유 ::
+ * IsLive 는 로드 성공마다 liveEntries 를 선형 탐색했다. 그런데 진입부의 Fingerprint 가
+ * 이미 그 항목을 손에 쥐고 있었다. 쥔 것을 버리고 정수로 다시 찾는 구조였다.
+ * 색인을 더하면 수명 내내 남지만, 토큰은 호출과 함께 사라진다.
+ *
+ * 결과 ::
+ * 판정이 필드 비교 두 번으로 끝난다. 자료구조가 늘지 않았다.
+ * 부활 감지가 명시적이 됐다. 옛 판정은 "목록에 없다" 로 우연히 맞았다.
+ *
+ * 주의 ::
+ * 접근성 연쇄는 컴파일러가 강제한다. OwnerLiveToken 이 LeashEntry 를 필드로 담아 CS0051,
+ * LeashEntry 가 CSharpAssetLeash 를 필드로 담아 CS0052 가 이어진다. 바깥 클래스가 internal 이라
+ * 어셈블리 밖으로는 새지 않는다. 좁히려 하지 말 것.
+ * Destroy(component) 사각은 그대로다. 토큰도 그 경우 살아있다고 답한다.
+ *
  * =========================================================
  * 2026-09-07 (수정) :: ReclaimOrphan 을 ReclaimDeadOwners 로 대체
  * 
@@ -457,7 +589,7 @@ namespace HResource.Subscription {
  * 변경 ::
  * - _AttachProbe 가 AddComponent 결과를 null 검사한다. 파괴 중인 GameObject 에 대해
  *   AddComponent 는 예외가 아니라 null 을 돌려주므로 다음 줄이 NRE 가 되고 있었다.
- * - AssetLeash 가 발급 시점 신원(issuedId)을 기억한다. entry 가 회수 후 되살아나면
+ * - CSharpAssetLeash 가 발급 시점 신원(issuedId)을 기억한다. entry 가 회수 후 되살아나면
  *   옛 창구가 Reclaimed=false 를 보고 다시 살아나 새 소유자의 점유를 해제했다.
  * - Dispose 가 잔여 항목의 신원 통지와 프로브 구독 해제를 수행한다. liveEntries 신설.
  * - Leash 가 파괴된 UnityEngine.Object 를 owner 로 받는 것을 막는다.
@@ -478,7 +610,7 @@ namespace HResource.Subscription {
  * 
  * 변경 ::
  * - Leash(object) -> Leash(object owner, Component anchor). anchor 는 필수다.
- * - AssetLeash 가 owner 참조를 버리고 LeashEntry 만 든다.
+ * - CSharpAssetLeash 가 owner 참조를 버리고 LeashEntry 만 든다.
  * - LeashEntry.Reclaimed 신설. 앵커가 죽은 뒤의 leash 사용을 거부한다.
  * - 회수 경로 3갈래(프로브 / Dispose / ReleaseOwner)를 _ReclaimEntry 하나로 모았다.
  * - _EnsureEntry 가 회수된 항목을 새 지문으로 되살린다.
@@ -494,7 +626,7 @@ namespace HResource.Subscription {
  * 진단 도구로 역할이 좁아진다.
  *
  * 주의 ::
- * 프로브 핸들러와 AssetLeash 는 owner 를 절대 캡처하면 안 된다. 하나라도 캡처하면
+ * 프로브 핸들러와 CSharpAssetLeash 는 owner 를 절대 캡처하면 안 된다. 하나라도 캡처하면
  * 앵커가 순수 객체를 살려두어 ConditionalWeakTable 의 약한 키가 무의미해진다.
  * =========================================================
  */
