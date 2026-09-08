@@ -31,12 +31,17 @@ namespace HResource.Editor.Subscription {
 
         #region Fields
         static readonly Dictionary<int, Entry> table = new();
-        static readonly List<int> removeBuffer = new();
         // 소유자가 죽어 행을 지울 때 마지막 정체를 남긴다. ORPHAN 행이 id 만 보여주면
         // "무엇이 샜는지" 를 알 수 없어 진단이 되지 않는다.
         static readonly Dictionary<int, string> tombstones = new();
 
         const string PLAIN_OWNER_CONTAINER = "(Non-Unity Owner)";
+
+        // 전수 스캔 간격(초). 창이 0.25 초마다 그리므로 표시 지연은 최대 1 초다.
+        // 진단 표시의 지연을 감수하고 에디터 프레임 부하를 줄이는 쪽을 택했다.
+        const double SCAN_INTERVAL = 1d;
+
+        static double nextScanTime;
         #endregion
 
         #region Properties
@@ -76,9 +81,7 @@ namespace HResource.Editor.Subscription {
         }
         #endregion
 
-        #region Public - Register
-        public static void Register(int ownerId, object owner) => _OnIdCreated(ownerId, owner);
-        public static void Unregister(int ownerId) => _OnIdReleased(ownerId);
+        #region Public - Control
         public static void Clear() {
             table.Clear();
             tombstones.Clear();
@@ -96,7 +99,16 @@ namespace HResource.Editor.Subscription {
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            _EditorUpdate();
+            ScanNow();
+        }
+
+        /// <summary>
+        /// 주기 게이트를 건너뛰고 지금 판정한다. 창을 열었을 때와 GC Probe 가 부른다.
+        /// _EditorUpdate 를 부르면 스로틀에 걸려 조용히 아무 일도 하지 않는다.
+        /// </summary>
+        public static void ScanNow() {
+            nextScanTime = EditorApplication.timeSinceStartup + SCAN_INTERVAL;
+            _ScanOnce();
         }
         #endregion
 
@@ -175,10 +187,25 @@ namespace HResource.Editor.Subscription {
         #endregion
 
         #region Private - Update
+        /// <summary>
+        /// 주기 스캔의 게이트. 창이 없으면 판정을 볼 곳이 없고, 간격 안이면 결과가 버려진다.
+        /// 즉시 정리가 필요한 경로는 이 게이트를 지나지 않고 ScanNow 를 부른다.
+        /// </summary>
         static void _EditorUpdate() {
+            if (!EditorWindow.HasOpenInstances<AssetOwnerIdWatcherWindow>()) return;
+
+            if (EditorApplication.timeSinceStartup < nextScanTime) return;
+            nextScanTime = EditorApplication.timeSinceStartup + SCAN_INTERVAL;
+
+            _ScanOnce();
+        }
+
+        /// <summary> 전수 판정 1회. 게이트를 거치지 않으므로 호출자가 빈도를 책임진다 </summary>
+        static void _ScanOnce() {
             if (table.Count < 1) return;
 
-            removeBuffer.Clear();
+            // 1 초에 한 번, 창이 열려 있을 때만 도는 경로다. 필드로 재사용할 만큼 잦지 않다.
+            List<int> removeBuffer = null;
 
             foreach (KeyValuePair<int, Entry> pair in table) {
                 Entry entry = pair.Value;
@@ -196,10 +223,10 @@ namespace HResource.Editor.Subscription {
                 // 지우기 전에 정체를 남긴다. 점유가 남아 있으면 창이 ORPHAN 행에 이 이름을 붙인다.
                 // 남기지 않으면 ORPHAN 은 id 와 개수만 보여주어 무엇이 샜는지 알 수 없다.
                 tombstones[pair.Key] = _DescribeTombstone(entry);
-                removeBuffer.Add(pair.Key);
+                (removeBuffer ??= new List<int>()).Add(pair.Key);
             }
 
-            if (removeBuffer.Count < 1) return;
+            if (removeBuffer == null) return;
 
             for (int k = 0; k < removeBuffer.Count; k++) {
                 table.Remove(removeBuffer[k]);
@@ -236,10 +263,71 @@ namespace HResource.Editor.Subscription {
 /* =========================================================
  * Dev Log
  * =========================================================
+ * 2026-09-08 (수정 3) :: 수동 Register / Unregister 제거
+ *
+ * 변경 ::
+ * public static Register / Unregister 두 줄을 지웠다. 둘은 _OnIdCreated /
+ * _OnIdReleased 를 그대로 부르는 별칭이었다.
+ * 남은 멤버에 맞춰 region 이름을 Public - Register 에서 Public - Control 로 바꿨다.
+ *
+ * 이유 ::
+ * 표는 _Subscribe 가 AssetOwnerIdGenerator 의 이벤트에 걸어 두어 자동으로 채워진다.
+ * 손으로 부르는 경로는 호출부가 0 건이면서, 부르면 생성기가 발급한 적 없는 id 를
+ * 진단 표에 심는다. 생성기의 사실을 비추는 창에 거짓 행을 만드는 구멍이었다.
+ *
+ * 결과 ::
+ * 표에 행을 넣는 경로가 생성기 이벤트 하나로 좁아진다.
+ *
+ * 주의 ::
+ * 제거 결정은 2026-09-08 사용자 승인으로 진행했다. 되살릴 일이 생기면 이 항목이
+ * 근거가 아니라 그때의 필요가 근거다. 자동 경로로 못 채우는 사례가 먼저 있어야 한다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정 2) :: removeBuffer 를 지역으로 내림
+ *
+ * 변경 ::
+ * static 필드였던 removeBuffer 를 _ScanOnce 지역 변수로 옮기고 지연 할당했다.
+ * table.Count 조기 반환은 _EditorUpdate 에서 _ScanOnce 로 옮겼다. 게이트를 건너뛰는
+ * ScanNow 경로도 같은 검사를 받게 하려는 것이다.
+ *
+ * 이유 ::
+ * 한 메서드 안에서만 쓰고 버리는 데이터가 도메인 리로드까지 전역에 남아 있었다.
+ * 스캔이 1 초에 한 번, 창이 열렸을 때만 도는 경로가 되면서 재사용 이득도 사라졌다.
+ *
+ * 결과 ::
+ * 제거 대상이 없는 스캔은 할당을 하지 않는다. null 여부가 곧 "제거할 것 없음" 이라
+ * removeBuffer.Count 검사는 null 검사로 바뀌었다.
+ *
+ * 주의 ::
+ * 순회 중 table 을 건드리지 않는다는 제약은 그대로다. 버퍼가 지역이 됐다고
+ * 즉시 제거로 바꾸면 InvalidOperationException 이 난다.
+ *
+ * =========================================================
+ * 2026-09-08 (수정) :: 전수 스캔에 게이트와 주기를 도입
+ *
+ * 변경 ::
+ * _EditorUpdate 를 게이트로 두고 판정 본문을 _ScanOnce 로 분리했다.
+ * 창이 열려 있을 때만, 1 초 간격으로 스캔한다.
+ * ScanNow 신설. 게이트를 건너뛰고 즉시 판정한다.
+ *
+ * 이유 ::
+ * 판정이 매 에디터 프레임 전수 순회였다. 창은 0.25 초마다 그리므로 대부분 버려졌다.
+ * 창 상태는 EditorWindow.HasOpenInstances 로 직접 묻는다. 카운터를 두면 그 짝을
+ * 도메인 리로드와 플레이 모드 전환에서 맞추는 부담이 생긴다.
+ *
+ * 결과 ::
+ * 창을 닫아 두면 스캔이 돌지 않는다. 이벤트 구독은 그대로라 표는 계속 쌓이고,
+ * 창을 열면 ScanNow 가 그 사이의 변화를 한 번에 수렴시킨다.
+ *
+ * 주의 ::
+ * CollectAndPrune 은 _EditorUpdate 가 아니라 ScanNow 를 부른다. 게이트를 타면
+ * GC Probe 버튼이 스로틀에 걸려 조용히 아무 일도 하지 않는다.
+ * 창이 닫힌 동안에는 죽은 Unity 래퍼가 표에 남는다. Entry.UnityOwner 가 강한 참조라서다.
+ * 탭이 가려진 도킹 창은 OnDisable 이 오지 않아 스캔이 계속 돈다.
  *
  * =========================================================
  * 2026-09-04 (수정) :: 순수 C# 소유자의 죽음을 관측 가능하게
- * =========================================================
+ *
  * 변경 ::
  * - Entry 에 WeakReference PlainOwnerRef 추가. 비 Unity 소유자만 채운다.
  * - _EditorUpdate 가 두 축을 함께 판정한다. 종전에는 !IsUnityObject 를 continue 로 건너뛰었다.
