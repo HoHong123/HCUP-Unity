@@ -1,7 +1,7 @@
 # Subscription - 소유자 식별과 leash
 
 > 대상: `Runtime/Subscription/*.cs` (`AssetOwnerId` / `AssetOwnerIdGenerator` /
-> `AssetLeashManager` / `IAssetLeash` / `OwnerLeashProbe`)
+> `AssetLeashManager` / `ICSharpAssetLeash` / `OwnerLeashProbe`)
 > 상위 문서: [Runtime/README.md](../Runtime/README.md)
 
 ---
@@ -15,7 +15,7 @@
 두 갈래로 나뉜다.
 
 - **식별자 축** - `AssetOwnerId` + `AssetOwnerIdGenerator`. 값과 발급기.
-- **leash 축** - `AssetLeashManager` + `IAssetLeash` + `OwnerLeashProbe`.
+- **leash 축** - `AssetLeashManager` + `ICSharpAssetLeash` + `OwnerLeashProbe`.
   소유자 객체를 지문에 대응시키고, 파괴 시점을 감지해 회수한다.
 
 2026-09-04 개편 전에는 leash 축이 `AssetLeaseManager` 라는 이름의 **선택 계층**이었고
@@ -158,11 +158,18 @@ if (ownerId.IsValid) AssetOwnerIdGenerator.NotifyReleased(ownerId);
 ## leash 축 - provider 의 상주 계층
 
 ```csharp
-// Subscription/AssetLeashManager.cs - Component 소유자
-internal AssetOwnerId Fingerprint(Component owner) {
-    var entry = _EnsureEntry(owner);
+// Subscription/AssetLeashManager.cs - Component 소유자 (가드 로그 생략)
+internal OwnerLiveToken Fingerprint(Component owner) {
+    if (disposed) return default;
+    if (owner == null) return default;                     // Unity == 는 파괴된 것도 건다
+
+    LeashEntry entry = _EnsureEntry(owner);
     if (entry.Probe == null) _AttachProbe(owner, entry);   // 파괴 통지를 여기서 건다
-    return entry.Id;
+
+    // 상한을 걸 수 없으면 획득 자체를 성립시키지 않는다
+    if (entry.Probe == null) { _ReclaimEntry(entry); return default; }
+
+    return OwnerLiveToken.Issue(entry);                    // 신원 + 생존 판정을 한 값에
 }
 ```
 
@@ -185,8 +192,10 @@ flowchart TD
     J --> K["Reclaim(owner) → ReleaseOwnerId + NotifyReleased"]
 ```
 
-**순수 C# 소유자는 이 자동 경로가 없다.** 붙일 GameObject 가 없고 파괴 이벤트도 없어
-`source.Leash(owner)` 가 돌려주는 `IAssetLeash` 를 `using` 으로 닫는 것이 유일한 보증이다.
+**순수 C# 소유자는 이 자동 경로가 없다.** 자기 GameObject 가 없어 파괴 이벤트를 스스로
+내지 못하므로 `source.Leash(owner, anchor)` 로 anchor 의 수명을 상한으로 빌린다. anchor 가
+죽으면 회수되지만 그 시점은 소유자가 실제로 쓸모를 다한 시점보다 늦을 수 있어, 돌려받은
+`ICSharpAssetLeash` 를 `using` 으로 닫는 것이 정확한 시점을 주는 유일한 보증이다.
 `Destroy(component)` 로 컴포넌트만 지우는 경우도 프로브가 잡지 못한다 - GameObject 는
 살아 있기 때문이다. 두 경우 모두 Owner Watcher 의 진단으로 드러나고, 회수는
 `AssetLeashManager.ReclaimDeadOwners()`(공개 경로는 `IAssetSource.ReclaimOrphans()`) 가 맡는다.
@@ -206,7 +215,7 @@ flowchart TD
 4. **`nextId` 는 세션 내 단조 증가이고 재사용되지 않는다**(`:56`). 세션을 넘긴 id 비교는
    의미가 없다.
 5. ~~lease 3파일(약 260행)은 사용처 0건이다.~~ -> 2026-09-04 해소. 세 파일을 삭제하고
-   `AssetLeashManager` / `IAssetLeash` / `OwnerLeashProbe` 로 대체했다. 새 계층은
+   `AssetLeashManager` / `ICSharpAssetLeash` / `OwnerLeashProbe` 로 대체했다. 새 계층은
    `AssetProvider` 의 상주 객체라 모든 획득이 반드시 통과한다. `IAssetOwner` 도 함께
    삭제했다 - 소유자 매개변수 타입이 `Component` / `object` 로 바뀌어 표식이 불필요해졌다.
 6. **자동 회수는 GameObject 파괴에만 걸린다.** `Destroy(component)` 단독과 순수 C# 소유자는
@@ -215,3 +224,7 @@ flowchart TD
    훑어 걷어낸다. 감지가 자동이 아닌 것은 그대로이나 회수 수단은 생겼다.
 7. **명시적 반납이 정상 플로우다.** 프로브는 안전망이지 대체재가 아니다. 다 쓴 시점에
    `Release(owner, key)` 를 부르는 것과 파괴될 때까지 들고 있는 것은 점유 기간이 다르다.
+   강도는 소유자 종류에 따라 다르다. Component 는 프로브가 자기 GameObject 에 붙어 회수
+   시점이 자기 수명과 같으므로 명시 반납이 선택이다. 순수 C# 소유자는 회수 시점이 anchor
+   수명이라 자기 수명과 어긋나므로 ICSharpAssetLeash.Dispose 가 의무다. 2026-09-08 에 강한 목록을
+   없앤 뒤로 GC 된 순수 소유자는 ReclaimOrphans() 로도 걷히지 않는다.
