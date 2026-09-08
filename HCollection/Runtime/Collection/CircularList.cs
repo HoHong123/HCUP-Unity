@@ -27,7 +27,7 @@ namespace HCollection {
         #region Properties
         public int Count => list.Count;
         public int Pivot => index;
-        // 빈 리스트 가드 — IsAtLast 와 동일 규약. 가드 없이는 Count==0 에서 DivideByZero. [CASE EDGE-3]
+        // 빈 리스트 가드 - IsAtLast 와 동일 규약. 가드 없이는 Count==0 에서 DivideByZero. [CASE EDGE-3]
         public int NextPivot => (list.Count > 0) ? (index + 1) % list.Count : 0;
         public int PrevPivot => (list.Count > 0) ? (index - 1 + list.Count) % list.Count : 0;
         public bool IsAtFirst => index == 0 && list.Count > 0;
@@ -62,12 +62,12 @@ namespace HCollection {
             index = list.index;
         }
         /// <summary>
-        /// pivot 선지정 생성자. size 는 capacity 이며 요소는 이후 Add 로 채운다 — Add 가 pivot
+        /// pivot 선지정 생성자. size 는 capacity 이며 요소는 이후 Add 로 채운다 - Add 가 pivot
         /// 이상으로 채워지기 전까지 CurrentItem 은 default 를 반환한다 (ParallexLayer 사용 패턴).
         /// </summary>
         public CircularList(int pivot, int size) {
             this.list = new(size);
-            index = Math.Max(0, pivot);   // 음수 pivot 만 차단 — 초과 pivot 은 deferred 채움 패턴 허용
+            index = Math.Max(0, pivot);   // 음수 pivot 만 차단 - 초과 pivot 은 deferred 채움 패턴 허용
         }
         public CircularList(int size) {
             this.list = new(size);
@@ -182,7 +182,8 @@ namespace HCollection {
 }
 
 #if UNITY_EDITOR
-/* Dev Log
+/* =========================================================
+ * Dev Log
  * =========================================================
  * @Jason - PKH 2026.08.07 IsAtFirst 빈 리스트 가드 추가 (IsAtLast 와 대칭)
  *
