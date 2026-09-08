@@ -7,10 +7,15 @@
  * loadingTable 로 진행 중 task 추적. 같은 key 요청은 한 UniTask 로 합쳐 source 호출 1 회.
  *
  * 사용법 ::
- * AssetProvider 가 _GetAsync 에서 source 로드를 본 게이트로 감쌈. 동일 key 연속 요청이
- * 발생하는 환경 (UI 다중 패널 같은 sprite 동시 요청 등) 에서 source 호출 비용 절감.
+ * AssetProvider 가 _GetAsync 에서 fetch mode 전 구간을 본 게이트로 감쌈. 우회 경로 0건.
  *
- * 주의 ::
+ * 주의 :: 이 게이트는 성능 최적화가 아니라 정합성 장치다. 제거하면 영구 잔존이 발생한다.
+ * AddressableAssetLoader 는 handleTable 조회가 await 앞, 등록이 await 뒤다. 게이트가 없으면
+ * 동시 요청 2건이 모두 LoadAssetAsync 를 불러 Addressables refcount 가 2 로 오르고,
+ * handleTable 은 뒤엣것으로 덮이며, Release 1회로는 0 에 도달하지 못한다.
+ * HResource 가 refcount 를 1 로 고정하기로 한 선택을 성립시키는 것이 이 게이트다.
+ *
+ * Resources 축은 대상이 아니다 - LoadAsync 가 동기라 병합할 진행 중 구간이 없다.
  * factory 는 예외 발생 시에도 정리 흐름 고려 (finally 에서 loadingTable.Remove). 게이트는
  * 결과 캐시가 아니라 진행 중 작업 공유만 담당 - 캐시 정책은 상위 provider 가 가져감.
  * =========================================================
@@ -55,6 +60,22 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-08 (수정) :: 존재 이유를 성능에서 정합성으로 정정
+ *
+ * 변경 ::
+ * 헤더의 "source 호출 비용 절감" 서술을 refcount 고정 유지 근거로 교체
+ *
+ * 이유 ::
+ * Addressables 는 중복 로드를 막지만 참조 수를 올리며 막는다. HResource 는 그 수를 1 로
+ * 고정하므로 진입 자체를 직렬화해야 한다. 성능으로 읽히면 제거 대상으로 오해된다
+ *
+ * 결과 ::
+ * 게이트 제거가 왜 영구 잔존을 만드는지 헤더만 읽어도 드러난다
+ *
+ * 주의 ::
+ * Resources 축은 대상이 아니다. LoadAsync 가 동기라 병합할 구간이 없다
+ *
  * =========================================================
  * @Jason - PKH 2026.05.01 RunAsync 의 캐시 task 를 UniTask → Task 변환으로 정정 (Preserve 정정) [LOG-20260501-2]
  * - dedupe 게이트의 fan-out 의도와 multi-continuation 정합 위해 Task 로 전환.
