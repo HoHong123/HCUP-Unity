@@ -20,7 +20,7 @@
  *
  * 주의 ::
  * 1. IGridSpanData 미구현 데이터는 1x1 셀로 처리.
- * 2. secondary 라인 점유 계산이 비트 마스크 기반 — 최대 32 라인까지만 지원.
+ * 2. secondary 라인 점유 계산이 비트 마스크 기반 - 최대 32 라인까지만 지원.
  * 3. scrollRect / viewport / content / itemPrefab 모두 유효 연결 필수.
  * 4. ScrollToIndex / 가시 범위 / 컨텐츠 길이 계산은 LayoutInfo 캐시가 정상 빌드되어야만 작동.
  * 5. cellSize / spacing / startPadding / endPadding / isHorizontal 가 실제 UI 구성과 일치해야 함.
@@ -92,7 +92,7 @@ namespace HUI.ScrollView {
         float[] startPrimaryPxList;
         float[] endPrimaryPxList;
         // _FindPlacement 가 앞쪽 빈 칸부터 채우므로 혼합 스팬에서는 index 순서와 primary 위치
-        // 순서가 어긋날 수 있다 — 이 경우 이진 탐색 전제(단조 증가)가 깨지므로 선형 탐색으로 대체한다.
+        // 순서가 어긋날 수 있다 - 이 경우 이진 탐색 전제(단조 증가)가 깨지므로 선형 탐색으로 대체한다.
         bool isPrimaryMonotonic = true;
 
         float _PrimarySize => isHorizontal ? cellSize.x : cellSize.y;
@@ -442,10 +442,8 @@ namespace HUI.ScrollView {
 /* =========================================================
  * Dev Log
  * =========================================================
- *
- * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
- * =========================================================
+ *
  * 변경 ::
  * 기존 헤더 (상단 도입+주의사항 + 하단 주요기능/사용법/기타) 를 한 곳에 통합하여 §11 형틀
  * 통일. 하단 Dev Log 영역 추가. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
@@ -457,7 +455,7 @@ namespace HUI.ScrollView {
  *
  * =========================================================
  * 2026-04-25 (최초 설계, @Jason - PKH) :: SpanningGridRecycleView 초기 구현
- * =========================================================
+ *
  * RecycleView 시스템에서 가장 복잡한 변종. 핵심 결정 4 가지:
  *
  * (1) primary/secondary 축 추상화 ::
@@ -467,11 +465,11 @@ namespace HUI.ScrollView {
  * (2) LayoutInfo 사전 계산 캐시 ::
  * 각 셀의 (Primary / Secondary / PrimarySpan / SecondarySpan / SizePx / AnchoredPos +
  * startPrimaryPx / endPrimaryPx) 를 SetData 시 일괄 계산하여 메모리에 보유. 매 프레임
- * 가시 범위 계산이 이 캐시 위에서 이진 탐색만 수행 — O(log n).
+ * 가시 범위 계산이 이 캐시 위에서 이진 탐색만 수행 - O(log n).
  *
  * (3) 비트 마스크 기반 라인 점유 추적 ::
  * _FindPlacement 가 secondary 라인의 빈 위치를 비트 마스크로 추적. SpanX 칸을 점유 가능한
- * 첫 위치를 한 번의 비트 연산으로 탐색. 32 라인 한계는 int 비트 폭에서 옴 — 더 많은 라인이
+ * 첫 위치를 한 번의 비트 연산으로 탐색. 32 라인 한계는 int 비트 폭에서 옴 - 더 많은 라인이
  * 필요하면 long 또는 BitArray 로 확장 가능.
  *
  * (4) 이진 탐색 기반 가시 범위 ::

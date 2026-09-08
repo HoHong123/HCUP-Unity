@@ -46,7 +46,7 @@ namespace HUI.Spinner {
 
         public bool IsVisible { get; private set; } = false;
 
-        // 고착(Hide 누락)은 실제로 빌드에서 발생한다 — 진단 경로를 에디터 전용으로 두면 조사할 수 없다.
+        // 고착(Hide 누락)은 실제로 빌드에서 발생한다 - 진단 경로를 에디터 전용으로 두면 조사할 수 없다.
         public IReadOnlyDictionary<object, int> ActiveCallers => callers;
         public string GetCallerData() {
             if (callers.Count == 0) {
@@ -127,7 +127,7 @@ namespace HUI.Spinner {
                     cancellationToken: ct);
             }
             finally {
-                _HideSafely(caller);   // 취소 시에도 스피너 고착 방지 — 다른 오버로드와 동일 규약
+                _HideSafely(caller);   // 취소 시에도 스피너 고착 방지 - 다른 오버로드와 동일 규약
             }
         }
 
@@ -197,7 +197,7 @@ namespace HUI.Spinner {
         #endregion
 
         #region Private - Safe Hide
-        // finally 안에서 던져진 예외는 원본 예외를 대체한다 — 작업 실패 원인이 사라지는 것을 막는다.
+        // finally 안에서 던져진 예외는 원본 예외를 대체한다 - 작업 실패 원인이 사라지는 것을 막는다.
         private void _HideSafely(object caller) {
             try {
                 Hide(caller);
@@ -213,7 +213,7 @@ namespace HUI.Spinner {
             var keysToRemove = new List<object>();
 
             // Dictionary 는 null 키를 담을 수 없으므로 `key != null` 검사는 항상 no-op 이었다.
-            // 수거 대상은 "파괴된 UnityEngine.Object 호출자" (fake-null) — 정적 타입이 object 라
+            // 수거 대상은 "파괴된 UnityEngine.Object 호출자" (fake-null) - 정적 타입이 object 라
             // Unity 의 == 오버로드가 걸리지 않아 명시 캐스트로 판정한다.
             foreach (var key in callers.Keys) {
                 if (key is UnityEngine.Object unityCaller && unityCaller == null) {
@@ -235,7 +235,8 @@ namespace HUI.Spinner {
 }
 
 #if UNITY_EDITOR
-/* Dev Log
+/* =========================================================
+ * Dev Log
  * =========================================================
  * @Jason - PKH 2026.03.10 [LOG-20260310-1]
  * - 설명 주석 추가 + 주요 기능/구조/사용법 정리.

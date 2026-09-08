@@ -2,18 +2,18 @@
 /* =========================================================
  * @Jason - PKH
  * Recycle ScrollView 시스템의 베이스 추상 클래스. 대량 리스트 데이터를 Cell 재사용 기반으로
- * 효율적 표시 — 가시 영역만 활성화하여 메모리/렌더링 비용을 데이터 크기와 분리.
+ * 효율적 표시 - 가시 영역만 활성화하여 메모리/렌더링 비용을 데이터 크기와 분리.
  *
  * 특징 ::
  * Generic 기반 CellView / CellData 구조 + ComponentPool 기반 UI Cell 재사용 + Visible 영역
  * 기준 동적 Cell 생성/회수 + ScrollRect 기반 가상 리스트 (Virtual List) 구현.
  *
  * 주요 기능 ::
- * SetData(...) — 데이터 설정 + Cell Pool 초기화 + 가시 영역 갱신.
- * ScrollTo(normalizedY) / ScrollToItem(target) / ScrollToIndex(index) — 위치 이동 3 갈래.
- * RecycleInvisibleItems(start, end) — 가시 범위 밖 Cell 풀 반환.
+ * SetData(...) - 데이터 설정 + Cell Pool 초기화 + 가시 영역 갱신.
+ * ScrollTo(normalizedY) / ScrollToItem(target) / ScrollToIndex(index) - 위치 이동 3 갈래.
+ * RecycleInvisibleItems(start, end) - 가시 범위 밖 Cell 풀 반환.
  * 추상 메서드 (UpdateVisibleCount / UpdateContentSize / UpdateVisibleItems / CreateCell /
- * ScrollToIndex) — 변종이 layout 정책에 맞게 구현 (Template Method).
+ * ScrollToIndex) - 변종이 layout 정책에 맞게 구현 (Template Method).
  *
  * 사용법 ::
  *   class RankScrollView : BaseRecycleView<RankItemUI, RankData> {
@@ -206,10 +206,8 @@ namespace HUI.ScrollView {
 /* =========================================================
  * Dev Log
  * =========================================================
- *
- * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
- * =========================================================
+ *
  * 변경 ::
  * 기존 헤더 (상단 도입+주의사항 + 하단 특징/구조/주요기능/내부구조/사용법/기타) 를 한 곳에
  * 통합하여 §11 형틀 통일. 하단 Dev Log 영역 추가. 헤더와 Dev Log 모두 #if UNITY_EDITOR 가드.
@@ -219,9 +217,9 @@ namespace HUI.ScrollView {
  *
  * =========================================================
  * 2026-04-25 (최초 설계, @Jason - PKH 2026.03.10) :: BaseRecycleView 초기 구현
- * =========================================================
+ *
  * Unity ScrollRect 기반 가상 리스트 (Virtualized List) 구현을 위한 베이스. 핵심 통찰은
- * "데이터 크기와 활성 셀 수의 분리" — 1만 개 데이터를 가져도 화면에 보이는 ~10 개 셀만
+ * "데이터 크기와 활성 셀 수의 분리" - 1만 개 데이터를 가져도 화면에 보이는 ~10 개 셀만
  * 활성화. 메모리/렌더링 비용이 데이터 크기에 비례하지 않음.
  *
  * 자료구조 ::
@@ -235,7 +233,7 @@ namespace HUI.ScrollView {
  * 변종 (Vertical / Horizontal / Grid / Vlg / SpanningGrid) 이 layout 정책에 맞게 구현:
  * UpdateVisibleCount / UpdateContentSize / UpdateVisibleItems / CreateCell / ScrollToIndex.
  *
- * 가상 리스트 패턴이 핵심 가치 — 게임 UI (랭킹 / 인벤토리 / 상점 / 채팅 로그 등) 에서
+ * 가상 리스트 패턴이 핵심 가치 - 게임 UI (랭킹 / 인벤토리 / 상점 / 채팅 로그 등) 에서
  * 1k+ 항목을 부드러운 60fps 로 스크롤 가능하게 만드는 표준 기법.
  * =========================================================
  */
