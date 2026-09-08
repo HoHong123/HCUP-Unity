@@ -55,8 +55,12 @@ Unity 의 `Resources` / `Addressables` 두 소스를 하나의 `IAssetLoader` �
 | `Subscription/AssetOwnerId.cs` | 점유 주체 식별자 `readonly struct` | [Subscription](../docs/Subscription.md) |
 | `Subscription/AssetOwnerIdGenerator.cs` | `Interlocked` 단조 증가 발급기 + 추적 이벤트 | [Subscription](../docs/Subscription.md) |
 | `Subscription/AssetLeashManager.cs` | 지문 발급 + 파괴 프로브 부착 + 소유자 단위 회수. **provider 상주** | [Subscription](../docs/Subscription.md) |
-| `Subscription/IAssetLeash.cs` | 순수 C# 소유자용 창구. `using` 으로 반납 보증 | [Subscription](../docs/Subscription.md) |
+| `Subscription/ICSharpAssetLeash.cs` | 순수 C# 소유자용 창구. `using` 으로 반납 보증 | [Subscription](../docs/Subscription.md) |
 | `Subscription/OwnerLeashProbe.cs` | 소유자 GameObject 파괴를 중계하는 내부 컴포넌트 | [Subscription](../docs/Subscription.md) |
+
+**명명 규칙** : 이름에 `CSharp` 이 들어간 타입은 순수 C# 소유자 전용이다. `Component` 소유자는
+쓰지 않으며, 반납 의무 규격도 그 타입에만 적용된다. `ICSharpAssetLeash` / `CSharpAssetLeash` 가
+현재 해당한다. 순수 C# 전용 타입을 새로 만들면 파일명부터 이 규칙을 따른다.
 
 ---
 
@@ -157,7 +161,8 @@ sequenceDiagram
     participant M as MemoryAssetCache
     participant L as IAssetLoader
 
-    C->>P: GetAsync(key, loadMode, fetchMode, ownerId)
+    C->>P: GetAsync(owner, key, loadMode, fetchMode)
+    P->>P: Fingerprint(owner) - OwnerLiveToken 발급, 죽었으면 default 반환
     P->>V: CanLoad(key)
     alt key 가 비어 있음
         V-->>P: false
@@ -204,7 +209,8 @@ flowchart LR
     K2 --> K3["loader 가 소스 규칙으로 정규화"]
     end
     subgraph 소유자키
-    O1["AssetLeashManager.Fingerprint(owner)"] --> O2["AssetOwnerId - int, 0 이하는 invalid"]
+    O1["AssetLeashManager.Fingerprint(owner)"] --> OT["OwnerLiveToken - 신원 + 생존 판정"]
+    OT --> O2["AssetOwnerId - int, 0 이하는 invalid"]
     O2 --> O3["MemoryAssetCache.Item.Owners"]
     O2 --> O4["ownerTable 역인덱스 - ReleaseOwner 용"]
     end
@@ -328,7 +334,7 @@ var sprite = await leash.GetAsync("Portrait/Lisa", AssetLoadMode.Addressable);
     문서로 명시해야 한다. → [../docs/Load.md](../docs/Load.md)
 11. ~~`AssetLeaseManager` / `IAssetLeaseManager` / `IAssetLease` 는 사용처가 0건이다.~~
     -> 2026-09-04 해소. 세 파일과 `IAssetOwner` 를 삭제하고 `AssetLeashManager` /
-    `IAssetLeash` / `OwnerLeashProbe` 로 대체했다. 새 계층은 provider 의 상주 객체라
+    `ICSharpAssetLeash` / `OwnerLeashProbe` 로 대체했다. 새 계층은 provider 의 상주 객체라
     옵트인이 아니며, 모든 획득이 반드시 지문 발급을 지난다.
 12. ~~`AssetProvider.Dispose()` 는 호출처가 0건이고, 경계 인터페이스에도 없다.~~
     -> 2026-09-04 해소. 경계가 `IAssetSource` 로 바뀌면서 `IDisposable` 을 상속하고,
