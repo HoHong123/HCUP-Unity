@@ -46,7 +46,7 @@ namespace HData.Mathx {
  * Dev Log
  * =========================================================
  * 2026-08-07 (수정) :: GetCanvasPosition → GetScreenPosition 개명
- * =========================================================
+ *
  * 변경 ::
  * - `GetCanvasPosition(Transform, Camera)` → `GetScreenPosition(Transform, Camera)`.
  *   본문(Camera.WorldToScreenPoint)은 그대로 유지, 이름만 실제 동작에 맞춤.
