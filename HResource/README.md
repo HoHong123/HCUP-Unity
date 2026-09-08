@@ -83,7 +83,7 @@ Editor 어셈블리는 진단 창 하나다 (메뉴 `HCUP/Resource/Owner Watcher
    전부 `#if UNITY_EDITOR` 라 빌드 공개 표면은 늘지 않는다. 레지스트리는 약한 참조를 쓴다.
 7. **자동 회수는 GameObject 파괴에만 걸린다** (2026-09-04). `OwnerLeashProbe` 는 소유자의
    GameObject 에 붙으므로 `Destroy(component)` 로 컴포넌트만 지우면 통지가 오지 않는다.
-   순수 C# 소유자는 붙일 GameObject 가 없어 `IAssetLeash` 의 `using` 이 유일한 보증이다.
+   순수 C# 소유자는 붙일 GameObject 가 없어 `ICSharpAssetLeash` 의 `using` 이 유일한 보증이다.
    ~~두 경우 모두 Owner Watcher 의 진단이 최종 방어선이다.~~ → 2026-09-07 보완.
    진단에서 그치지 않고 회수까지 간다. `IAssetSource.ReclaimOrphans()` 를 부르면 소유자가
    죽은 항목을 약한 표 대조로 찾아 걷어내고, 에디터에서는 워처 툴바의 `Orphan Clean` 이
