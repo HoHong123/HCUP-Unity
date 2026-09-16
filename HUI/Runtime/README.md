@@ -27,7 +27,7 @@ HUI 는 **UI 컴포넌트 라이브러리**다. 게임 로직은 들어 있지 �
 |---|---|---|---|---|
 | 재활용 스크롤뷰 | [../docs/Scrollview.md](../docs/Scrollview.md) | 10 | `BaseRecycleView<TCellView, TCellData>` | `HUI.ScrollView` |
 | 입력 컨트롤 (버튼·토글·엔티티) | [../docs/InputControls.md](../docs/InputControls.md) | 20 | `DelegateButton` / `BaseCustomToggle` / `ColorUiEntity` | `HUI.ButtonUI` `HUI.ToggleUI` `HUI.Entity` |
-| 오버레이 (팝업·스피너) | [../docs/Overlay.md](../docs/Overlay.md) | 9 | `PopupManager<T>` / `SpinnerManager` | `HUI.Popup` `HUI.Spinner` |
+| 오버레이 (팝업·스피너) | [../docs/Overlay.md](../docs/Overlay.md) | 10 | `PopupManager<T>` / `SpinnerManager` | `HUI.Popup` `HUI.Spinner` |
 | 디버그 콘솔 | [../docs/DebugConsole.md](../docs/DebugConsole.md) | 6 | `HLogConsole` | `HUI.DebugConsole` |
 | 드롭다운 | [../docs/DropDown.md](../docs/DropDown.md) | 6 | `BaseDropDown<TData, TUnit>` | `HUI.Dropdown` |
 | 텍스트 / 로컬라이제이션 | [../docs/Text.md](../docs/Text.md) | 6 (+에디터 4) | `HTextLocalizer` | `HUI.TextUI` |
