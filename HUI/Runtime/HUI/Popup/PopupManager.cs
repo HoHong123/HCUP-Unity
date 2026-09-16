@@ -1,18 +1,22 @@
 ﻿#if UNITY_EDITOR
 /* =========================================================
  * 이 스크립트는 모든 Popup 시스템의 공통 베이스 매니저입니다.
- * Text / Image / Video Popup을 관리하며 로그 메시지 큐 시스템을 제공합니다.
+ * Text / Image / Video / AwaitCover Popup을 관리하며 로그 메시지 큐 시스템을 제공합니다.
  *
  * 주의사항 ::
  * 1. PopupManager는 SingletonBehaviour 기반으로 동작합니다.
  * 2. Text Popup은 Queue 구조로 순차적으로 표시됩니다.
  * 3. Popup Background는 활성 Popup 여부에 따라 자동 제어됩니다.
+ * 4. 커버 팝업은 호출자별 참조 카운트로 유지되며, await 오버로드는 결과와 무관하게 finally 로 내립니다.
+ * 5. 커버 타임아웃은 대기만 끊습니다. 작업까지 취소하려면 taskCts 를 넘겨야 합니다.
  * =========================================================
  */
 #endif
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HCore;
 using HDiagnosis.Logger;
@@ -80,6 +84,8 @@ namespace HUI.Popup {
         protected ImagePopup imagePrefab;
         [SerializeField]
         protected VideoPopup videoPrefab;
+        [SerializeField]
+        protected AwaitCoverPopup coverPrefab;
 
         [HTitle("Parents")]
         [SerializeField]
@@ -96,11 +102,17 @@ namespace HUI.Popup {
         protected TextPopup textInstance = null;
         protected ImagePopup imgInstance = null;
         protected VideoPopup vidInstance = null;
+        protected AwaitCoverPopup coverInstance = null;
+
+        // 커버는 여러 비동기 작업이 겹칠 수 있어 호출자별 참조 카운트로 수명을 정한다.
+        readonly Dictionary<object, int> coverCallers = new();
 
         protected int logCreatStack = 0;
 
         // 콜백 재진입으로 큐가 무한히 자라는 것을 막는 상한.
         protected const int MAX_LOG_QUEUE = 256;
+
+        protected const float DEFAULT_COVER_TIMEOUT_SECONDS = 30f;
 
 
         // 종전: gameParent.childCount 기반. Destroy 가 프레임 종료 후에 적용되고 "닫혔지만 살아있는"
@@ -109,7 +121,8 @@ namespace HUI.Popup {
             logHistory.Count == 0
             && (textInstance == null || !textInstance.IsActive)
             && (imgInstance == null || !imgInstance.IsActive)
-            && (vidInstance == null || !vidInstance.IsActive);
+            && (vidInstance == null || !vidInstance.IsActive)
+            && (coverInstance == null || !coverInstance.IsActive);
         #endregion
 
 
@@ -183,10 +196,119 @@ namespace HUI.Popup {
             if (onClick != null) vidInstance.OnClickPanel += onClick;
         }
 
+        #region Public - Cover
+        public void ShowCover(object caller, string message = null) {
+            if (caller == null) {
+                HLogger.Error("[Popup] ShowCover called with a null caller. Ignored.");
+                return;
+            }
+
+            _EnsureCoverInstance();
+            coverInstance.SetMessage(message);
+
+            if (coverCallers.ContainsKey(caller)) {
+                coverCallers[caller]++;
+            }
+            else {
+                coverCallers[caller] = 1;
+            }
+
+            if (background != null) background.SetActive(true);
+            coverInstance.Open();
+        }
+
+        public void HideCover(object caller) {
+            if (!coverCallers.ContainsKey(caller)) return;
+
+            coverCallers[caller]--;
+            if (coverCallers[caller] < 1) {
+                coverCallers.Remove(caller);
+            }
+
+            if (coverCallers.Count > 0) return;
+
+            // Close 는 실제로 열려 있던 경우에만 OnClosed 를 쏘고, 그 핸들러가 배경을 갱신한다.
+            if (coverInstance != null) coverInstance.Close();
+            else _RefreshBackground();
+        }
+
+        /// <summary> 작업이 끝날 때까지 커버를 유지한다. 초과 시 TimeoutException 을 던진다. </summary>
+        public async UniTask ShowCover(
+            object caller, UniTask task,
+            float timeoutSeconds = DEFAULT_COVER_TIMEOUT_SECONDS,
+            string message = null,
+            CancellationTokenSource taskCts = null) {
+            ShowCover(caller, message);
+            try {
+                await task.Timeout(
+                    TimeSpan.FromSeconds(timeoutSeconds),
+                    DelayType.UnscaledDeltaTime,
+                    PlayerLoopTiming.Update,
+                    taskCts);
+            }
+            finally {
+                _HideCoverSafely(caller);
+            }
+        }
+
+        /// <summary> 결과를 돌려주는 작업용 오버로드. 초과 시 TimeoutException 을 던진다. </summary>
+        public async UniTask<TResult> ShowCover<TResult>(
+            object caller, UniTask<TResult> task,
+            float timeoutSeconds = DEFAULT_COVER_TIMEOUT_SECONDS,
+            string message = null,
+            CancellationTokenSource taskCts = null) {
+            ShowCover(caller, message);
+            try {
+                return await task.Timeout(
+                    TimeSpan.FromSeconds(timeoutSeconds),
+                    DelayType.UnscaledDeltaTime,
+                    PlayerLoopTiming.Update,
+                    taskCts);
+            }
+            finally {
+                _HideCoverSafely(caller);
+            }
+        }
+        #endregion
+
+        #region Private - Cover
+        private void _EnsureCoverInstance() {
+            if (coverInstance != null) return;
+
+            if (coverPrefab == null) {
+                throw new InvalidOperationException(
+                    "[Popup] coverPrefab is not assigned. Assign an AwaitCoverPopup prefab on the popup manager before calling ShowCover.");
+            }
+
+            coverInstance = Instantiate(coverPrefab, logParent);
+            coverInstance.OnClosed += _OnPopupClosed;
+            coverInstance.Close();
+        }
+
+        // finally 안에서 던져진 예외는 원본 예외를 대체한다 - 작업 실패 원인이 사라지는 것을 막는다.
+        private void _HideCoverSafely(object caller) {
+            try {
+                HideCover(caller);
+            }
+            catch (Exception e) {
+                HLogger.Error($"[Popup] HideCover failed while unwinding: {e}");
+            }
+        }
+
+        private void _DisposeCoverInstance() {
+            if (coverInstance == null) return;
+            coverInstance.OnClosed -= _OnPopupClosed;
+            Destroy(coverInstance.gameObject);
+            coverInstance = null;
+        }
+        #endregion
+
         // 싱글톤 파괴 시 자식 팝업 인스턴스와 큐에 남은 외부 Action 참조를 모두 끊는다.
         protected override void OnDestroy() {
             _DisposeImageInstance();
             _DisposeVideoInstance();
+            _DisposeCoverInstance();
+            coverCallers.Clear();
 
             if (textInstance != null) {
                 textInstance.OnClosed -= _OnPopupClosed;
@@ -260,15 +382,42 @@ namespace HUI.Popup {
  * 주요 기능 ::
  * 1. Text Popup 로그를 Queue 기반으로 순차 표시합니다.
  * 2. Image / Video Popup을 생성하여 표시합니다.
- * 3. Popup Background 활성 상태를 자동 관리합니다.
+ * 3. 비동기 대기 구간을 덮는 AwaitCover Popup을 참조 카운트로 관리합니다.
+ * 4. Popup Background 활성 상태를 자동 관리합니다.
  *
  * 사용법 ::
  * 1. ShowLog()를 호출하여 Text Popup 메시지를 표시합니다.
  * 2. ShowImage() 또는 ShowVideo()를 통해 미디어 Popup을 생성합니다.
+ * 3. await ShowCover(this, task, timeoutSeconds, message) 로 비동기 구간을 덮습니다.
  *
  * 기타 ::
  * 1. Popup 로그는 Queue<LogQue> 구조로 관리됩니다.
- * 2. TextPopup 인스턴스는 최초 1회 생성 후 재사용됩니다.
+ * 2. TextPopup / AwaitCoverPopup 인스턴스는 최초 1회 생성 후 재사용됩니다.
  * =========================================================
+ */
+#endif
+
+#if UNITY_EDITOR
+/* =============================================================================
+ *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.09.16 AwaitCover 팝업 API 추가
+ *
+ * # 추가
+ * - coverPrefab / coverInstance / coverCallers 와 DEFAULT_COVER_TIMEOUT_SECONDS(30초).
+ * - ShowCover(caller, message) / HideCover(caller) - 호출자별 참조 카운트.
+ * - ShowCover(caller, UniTask, timeoutSeconds, message, taskCts) 와 결과 반환 오버로드. UniTask.Timeout 으로 초과 시 TimeoutException.
+ * - IsAllClosed 에 커버 항 추가. OnDestroy 에서 인스턴스 파기 + 카운트 정리.
+ *
+ * # 설계 결정
+ * - 커버 인스턴스는 TextPopup 처럼 1개만 만들어 재사용한다. 동시에 두 장을 겹칠 이유가 없고 참조 카운트가 수명을 정한다.
+ * - await 오버로드는 try / finally 로 감싸 성공·실패·예외·취소·타임아웃 모든 경로에서 커버를 내린다. finally 의 예외가 원본을 덮지 않게 _HideCoverSafely 를 거친다.
+ * - 타임아웃 계측은 DelayType.UnscaledDeltaTime 이다. 로딩 중 timeScale 이 0 이어도 흘러야 한다.
+ * - coverPrefab 미배선은 HLogger 경고가 아니라 InvalidOperationException 이다. 커버가 안 뜨면 차단 자체가 실패하므로 조용히 넘기지 않는다.
+ *
+ * # 주의
+ * - 타임아웃은 대기만 끊는다. 작업을 멈추려면 호출자가 taskCts 를 넘겨야 한다.
+ *
+ * =============================================================================
  */
 #endif
