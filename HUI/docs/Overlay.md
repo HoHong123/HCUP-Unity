@@ -2,7 +2,7 @@
 
 > 어셈블리: `HCUP.HUI` - [Runtime/README.md](../Runtime/README.md)
 > 네임스페이스: `HUI.Popup`, `HUI.Spinner`
-> 파일: `Runtime/HUI/Popup/` 7개 + `Runtime/HUI/Spinner/` 2개 (858행)
+> 파일: `Runtime/HUI/Popup/` 8개 + `Runtime/HUI/Spinner/` 2개
 
 ---
 
@@ -26,9 +26,10 @@
 
 | 경로 | 행 | 역할 |
 |---|---|---|
-| `Popup/PopupManager.cs` | 274 | 추상 매니저. 로그 큐 + 인스턴스 3종 + 배경 제어 |
+| `Popup/PopupManager.cs` | 423 | 추상 매니저. 로그 큐 + 인스턴스 4종 + 커버 참조 카운트 + 배경 제어 |
 | `Popup/BasePopupUi.cs` | 53 | 팝업 공통. `Open`/`Close`/`OnClosed`/`OnClickCancel` |
 | `Popup/TextPopup.cs` | 67 | 제목·본문 + 확인/닫기 버튼 |
+| `Popup/AwaitCoverPopup.cs` | 68 | 비동기 대기 커버. 안내 문구만 표시하고 닫기 버튼이 없다 |
 | `Popup/ImagePopup.cs` | 165 | `RawImage` 표시 + `HResource` 로 스프라이트 비동기 로드 |
 | `Popup/VideoPopup.cs` | 52 | `VideoPlayer` + `RenderTexture` |
 | `Popup/AlertPopup.cs` | 28 | **사용처 없음** (아래 정리 대상) |
@@ -67,7 +68,14 @@ classDiagram
         +ShowImage(sprite, onClick)
         +ShowImage(texture, onClick)
         +ShowVideo(address, onClick, w, h)
+        +ShowCover(caller, message)
+        +ShowCover(caller, task, timeoutSeconds, message, taskCts)
+        +HideCover(caller)
         #_RefreshBackground()
+    }
+    class AwaitCoverPopup {
+        -TMP_Text messageTxt
+        +SetMessage(message)
     }
     class BasePopupUi {
         #GameObject panel
@@ -102,6 +110,8 @@ classDiagram
     BasePopupUi <|-- ImagePopup
     BasePopupUi <|-- VideoPopup
     BasePopupUi <|-- AlertPopup
+    BasePopupUi <|-- AwaitCoverPopup
+    PopupManager --> AwaitCoverPopup : 1개 재사용
     PopupManager --> TextPopup : 1개 재사용
     PopupManager --> ImagePopup : 매번 재생성
     PopupManager --> VideoPopup : 매번 재생성
@@ -351,6 +361,24 @@ var result = await SpinnerManager.Instance.Show(this, FetchAsync<Profile>());
 
 // 6) 고착 조사 - 릴리즈 빌드에서도 호출 가능
 Debug.Log(SpinnerManager.Instance.GetCallerData());
+
+// 7) 비동기 대기 커버 - 결과와 무관하게 finally 로 닫힌다
+try {
+    await MyPopupManager.Instance.ShowCover(this, PurchaseAsync(), 60f, "결제를 확인하고 있습니다.");
+}
+catch (TimeoutException) {
+    MyPopupManager.Instance.ShowLog(PopLevel.Alert, "결제 실패", "시간이 초과되었습니다.");
+}
+
+// 8) 타임아웃에 작업까지 취소하려면 CancellationTokenSource 를 넘긴다
+var cts = new CancellationTokenSource();
+var profile = await MyPopupManager.Instance.ShowCover(
+    this, FetchAsync<Profile>(cts.Token), 15f, "불러오는 중...", cts);
+
+// 9) 커버 수동 쌍 - Hide 를 빠뜨리면 화면이 잠긴다
+MyPopupManager.Instance.ShowCover(this, "저장 중...");
+try { await SaveAsync(); }
+finally { MyPopupManager.Instance.HideCover(this); }
 ```
 
 ---
@@ -372,34 +400,44 @@ Debug.Log(SpinnerManager.Instance.GetCallerData());
    오버로드는 자기 몫만 자동으로 처리한다.
 5. **`Hide` 는 등록되지 않은 호출자를 조용히 무시한다** (`SpinnerManager.cs:185`). 짝이 맞지 않는
    `Hide` 는 로그도 남기지 않는다.
-6. **`ImagePopup` 의 로드 실패는 상태를 바꾸지 않는다** (`ImagePopup.cs:117-120`). `currentKey` 가
+6. **커버 타임아웃은 대기만 끊는다** (`PopupManager.cs` 의 `ShowCover` await 오버로드). 초과하면
+   `System.TimeoutException` 이 호출자에게 전파되고 커버는 `finally` 로 닫히지만, **작업 자체는
+   계속 돈다.** 멈추려면 호출자가 `taskCts` 를 넘겨야 한다 (`UniTaskExtensions.cs:395-399`).
+7. **커버는 참조 카운트다.** `ShowCover` 를 3번 불렀으면 `HideCover` 도 3번 불러야 내려간다.
+   await 오버로드는 자기 몫만 처리한다. 커버는 닫기 버튼이 없으므로 짝을 빠뜨리면 사용자가
+   화면을 되돌릴 방법이 없다.
+8. **`coverPrefab` 미배선은 예외다.** `ShowCover` 가 `InvalidOperationException` 을 던진다.
+   커버가 뜨지 않으면 차단 자체가 실패하므로 다른 팝업처럼 `HLogger.Error` 로 넘기지 않는다.
+9. **`AwaitCoverPopup` 은 `base.Start` 를 호출하지 않는다.** `closeBtn` 배선과 `OnClickCancel`
+   구독이 없다. 닫는 주체는 매니저뿐이다.
+10. **`ImagePopup` 의 로드 실패는 상태를 바꾸지 않는다** (`ImagePopup.cs:117-120`). `currentKey` 가
    갱신되지 않으므로 이전 자원은 이미 `_ReleasePreviousIfAny` 로 반납된 뒤이고, 화면에는 직전
    텍스처가 남는다.
 
 ### 정리 대상
 
-7. **`AlertPopup` 은 완전한 죽은 코드다** (`Popup/AlertPopup.cs`, 전역 grep 3건 = 전부 자기 파일).
+11. **`AlertPopup` 은 완전한 죽은 코드다** (`Popup/AlertPopup.cs`, 전역 grep 3건 = 전부 자기 파일).
    `PopupManager` 는 이 타입을 알지 못하고, `OnReturn(AlertPopup)` / `OnDispose(AlertPopup)` 는
    풀 콜백 시그니처를 흉내내지만 이 클래스를 담는 풀이 없다. `OnDispose` 는 `panel` 만
    `Destroy` 하고 자기 `gameObject` 는 남긴다 (`:26`).
-8. **필드명 오타가 공개 상태에 노출되어 있다** - `imgInstnace`, `vidInstnace`
+12. **필드명 오타가 공개 상태에 노출되어 있다** - `imgInstnace`, `vidInstnace`
    (`PopupManager.cs:97-98`). `protected` 라 파생 클래스가 그대로 쓴다.
-9. **`LogQue.uid` 는 로그 문자열에만 쓰이고 팝업을 식별하지 않는다** (`PopupManager.cs:121-127`).
+13. **`LogQue.uid` 는 로그 문자열에만 쓰이고 팝업을 식별하지 않는다** (`PopupManager.cs:121-127`).
    특정 팝업을 취소하거나 찾아오는 API 가 없다.
-10. **`HSpinner` 확장 메서드는 `this IDisposable` 을 요구한다** (`Spinner/HSpinner.cs:24-31`).
+14. **`HSpinner` 확장 메서드는 `this IDisposable` 을 요구한다** (`Spinner/HSpinner.cs:24-31`).
     `SpinnerManager.Show` 는 `object` 를 받으므로 이 제약에는 근거가 없다 -
     `MonoBehaviour` 는 `IDisposable` 이 아니라서 가장 흔한 호출자가 확장 메서드를 못 쓴다.
     **패키지 내 `ShowSpinner`/`HideSpinner` 호출처는 0건**이다.
-11. **`HSpinner` 는 `Show(caller, UniTask)` / `Show<T>(caller, UniTask<T>)` 오버로드를 노출하지
+15. **`HSpinner` 는 `Show(caller, UniTask)` / `Show<T>(caller, UniTask<T>)` 오버로드를 노출하지
     않는다** (`SpinnerManager.cs:162, :172` 는 존재). 확장 메서드 표면이 매니저 API 의 부분집합이다.
-12. **`SpinnerManager.ActiveCallers` / `GetCallerData` 는 패키지 내 호출처가 0이다**
+16. **`SpinnerManager.ActiveCallers` / `GetCallerData` 는 패키지 내 호출처가 0이다**
     (`:50-60`). 주석이 밝히듯 릴리즈 빌드 진단을 위해 의도적으로 남긴 것이므로, 죽은 코드가
     아니라 **외부 호출 전제 API** 다.
-13. **`PopupManager` 는 `Awake` 를 오버라이드하지 않는다.** `OnDestroy` 만 오버라이드해
+17. **`PopupManager` 는 `Awake` 를 오버라이드하지 않는다.** `OnDestroy` 만 오버라이드해
     (`:187-199`) 중복 인스턴스가 파괴될 때도 `_DisposeImageInstance` 등이 돈다. 다른 인스턴스의
     상태를 건드리지는 않으므로 무해하지만, `SpinnerManager` 의 `instance != this` 가드
     (`:79`)와 규약이 다르다.
-14. **`VideoPopup` 은 `RenderTexture` 를 `Destroy` 하지 않는다** (`VideoPopup.cs:48-49`). 인스펙터로
+18. **`VideoPopup` 은 `RenderTexture` 를 `Destroy` 하지 않는다** (`VideoPopup.cs:48-49`). 인스펙터로
     배선된 에셋을 `width`/`height` 만 덮어쓰므로 - **에셋을 런타임에 변형한다.** 에디터에서는
     이 변경이 에셋 파일에 남을 수 있다.
 
@@ -409,7 +447,9 @@ Debug.Log(SpinnerManager.Instance.GetCallerData());
 
 | 하고 싶은 것 | 손댈 곳 |
 |---|---|
-| 프로젝트 팝업 매니저 | `PopupManager<T>` 상속 + `background`/`textPrefab`/`imagePrefab`/`videoPrefab`/parent 3종 배선 |
+| 프로젝트 팝업 매니저 | `PopupManager<T>` 상속 + `background`/`textPrefab`/`imagePrefab`/`videoPrefab`/`coverPrefab`/parent 3종 배선 |
+| 커버 기본 타임아웃 변경 | `DEFAULT_COVER_TIMEOUT_SECONDS` (`PopupManager.cs`) 또는 호출마다 `timeoutSeconds` 인자 |
+| 커버 연출·문구 교체 | `AwaitCoverPopup` 프리팹 - `panel` 에 화면을 덮는 Raycast Target 그래픽이 있어야 입력이 막힌다 |
 | 새 팝업 종류 | `BasePopupUi` 상속 (`panel`·`closeBtn` 필수) + `PopupManager` 에 인스턴스 필드·`Show*`·`_Dispose*Instance`·`IsAllClosed` 항 추가 |
 | 팝업 큐 정책 변경 | `MAX_LOG_QUEUE` (`PopupManager.cs:103`) + `_SetTextPopup` |
 | 팝업 열림/닫힘 애니메이션 | `BasePopupUi.Open`/`Close` 오버라이드 - `OnClosed` 발화 시점을 유지할 것 |
