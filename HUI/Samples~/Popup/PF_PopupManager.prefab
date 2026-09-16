@@ -202,25 +202,13 @@ MonoBehaviour:
     Prefab: {fileID: 0}
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
-    SerializationNodes:
-    - Name: logHistory
-      Entry: 7
-      Data: 0|System.Collections.Generic.Queue`1[[HUI.Popup.PopupManager`1+LogQue[[HUI.Sample.Popup.DemoPopupManager,
-        Assembly-CSharp]], HCUP.HUI]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 0
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
+    SerializationNodes: []
   dontDestroyOnLoad: 1
   background: {fileID: 6436322012368741182}
-  textPrefab: {fileID: 7957086763655806345, guid: 35a9dff16c1dd7847ba6193bcd0ab0d3, type: 3}
-  imagePrefab: {fileID: 1850080393254962905, guid: 061f4a1b2bac0b94c8241ed3d7c928a6, type: 3}
-  videoPrefab: {fileID: 2445844405540147871, guid: 68809311e2e3aaf478cab065ab578237, type: 3}
+  textPrefab: {fileID: 7957086763655806345, guid: 0b1e05d4ddfb82b45bd2a0b89f6cc26f, type: 3}
+  imagePrefab: {fileID: 1850080393254962905, guid: 5e3595b4a6b0da745bad17136154493a, type: 3}
+  videoPrefab: {fileID: 2445844405540147871, guid: 71c51d53595b22249910b9d9f3d8b2b1, type: 3}
+  coverPrefab: {fileID: 8918241141246083500, guid: ba2b3ec6d7e02e647ad3fc9fb3ee5ab4, type: 3}
   poolParent: {fileID: 3482269095991302315}
   logParent: {fileID: 6412000399637693753}
   gameParent: {fileID: 6999421911470263041}
@@ -396,6 +384,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 1
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 31
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: -288008105
@@ -854,6 +843,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
