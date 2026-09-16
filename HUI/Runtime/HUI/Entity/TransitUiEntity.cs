@@ -7,6 +7,9 @@
  * + 두 지점은 좌표값이 아니라 Transform 으로 지정하고 월드 좌표로 이동합니다.
  * + fromPoint 가 비어 있으면 첫 이동 직전의 부모와 위치를 원점으로 기억해 From 으로 사용합니다.
  * + reparentOnArrive 가 켜지면 도착 지점 Transform 의 자식으로 부모를 옮깁니다.
+ * + returnOnReclick 은 클릭 기반 호출자(TransitOnClickButton)만 읽는 타겟별 재클릭 복귀 옵션입니다.
+ * + 도착 여부는 플래그가 아니라 대상과 toPoint 의 월드 거리가 arrivalDistance 이하인지로 판단합니다.
+ * + 이동을 시작하기 전에 대상 Transform 의 트윈을 Kill 해 한 객체에 이동 트윈이 겹치지 않게 합니다.
  *
  * 주의사항 ::
  * target / toPoint 는 반드시 할당해야 합니다. toPoint 가 비어 있으면 이동 시 InvalidOperationException 을 던집니다.
@@ -24,6 +27,7 @@ namespace HUI.Entity {
     public class TransitUiEntity {
         #region Const
         const float DEFAULT_ANIMATION_DURATION = 0.2f;
+        const float DEFAULT_ARRIVAL_DISTANCE = 0.01f;
         #endregion
 
         #region Fields
@@ -43,6 +47,13 @@ namespace HUI.Entity {
         [Tooltip("Move the target under the arrival point transform.")]
         [SerializeField]
         bool reparentOnArrive = false;
+        [Tooltip("Click-driven only. On: clicking again at the destination returns to origin. Off: stays at the destination.")]
+        [SerializeField]
+        bool returnOnReclick = true;
+        [Tooltip("The target is treated as arrived when its world distance to the destination is at or below this value.")]
+        [Min(0f)]
+        [SerializeField]
+        float arrivalDistance = DEFAULT_ARRIVAL_DISTANCE;
         [SerializeField]
         bool useAnimation = false;
         [HShowIf(nameof(useAnimation))]
@@ -54,6 +65,11 @@ namespace HUI.Entity {
         Vector3 capturedOriginLocalPosition;
         #endregion
 
+        #region Properties
+        public bool IsAtDestination => toPoint != null && _IsTargetAt(toPoint.position);
+        public bool ReturnOnReclick => returnOnReclick;
+        #endregion
+
         #region Public - Transit
         public void MoveToDestination(bool immediate = false) {
             if (toPoint == null) {
@@ -61,11 +77,14 @@ namespace HUI.Entity {
                     "[TransitUiEntity] toPoint is not assigned. Assign the destination Transform in the Inspector.");
             }
 
+            target.DOKill();
             _CaptureOriginOnce();
             _ApplyTransit(toPoint, toPoint.position, immediate);
         }
 
         public void MoveToOrigin(bool immediate = false) {
+            target.DOKill();
+
             if (fromPoint != null) {
                 _ApplyTransit(fromPoint, fromPoint.position, immediate);
                 return;
@@ -77,6 +96,10 @@ namespace HUI.Entity {
         #endregion
 
         #region Private
+        private bool _IsTargetAt(Vector3 worldPosition) {
+            return (target.position - worldPosition).sqrMagnitude <= arrivalDistance * arrivalDistance;
+        }
+
         private Vector3 _GetCapturedOriginWorldPosition() {
             if (capturedOriginParent == null) return capturedOriginLocalPosition;
             return capturedOriginParent.TransformPoint(capturedOriginLocalPosition);
@@ -96,8 +119,6 @@ namespace HUI.Entity {
         }
 
         private void _ApplyTransit(Transform arrivalParent, Vector3 worldPosition, bool immediate) {
-            target.DOKill();
-
             if (reparentOnArrive) {
                 target.SetParent(arrivalParent, worldPositionStays: true);
             }
@@ -116,6 +137,40 @@ namespace HUI.Entity {
 #if UNITY_EDITOR
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * @Jason - PKH 2026.09.16 도착 판정을 실제 거리 기반으로 변경, 트윈 Kill 을 이동 시작 전으로 이동
+ *
+ * # 수정
+ * - isAtDestination 플래그를 제거했다. IsAtDestination 은 대상과 toPoint 의 월드 거리가 arrivalDistance 이하인지 계산한다.
+ * - arrivalDistance (기본 DEFAULT_ARRIVAL_DISTANCE = 0.01, Min 0) 필드를 추가했다.
+ * - target.DOKill() 을 _ApplyTransit 내부에서 MoveToDestination / MoveToOrigin 의 첫 줄로 옮겼다.
+ *
+ * # 이유
+ * - 여러 버튼이 같은 대상을 공유하면(예: 선택 슬롯 버튼 여러 개가 하이라이트 이미지 하나를 공유) 다른 엔티티가 대상을 옮겨도 먼저 클릭된 엔티티의 플래그가 true 로 남는다. returnOnReclick=false 와 겹치면 그 버튼의 재클릭이 무시됐다.
+ * - 기존에는 _CaptureOriginOnce 가 DOKill 보다 먼저 실행돼, 다른 트윈이 도는 중이면 이동 도중의 위치를 원점으로 기억할 수 있었다.
+ *
+ * # 설계 결정
+ * - Kill 범위는 대상 Transform 을 target 으로 가진 트윈이다. 이 엔티티는 위치만 다루므로 Image 등 다른 컴포넌트의 트윈은 건드리지 않는다.
+ *   (같은 날 GameObject 와 전체 컴포넌트를 순회해 Kill 하는 구현을 넣었다가 사용자 지시로 제거했다.)
+ * - 거리 비교는 sqrMagnitude 로 한다. 월드 단위라 캔버스 스케일에 따라 적정값이 달라지므로 Inspector 에서 조정한다.
+ *
+ * # 주의
+ * - 애니메이션 도중에는 아직 도착 전으로 판정되므로, 같은 버튼 재클릭 시 같은 목표로 이동을 다시 건다.
+ *
+ * =============================================================================
+ * @Jason - PKH 2026.09.16 재클릭 복귀 옵션과 도착 상태를 타겟 단위로 이관
+ *
+ * # 추가
+ * - returnOnReclick (기본 true) 필드와 ReturnOnReclick 프로퍼티. TransitOnClickButton 에 있던 옵션을 타겟마다 지정하도록 옮겼다.
+ * - isAtDestination 필드와 IsAtDestination 프로퍼티. MoveToDestination 은 true, MoveToOrigin 은 false 로 둔다.
+ *
+ * # 설계 결정
+ * - 옵션이 타겟별이면 한 번의 클릭 후 타겟마다 위치가 갈린다. 그래서 도착 상태도 버튼 하나가 아니라 엔티티가 각자 보유한다.
+ * - 이 엔티티는 옵션을 읽기만 노출하고 스스로 분기하지 않는다. 재클릭 판단은 클릭 개념을 가진 호출자의 책임이다.
+ *
+ * # 주의
+ * - TransitOnSelectToggle 은 returnOnReclick 을 읽지 않는다. 토글에 붙인 타겟에서는 Inspector 에 보여도 효과가 없다.
+ *
  * =============================================================================
  * @Jason - PKH 2026.09.15 fromPoint 선택화, toPoint 필수화
  *
