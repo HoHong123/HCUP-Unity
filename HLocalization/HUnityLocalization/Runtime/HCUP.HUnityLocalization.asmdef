@@ -1,0 +1,30 @@
+{
+    "name": "HCUP.HUnityLocalization",
+    "rootNamespace": "HUnityLocalization",
+    "references": [
+        "UniTask",
+        "Unity.Localization",
+        "Unity.ResourceManager",
+        "HCUP.HCore",
+        "HCUP.HDiagnosis",
+        "HCUP.HInspector",
+        "HCUP.HcupLocalization"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HCUP_UNITY_LOCALIZATION"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.localization",
+            "expression": "[1.5,999.0.0]",
+            "define": "HCUP_UNITY_LOCALIZATION"
+        }
+    ],
+    "noEngineReferences": false
+}
