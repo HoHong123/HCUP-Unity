@@ -3,10 +3,12 @@
     "rootNamespace": "HUnityLocalization",
     "references": [
         "HCUP.HExcel.Editor",
+        "HCUP.HUnityLocalization",
         "HCUP.HcupLocalization",
         "HCUP.HDiagnosis",
         "Unity.Localization",
-        "Unity.Localization.Editor"
+        "Unity.Localization.Editor",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"
