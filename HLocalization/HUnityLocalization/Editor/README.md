@@ -1,33 +1,36 @@
 # HCUP.HUnityLocalization.Editor
 
 > 어셈블리: `HCUP.HUnityLocalization.Editor` (`HUnityLocalization/Editor/HCUP.HUnityLocalization.Editor.asmdef`, rootNamespace `HUnityLocalization`, `includePlatforms: ["Editor"]`)
-> 의존: `HCUP.HExcel.Editor`, `HCUP.HcupLocalization`, `HCUP.HDiagnosis`, `Unity.Localization`, `Unity.Localization.Editor`
-> 컴파일 조건: `defineConstraints: ["HCUP_UNITY_LOCALIZATION"]` + `versionDefines` — `com.unity.localization` `[1.5, 999.0.0]` 설치 시 자동 정의
-> 동반 어셈블리: `HCUP.HcupLocalization` (별개 시스템 — 아래 "두 시스템의 선택" 참조)
+> 의존: `HCUP.HExcel.Editor`, `HCUP.HUnityLocalization`, `HCUP.HcupLocalization`, `HCUP.HDiagnosis`, `Unity.Localization`, `Unity.Localization.Editor`, `Unity.TextMeshPro`
+> 컴파일 조건: `defineConstraints: ["HCUP_UNITY_LOCALIZATION"]` + `versionDefines` - `com.unity.localization` `[1.5, 999.0.0]` 설치 시 자동 정의
+> 동반 어셈블리: `HCUP.HUnityLocalization` (같은 갈래의 런타임. 언어 전환과 토큰 조회 - `../Runtime/README.md`), `HCUP.HcupLocalization` (별개 시스템 - 아래 "두 시스템의 선택" 참조)
 
 ---
 
 ## 요약
 
-`HUnityLocalization` 은 **엑셀 → Unity 네이티브 Localization 데이터 파이프라인**이다.
-런타임 코드가 없다. 어셈블리 전체가 에디터 전용이고, 하는 일은 하나다 —
-**로컬라이제이션 엑셀을 `Locale` 5개 + `StringTableCollection` 1개로 변환한다.**
+이 어셈블리는 **엑셀 → Unity 네이티브 Localization 데이터 파이프라인**이다. 하는 일은 둘이다.
 
-변환이 끝나면 이 어셈블리의 역할은 종료된다. **런타임 소비는 Unity 네이티브 API
-(`LocalizationSettings`, `LocalizeStringEvent`)가 직접 담당하고, 이 어셈블리를 거치지
-않는다.**
+1. **로컬라이제이션 엑셀을 `Locale` 5개 + `StringTableCollection` 1개로 변환한다** (`HUnityLocalizationTableLoader`).
+2. **텍스트 컴포넌트에 `LocalizeStringEvent` 를 붙여 준다** (`LocalizationWiringWindow`).
+
+변환과 배선이 끝나면 이 어셈블리의 역할은 종료된다. **런타임 소비는 이 어셈블리를 거치지
+않는다.** UI 텍스트는 Unity 네이티브 API (`LocalizationSettings`, `LocalizeStringEvent`)가
+직접 담당하고, 언어 전환과 코드용 토큰 조회는 런타임 동반 어셈블리
+`HCUP.HUnityLocalization` 이 맡는다 (`../Runtime/README.md`).
 
 ### 두 시스템의 선택
 
-`HLocalization/` 우산 폴더 아래에는 **서로 독립적인 두 어셈블리**가 있다.
+`HLocalization/` 우산 폴더 아래에는 **서로 독립적인 두 갈래**가 있다. 네이티브 갈래는
+어셈블리가 둘(이 문서의 Editor + 동반 Runtime)이고, 자체 구현 갈래는 하나다.
 
-| | `HCUP.HUnityLocalization.Editor` (이 문서) | `HCUP.HcupLocalization` |
+| | 네이티브 갈래 (`HCUP.HUnityLocalization[.Editor]`) | 자체 구현 갈래 (`HCUP.HcupLocalization`) |
 |---|---|---|
-| 성격 | Unity Localization 연동 **에디터 전용** | 자체 구현 **런타임** |
+| 성격 | Unity Localization 연동. **에디터 파이프라인 + 런타임 전환** | 자체 구현 **런타임** |
 | 산출물 | `Locale` 에셋 + `StringTableCollection` | `LocalizationSO` 5개 |
-| 런타임 소비 | Unity 네이티브 API (이 어셈블리 밖) | `HTextLocalizer.GetText` 델리게이트 |
+| 런타임 소비 | `LocalizeStringEvent` (UI) + `UnityLocalizationManager.GetText` (코드) | `HTextLocalizer.GetText` 델리게이트 |
 | 외부 패키지 | `com.unity.localization` 1.5+ **필수** | 없음 (Addressables/UniTask 만) |
-| 언어 전환 API | `LocalizationSettings.SelectedLocale` | `LocalizationManager.SwitchLanguageAsync` |
+| 언어 전환 API | `UnityLocalizationManager.SetLanguageAsync` | `LocalizationManager.SwitchLanguageAsync` |
 | 얻는 것 | Smart String, Locale 자동 감지, 폰트/에셋 테이블, Addressables 통합 | 의존 최소화, 코드 전량 소유 |
 
 **둘은 같은 엑셀에서 출발한다.** 헤더 규격(`UID | Korean | English | Japanese | Chinese |
@@ -45,7 +48,10 @@ Russian`)과 파서(`LocalizationExcelParser.HEADER_KEYS`)를 공유하므로, �
 | 경로 | 행수 | 역할 |
 |---|---|---|
 | `HUnityLocalization/HUnityLocalizationTableLoader.cs` | 246 | 엑셀 Import / Export. `ExcelLoader<T>` 파생 |
-| `HUnityLocalization/LocaleCodeMap.cs` | 48 | `LocalizationLanguage` → `SystemLanguage` 매핑 단일 소스 |
+| `HUnityLocalization/LocalizationWiringWindow.cs` | 877 | 텍스트 컴포넌트에 `LocalizeStringEvent` 배선. `EditorWindow` 파생 |
+
+`LocaleCodeMap` 은 2026.09.17 에 런타임 어셈블리로 내려갔다 (`../Runtime/HUnityLocalization/LocaleCodeMap.cs`).
+Import 와 런타임 전환이 같은 매핑을 써야 해서 단일 소스를 런타임에 두고 이 어셈블리가 참조한다.
 
 ---
 
@@ -64,7 +70,12 @@ flowchart TD
 
     subgraph HUL["HCUP.HUnityLocalization.Editor"]
     TLD["HUnityLocalizationTableLoader"]
+    WIRE["LocalizationWiringWindow"]
+    end
+
+    subgraph HULR["HCUP.HUnityLocalization (Runtime)"]
     LCM["LocaleCodeMap"]
+    MGR["UnityLocalizationManager"]
     end
 
     subgraph HCL["HCUP.HcupLocalization"]
@@ -83,6 +94,8 @@ flowchart TD
     TLD --> PARSE
     PARSE --> LD
     TLD --> LCM
+    MGR --> LCM
+    WIRE --> STC
     LCM --> EN
     LCM -->|"SystemLanguage"| LOC
     TLD --> AFU
@@ -100,7 +113,7 @@ flowchart TD
 ## 데이터 모델
 
 ```csharp
-// LocaleCodeMap.cs:22-28 — 매직 값 금지. 언어 식별의 유일한 기준이다.
+// ../Runtime/HUnityLocalization/LocaleCodeMap.cs:28-34 - 매직 값 금지. 언어 식별의 유일한 기준이다.
 static readonly Dictionary<LocalizationLanguage, SystemLanguage> systemLanguageMap = new() {
     { LocalizationLanguage.Korean,   SystemLanguage.Korean },
     { LocalizationLanguage.English,  SystemLanguage.English },
@@ -114,7 +127,7 @@ static readonly Dictionary<LocalizationLanguage, SystemLanguage> systemLanguageM
 `new LocaleIdentifier(SystemLanguage)` 로 만든다.** 코드 문자열 하드코딩을 피하려는
 선택이고, 결과적으로 `ko` / `en` / `ja` / `zh-Hans` / `ru` 가 자동 결정된다.
 
-**Chinese 는 간체(`ChineseSimplified`)로 고정이다** (`:26`). 번체가 필요하면
+**Chinese 는 간체(`ChineseSimplified`)로 고정이다** (`LocaleCodeMap.cs:32`). 번체가 필요하면
 `LocalizationLanguage` enum 자체를 확장해야 한다.
 
 | 산출물 | 위치 | 이름 |
@@ -278,8 +291,11 @@ UID 를 `StringComparer.Ordinal` 로 정렬하므로(`:130`) Export 결과는 �
 런타임에서는 이 어셈블리를 전혀 쓰지 않는다.
 
 ```csharp
-// 언어 전환도 Unity 네이티브 API 다 — LocalizationManager 가 아니다
-LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.GetLocale(SystemLanguage.English);
+// 전환은 런타임 동반 어셈블리의 단일 경로다 (HcupLocalization 의 LocalizationManager 가 아니다)
+await UnityLocalizationManager.SetLanguageAsync(LocalizationLanguage.English);
+
+// 코드에서 동적 값이 끼는 문자열을 조립한다
+string amount = UnityLocalizationManager.GetText("some.count_token", ("count", 3));
 ```
 
 ---
@@ -331,8 +347,8 @@ LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.GetL
 
 | 하고 싶은 것 | 손댈 곳 |
 |---|---|
-| 언어 추가 | `LocalizationLanguage` enum(`HCUP.HcupLocalization`) → `LocaleCodeMap.systemLanguageMap` (`:22-28`) → 엑셀 컬럼 |
-| 중국어 번체 지원 | enum 에 `ChineseTraditional` 추가 후 `LocaleCodeMap` 매핑 (`:26` 주변) |
+| 언어 추가 | `LocalizationLanguage` enum(`HCUP.HcupLocalization`) → `LocaleCodeMap.systemLanguageMap` (`LocaleCodeMap.cs:28-34`) → 엑셀 컬럼 |
+| 중국어 번체 지원 | enum 에 `ChineseTraditional` 추가 후 `LocaleCodeMap` 매핑 (`LocaleCodeMap.cs:32` 주변) |
 | 컬렉션 이름 변경 | `TABLE_COLLECTION_NAME` (`:44`) — Export 의 조회 키이기도 하다 |
 | Locale 출력 폴더 변경 | `LOCALES_FOLDER_NAME` (`:45`) + `_EnsureLocales` 의 `localesPath` (`:161`) |
 | stale 제거 비활성화 | `ImportData` 에서 `_RemoveStaleEntries` 호출 제거 (`:86`) |
