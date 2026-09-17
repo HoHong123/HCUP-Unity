@@ -38,15 +38,20 @@ namespace HcupLocalization {
         #endregion
 
         #region Fields
+        // 직렬화 필드에 Nullable 을 쓰지 않는다. Odin 이 그 필드를 인스펙터에 그리면 OnInspectorGUI 에서 빠져나오지 못한다.
         [SerializeField]
-        LocalizationLanguage? currentLanguage;
+        bool isLanguageLoaded;
+
+        [SerializeField]
+        LocalizationLanguage currentLanguage = DEFAULT_LANGUAGE;
 
         IAssetSource<string, LocalizationSO> provider;
         LocalizationSO currentSO;
         #endregion
 
         #region Public - Properties
-        public LocalizationLanguage? CurrentLanguage => currentLanguage;
+        /// <summary> 현재 언어. 초기화 전(미로드)에는 null. </summary>
+        public LocalizationLanguage? CurrentLanguage => isLanguageLoaded ? (LocalizationLanguage?)currentLanguage : null;
         #endregion
 
         #region Protected - Lifecycle
@@ -77,15 +82,16 @@ namespace HcupLocalization {
             provider = AssetProviderFactory.CreateAddressable<LocalizationSO>();
             LocalizationLanguage startLanguage = _LoadSavedLanguage(defaultLanguage);
             bool loaded = await _LoadLanguageAsync(startLanguage);
-            if (loaded && currentLanguage.HasValue) HTextLocalizer.RaiseLanguageChanged(currentLanguage.Value.ToString());
+            if (loaded && isLanguageLoaded) HTextLocalizer.RaiseLanguageChanged(currentLanguage.ToString());
         }
         #endregion
 
         #region Public - Switch
         public async UniTask SwitchLanguageAsync(LocalizationLanguage language) {
-            if (language == currentLanguage) return;
+            // 미로드 상태에서는 종전 nullable 비교가 false 였다. isLanguageLoaded 를 함께 보아 의미를 보존한다.
+            if (isLanguageLoaded && language == currentLanguage) return;
 
-            string prevKey = currentLanguage.HasValue ? _ToKey(currentLanguage.Value) : null;
+            string prevKey = isLanguageLoaded ? _ToKey(currentLanguage) : null;
             bool loaded = await _LoadLanguageAsync(language);
             if (!loaded) return;
 
@@ -110,6 +116,7 @@ namespace HcupLocalization {
 
             currentSO = so;
             currentLanguage = language;
+            isLanguageLoaded = true;
             HTextLocalizer.GetText = _GetText;
             return true;
         }
@@ -118,7 +125,7 @@ namespace HcupLocalization {
         #region Private - GetText
         private string _GetText(string uid) {
             if (currentSO != null && currentSO.TryGetText(uid, out string text)) return text;
-            HLogger.Log($"[LocalizationManager] UID '{uid}' 번역 없음. (Language: {currentLanguage})");
+            HLogger.Log($"[LocalizationManager] UID '{uid}' 번역 없음. (Language: {CurrentLanguage})");
             return uid;
         }
         #endregion
