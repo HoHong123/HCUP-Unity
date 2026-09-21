@@ -31,11 +31,14 @@ namespace HResource.Tests {
         #region Fields
         const string PROBE_KEY = "HResourceTests/KeyProbe";
         const string PROBE_KEY_WITH_EXTENSION = "HResourceTests/KeyProbe.txt";
+        const string KNOWN_ISSUE = "KnownIssue";
         #endregion
 
         #region Tests
+        // 결함이 있어야 통과하는 테스트다. 통과 집계에서 정상 동작 검증과 섞이지 않게 분류한다.
+        [Category(KNOWN_ISSUE)]
         [UnityTest]
-        public IEnumerator ExtensionVariantsShareOneLoaderEntry() => UniTask.ToCoroutine(async () => {
+        public IEnumerator KnownIssue_ExtensionVariantsShareOneLoaderEntry() => UniTask.ToCoroutine(async () => {
             var loader = new ResourcesAssetLoader<TextAsset>();
             IAssetSource<string, TextAsset> provider = AssetProviderFactory.Create(new IAssetLoader<string, TextAsset>[] { loader });
             var ownerA = new GameObject("KeyProbeOwnerA");
@@ -71,6 +74,24 @@ namespace HResource.Tests {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: 결함 고정 테스트를 KnownIssue 로 분류
+ *
+ * 변경 ::
+ * 테스트 이름에 KnownIssue_ 접두사를 붙이고 [Category("KnownIssue")] 를 달았다.
+ *
+ * 이유 ::
+ * 리뷰 권고. 결함이 있어야 통과하는 테스트가 중립적인 이름으로 "11/11 통과" 에 섞여 결함이 없는 것처럼 읽혔다.
+ * HResource 테스트 집계는 "정상 동작 10개 통과 + 알려진 결함 재현 1개" 가 정확하다.
+ *
+ * 결과 ::
+ * Test Runner 에서 Category 로 걸러 볼 수 있다. 정규화를 고치면 접두사와 Category 를 떼고 단정을 뒤집는다.
+ *
+ * 주의 ::
+ * KeyProbe.txt 의 빌드 제외를 실제 빌드로 확인했다. DesktopForest 정식 빌드(BuildOptions.None, 145 MB)의 산출물 전체에서
+ * 프로브 내용 · "KeyProbe" · "HResourceTests" 검색이 0 건이었다. 같은 검색이 대조 문자열 "TMP Settings" 는
+ * resources.assets 에서 찾아 검색 자체는 유효하다. Managed 에는 HCUP.HResource.dll 만 있고 테스트 어셈블리 · NUnit 은 없다.
+ *
  * =========================================================
  * 2026-09-21 (최초 설계) :: Resources key 정규화 불일치 재현
  *
