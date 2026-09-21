@@ -64,7 +64,7 @@ public string Normalize(string key) {
 
 "이미 rootPath 하위" 판정은 경로 경계까지 본다. rootPath 가 `Icon` 일 때 key `IconSet/A` 는 `Icon` 으로 시작하지만 뒤에 `/` 가 오지 않으므로 하위로 보지 않고 `Icon/IconSet/A` 로 결합한다.
 
-**Resources 규칙은 멱등이 아니다.** `Path.ChangeExtension` 이 마지막 점 뒤를 지우므로 `Icon/foo.v2.png` 는 한 번 거치면 `Icon/foo.v2`, 두 번 거치면 `Icon/foo` 가 된다. 그래서 정규화는 입구에서 한 번만 하고 로더는 다시 하지 않는다 (`Tests/Editor/KeyNormalizerTests.cs` 가 고정).
+**Resources 규칙은 멱등이 아니다.** `Path.ChangeExtension` 이 마지막 점 뒤를 지우므로 `Icon/foo.v2.png` 는 한 번 거치면 `Icon/foo.v2`, 두 번 거치면 `Icon/foo` 가 된다. 그래서 정규화는 입구에서 한 번만 하고 로더는 다시 하지 않는다.
 
 ## ResourcesAssetLoader - 비동기 로드, 해제
 
@@ -195,7 +195,6 @@ sequenceDiagram
 - **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 합류자도 같은 예외를 받는다. 취소(`OperationCanceledException`)는 `TrySetException` 이 `TrySetCanceled` 로 넘겨 합류자에게 취소로 전달된다.
 - **factory 안에서 같은 key 로 게이트를 다시 부르면 교착한다.** 등록이 factory 호출 앞이라 자기 자신에게 합류한다. 등록을 뒤로 미루면 교착 대신 이중 로드가 되어 Addressables 참조 카운트 잔존이 생기므로, 교착을 택하고 `IAssetLoadGate` 계약으로 금지한다.
 - **동기 재개는 "획득 직후 동기 반납" 경합을 닫지 않는다.** 합류자 쪽 호출자가 받자마자 `Release` 하면 점유가 0 이 되어 핸들이 반납되고, 뒤이어 재개되는 최초 호출자는 반납된 에셋을 받는다 (`Provider/AssetProvider.cs:260-315`). 이전 구현에서도 프레임을 사이에 두고 같은 일이 생길 수 있었고, 닫으려면 결과를 나눠 주는 동안 임시 점유를 잡는 별도 설계가 필요하다.
-- 동작은 `HResource/Tests/Editor/SharedAssetLoadGateTests.cs` 가 EditMode 로 검증한다.
 
 ---
 
@@ -213,6 +212,11 @@ sequenceDiagram
 ---
 
 ## 히스토리
+
+### 2026-09-22 :: HResource 테스트 어셈블리 제거
+
+- 이전: `HResource/Tests/Editor` 에 EditMode 테스트 어셈블리 `HCUP.HResource.Tests` 가 있었다 (게이트 · key 정규화 · 팩토리 규칙 추론, 33건).
+- 현재: 사용자 지시로 테스트 코드와 테스트 전용 에셋을 모두 제거했다. 이 문서의 동작 서술은 제거 직전 실행(33/33)과 그 전 돌연변이 확인으로 검증된 내용이며, 이후 변경은 테스트로 고정되지 않는다.
 
 ### 2026-09-22 :: `Create` 의 기본 규칙을 로더에서 추론
 
