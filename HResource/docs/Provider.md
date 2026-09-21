@@ -51,7 +51,7 @@ flowchart LR
     P -.->|"기본 null"| S["IAssetStore"]
 ```
 
-**팩토리는 로더를 하나만 등록한다** (`Provider/AssetProviderFactory.cs:34-49`). **한 provider = 한 key 규칙 = 한 소스**다. 두 소스가 필요하면 provider 를 둘 만든다. `Create` 에 규칙 없이 Resources 와 Addressable 로더를 함께 넘기면 조립 시점에 `ArgumentException` 이 난다 (`_InferKeyNormalizer`). 규칙 하나로는 두 소스 중 한쪽이 틀리고, `Release` / `TryGet` 이 `loadMode` 를 받지 않아 요청마다 규칙을 고를 수 없기 때문이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 `InvalidOperationException` 을 던진다 (`Provider/AssetProvider.cs:460-468`).
+**팩토리는 로더를 하나만 등록한다** (`Provider/AssetProviderFactory.cs:34-49`). 규칙을 직접 넘기지 않는 한 **한 provider = 한 key 규칙 = 한 소스**다. 두 소스가 필요하면 provider 를 둘 만든다. `Create` 에 규칙 없이 Resources 와 Addressable 로더를 함께 넘기면 조립 시점에 `ArgumentException` 이 난다 (`_InferKeyNormalizer`). 규칙을 직접 넘기면 혼합도 조립되고, 그 규칙이 두 소스에 맞는지는 호출자 책임이다. 규칙 하나로는 두 소스 중 한쪽이 틀리고, `Release` / `TryGet` 이 `loadMode` 를 받지 않아 요청마다 규칙을 고를 수 없기 때문이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 `InvalidOperationException` 을 던진다 (`Provider/AssetProvider.cs:460-468`).
 
 ---
 
