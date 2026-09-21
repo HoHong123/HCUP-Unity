@@ -1,11 +1,11 @@
 ﻿#if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * Resources 단일 asset 로더 구현. string key → Resources.Load<TAsset> 동기 호출 후 UniTask 래핑.
+ * Resources 단일 asset 로더 구현. string key → Resources.LoadAsync<TAsset> 를 UniTask 로 await.
  *
  * 주요 기능 ::
  * 문자열 key 정규화 (확장자 제거 + 슬래시 trim + rootPath 결합).
- * Resources.Load 호출 결과를 UniTask.FromResult 로 즉시 완료 비동기로 노출.
+ * Resources.LoadAsync 로 로드해 메인 스레드를 막지 않는다. 자산이 없으면 null.
  *
  * 사용법 ::
  * AssetProviderFactory.CreateResources(rootPath) 가 자동 등록. 또는 사용자 정의 조합으로
@@ -47,12 +47,14 @@ namespace HResource.Load {
         #endregion
 
         #region Public - Load
-        public UniTask<TAsset> LoadAsync(string key) {
+        public async UniTask<TAsset> LoadAsync(string key) {
             var normalizedKey = _NormalizeKey(key);
             if (string.IsNullOrWhiteSpace(normalizedKey)) {
-                return UniTask.FromResult<TAsset>(null);
+                return null;
             }
-            return UniTask.FromResult(Resources.Load<TAsset>(normalizedKey));
+
+            Object asset = await Resources.LoadAsync<TAsset>(normalizedKey).ToUniTask();
+            return asset as TAsset;
         }
         #endregion
 
@@ -106,6 +108,25 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: Resources.Load 동기 호출을 Resources.LoadAsync 로 교체
+ *
+ * 변경 ::
+ * LoadAsync 를 async 로 바꾸고 UniTask.FromResult(Resources.Load(...)) 를
+ * Resources.LoadAsync<TAsset>(...).ToUniTask() await 로 교체. 결과는 Object 이므로 as TAsset 캐스팅.
+ *
+ * 이유 ::
+ * FromResult 는 인자를 평가하는 시점에 Resources.Load 가 이미 동기로 끝나므로 시그니처만 비동기였다.
+ * 디스크 I/O 와 역직렬화가 호출 프레임에서 전부 수행되어 메인 스레드가 멈췄다.
+ *
+ * 결과 ::
+ * 로드가 백그라운드 로딩 스레드에서 진행되고 완료는 다음 프레임 이후에 온다.
+ * 자산이 없을 때 null 을 반환하는 계약은 동일 (ResourceRequest 는 예외를 던지지 않음).
+ *
+ * 주의 ::
+ * 호출 프레임 안에서 즉시 완료되던 동작은 사라졌다. 결과를 같은 프레임에 기대는 호출처가 있으면
+ * 깨진다. 2026-09-21 기준 호출처는 AssetProvider 의 await 하나라 영향 없음.
+ *
  * =========================================================
  * 2026-08-06 (수정) :: rootPath 경계 검사 없는 StartsWith 교정 (감사 5차 HResource 항목 8)
  *
