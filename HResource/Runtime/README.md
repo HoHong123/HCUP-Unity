@@ -290,7 +290,7 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 ### 계약
 
 1. **`TryGet` 은 점유를 만들지 않는다.** `AssetProvider.TryGet` 은 `assetCache.TryGet` 직행이라 조회만 한다 (`Provider/AssetProvider.cs:163-170`). 반대로 `GetAsync` 는 **캐시 히트여도** `Save` 를 거쳐 호출자를 소유자로 등록한다. 같은 소유자가 여러 번 요청해도 점유는 하나이므로 반납도 한 번이면 된다.
-2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다. provider 하나 안에서는 확장자만 다른 두 key(`Icon/A`, `Icon/A.png`)도 입구 정규화로 캐시 한 칸을 공유하므로 이 문제가 없다 (2026-09-21 수정, `Tests/Editor/ResourcesKeyNormalizationTests.cs` 가 검증).
+2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다. provider 하나 안에서는 확장자만 다른 두 key(`Icon/A`, `Icon/A.png`)도 입구 정규화로 캐시 한 칸을 공유하므로 이 문제가 없다 (2026-09-21 수정).
 3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:356-360`, `:375-379`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
 4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:460-468`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
 5. **같은 `LoadMode` 로더를 두 번 넘기면 뒤엣것이 이긴다.** 생성자는 막지 않고 경고만 남긴다 (`Provider/AssetProvider.cs:99-105`).
@@ -303,7 +303,7 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 9. **`AddressableLabelLoader` / `IAddressableLabelLoader` 는 provider 와 분리된 축이다.** `IAssetLoader` 를 구현하지 않아 `AssetProvider` 에 등록할 수 없다. 캐시·소유권·게이트 어느 것도 적용되지 않으므로 핸들 해제는 호출자 책임이다. → [../docs/Load.md](../docs/Load.md)
 10. **`MemoryAssetCache.ReleaseAll()` 과 `Clear()` 는 완전히 같은 동작이다** - 둘 다 `_ClearItems()` 한 줄이다 (`Cache/MemoryAssetCache.cs:158-164`). `IAssetReleaser` 가 두 이름을 계약으로 강제하고 있어 (`Cache/IAssetReleaser.cs:29-30`) 호출자는 의미 차이를 기대하게 된다.
 11. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나, `foo` 라는 다른 에셋이 있으면 그것을 가져온다 (`Load/ResourcesKeyNormalizer.cs:37-62`). 2026-09-21 이전 로더도 같았다.
-12. **대소문자만 다른 key 는 캐시 두 칸이 된다 (알려진 결함, 수정 미정).** 에디터에서 `Resources.LoadAsync` 는 경로 대소문자를 구분하지 않아 `HResourceTests/KeyProbe` 와 `hresourcetests/keyprobe` 가 같은 에셋을 돌려준다 (2026-09-22 실험). 그런데 규칙은 대소문자를 그대로 두므로 캐시와 로더 기록이 둘로 갈라진다. 한쪽 반납이 에셋을 `UnloadAsset` 으로 내리고 다른 쪽은 참조 시 다시 읽는다. 플레이어 빌드의 대소문자 동작은 확인하지 않았다. 한 에셋은 한 가지 표기로만 부른다.
+12. **대소문자만 다른 key 는 캐시 두 칸이 된다 (알려진 결함, 수정 미정).** 에디터에서 `Resources.LoadAsync` 는 경로 대소문자를 구분하지 않아 `Icon/A` 와 `icon/a` 가 같은 에셋을 돌려준다 (2026-09-22 에디터 실험). 그런데 규칙은 대소문자를 그대로 두므로 캐시와 로더 기록이 둘로 갈라진다. 한쪽 반납이 에셋을 `UnloadAsset` 으로 내리고 다른 쪽은 참조 시 다시 읽는다. 플레이어 빌드의 대소문자 동작은 확인하지 않았다. 한 에셋은 한 가지 표기로만 부른다.
 
 ---
 
