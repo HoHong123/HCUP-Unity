@@ -13,7 +13,7 @@ using HResource.Data;
  *
  * 주의사항 ::
  * 1. 성공한 handle은 반드시 release 경로와 짝을 맞춰야 합니다.
- * 2. key 정규화 규칙이 addressable 주소 규칙과 맞아야 합니다.
+ * 2. key 를 해석하지 않습니다. provider 가 TrimKeyNormalizer 로 맞춘 주소를 그대로 씁니다.
  *
  * 주의 :: 이 로더는 SharedAssetLoadGate 밖에서 동시 호출되면 안 된다.
  * handleTable 조회가 await 앞, 등록이 await 뒤라 동시 진입 시 LoadAssetAsync 가 두 번 불려
@@ -36,38 +36,36 @@ namespace HResource.Load {
 
         #region Public - Load
         public async UniTask<TAsset> LoadAsync(string key) {
-            var normalizedKey = _NormalizeKey(key);
-            if (string.IsNullOrWhiteSpace(normalizedKey)) return null;
+            if (string.IsNullOrWhiteSpace(key)) return null;
 
-            if (handleTable.TryGetValue(normalizedKey, out var cachedHandle)) {
+            if (handleTable.TryGetValue(key, out var cachedHandle)) {
                 if (cachedHandle.IsValid()) return cachedHandle.Result;
-                handleTable.Remove(normalizedKey);
+                handleTable.Remove(key);
             }
 
-            var handle = Addressables.LoadAssetAsync<TAsset>(normalizedKey);
+            var handle = Addressables.LoadAssetAsync<TAsset>(key);
             try {
                 // 실패한 handle 의 await 는 예외를 throw 한다 (UniTask) - 사후 Status 검사는 도달 불가.
                 await handle.ToUniTask();
             }
             catch (System.Exception e) {
                 if (handle.IsValid()) Addressables.Release(handle);
-                HLogger.Error($"[AddressableAssetLoader] Load failed. Key='{normalizedKey}' :: {e.Message}");
+                HLogger.Error($"[AddressableAssetLoader] Load failed. Key='{key}' :: {e.Message}");
                 return null;
             }
 
-            handleTable[normalizedKey] = handle;
+            handleTable[key] = handle;
             return handle.Result;
         }
         #endregion
 
         #region Public - Release
         public bool Release(string key) {
-            var normalizedKey = _NormalizeKey(key);
-            if (string.IsNullOrWhiteSpace(normalizedKey)) {
+            if (string.IsNullOrWhiteSpace(key)) {
                 return false;
             }
 
-            if (!handleTable.TryGetValue(normalizedKey, out var handle)) {
+            if (!handleTable.TryGetValue(key, out var handle)) {
                 return false;
             }
 
@@ -75,7 +73,7 @@ namespace HResource.Load {
                 Addressables.Release(handle);
             }
 
-            handleTable.Remove(normalizedKey);
+            handleTable.Remove(key);
             return true;
         }
 
@@ -85,13 +83,6 @@ namespace HResource.Load {
             }
 
             handleTable.Clear();
-        }
-        #endregion
-
-        #region Private - Normalize
-        private string _NormalizeKey(string key) {
-            if (string.IsNullOrWhiteSpace(key)) return string.Empty;
-            return key.Trim();
         }
         #endregion
     }
@@ -123,6 +114,20 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: Trim 정규화를 provider 입구로 넘기고 로더는 key 를 해석하지 않는다
+ *
+ * 변경 ::
+ * _NormalizeKey(Trim) 를 없애고 TrimKeyNormalizer 로 옮겼다. LoadAsync / Release 는 받은 key 를 그대로 주소와
+ * handleTable 의 key 로 쓴다. 빈 key 방어만 남겼다.
+ *
+ * 이유 ::
+ * key 정규화를 provider 입구 한 곳으로 모았다 (IAssetKeyNormalizer Dev Log). Trim 은 멱등이라 남겨도 결과는 같지만,
+ * "로더는 key 를 해석하지 않는다" 를 두 로더에 똑같이 적용해 규칙이 한 곳에만 있게 했다.
+ *
+ * 결과 ::
+ * CreateAddressable 경로의 동작은 같다. 앞뒤 공백 제거가 로더 대신 provider 입구에서 일어난다.
+ *
  * =========================================================
  * 2026-09-08 (수정) :: 게이트 밖 동시 호출 금지 명시
  *
