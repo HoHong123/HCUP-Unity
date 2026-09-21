@@ -44,6 +44,12 @@ using UnityEngine;
 namespace HCollection {
     [Serializable]
     public class HDictionary<TKey, TValue> : Dictionary<TKey, TValue>, ISerializationCallbackReceiver, IHDictionary {
+#if UNITY_EDITOR
+        // 닫힌 제네릭 타입마다 한 번만 계산된다. 인스펙터가 다시 그릴 때마다 리플렉션이 돌지 않는다.
+        static readonly bool AllowsDefaultKey =
+            typeof(TKey).IsDefined(typeof(HAllowDefaultKeyAttribute), false);
+#endif
+
         #region Nested Types
         [Serializable]
         private struct Entry {
@@ -137,11 +143,13 @@ namespace HCollection {
 #if UNITY_EDITOR
                 // 값 타입 TKey 에서는 "비어 있음" 이 null 이 아니라 default 다 - `is null` 로는 잡히지 않아
                 // 미배정 행 1개가 무경고로 정상 키가 됐다.
-                if (typeof(TKey).IsValueType
+                if (!AllowsDefaultKey
+                    && typeof(TKey).IsValueType
                     && EqualityComparer<TKey>.Default.Equals(entry.Key, default)) {
                     Debug.LogWarning(
                         $"[HDictionary] Default-valued key at index={k}. " +
-                        $"This is usually an unassigned inspector row.");
+                        $"This is usually an unassigned inspector row. " +
+                        $"If the default is a real key for {typeof(TKey).Name}, mark that type with [HAllowDefaultKey].");
                 }
 #endif
 
@@ -444,6 +452,36 @@ namespace HCollection {
  * O(n) 선형 탐색은 동일. 정리된 행이 있으면 경고를 남기므로, 편집자는 Inspector 에서
  * 근본 원인(중복 키 입력)을 고치라는 신호를 계속 받는다 - 이 정리는 증상 완화이지
  * 중복 키 입력 자체를 막지는 않는다(그건 `HDictionaryValidator` 3게이트의 역할).
+ *
+ * =========================================================
+ * 2026-09-13 (수정 4) :: 정당한 default 키에 경고가 나지 않도록 옵트아웃 추가
+ *
+ * 변경 ::
+ * 1. HAllowDefaultKeyAttribute 신설. 키 타입에 붙이면 미배정 행 경고에서 빠진다.
+ * 2. AllowsDefaultKey 필드 신설. 닫힌 제네릭 타입마다 한 번 계산되는 에디터 전용 판정.
+ * 3. 경고 문구에 그 표시를 쓰라는 안내를 덧붙였다.
+ *
+ * 이유 ::
+ * 0 번 멤버가 진짜 값인 열거형에서 이 경고가 오탐이 된다. OnAfterDeserialize 는 인스펙터
+ * 리페인트마다 불리므로 콘솔이 같은 줄로 묻히고, 그러면 진짜 경고까지 함께 묻힌다.
+ * 그런 사전에서 이 경고는 정보를 더하지도 않는다 - 정상 행이 있는데 미배정 행이 추가되면
+ * 중복 키 오류가 따로 잡고, 정상 행이 아직 없으면 미배정 행과 정상 행을 구별할 방법이
+ * 애초에 없다.
+ *
+ * 결정 ::
+ * 1. 필드가 아니라 **타입**에 붙인다. OnAfterDeserialize 안에서는 필드 속성을 읽을 길이
+ *    없고, 무엇보다 "0 이 진짜 값인가" 는 그 열거형의 성질이지 그것을 담은 필드의 성질이
+ *    아니다.
+ * 2. 자동 판별을 시도하지 않았다. 0 이 정의돼 있는지만으로는 갈리지 않는다. None = 0 인
+ *    센티넬 열거형도 0 이 정의돼 있다. 그 차이는 의미라서 사람이 선언해야 한다.
+ * 3. 옵트인이 아니라 옵트아웃이다. 표시가 없으면 종전대로 경고해 기존 사용처의 동작이
+ *    바뀌지 않는다.
+ * 4. 판정을 static readonly 로 캐시했다. 매번 IsDefined 를 부르면 그 자체가 리페인트 비용이
+ *    된다.
+ *
+ * 주의 ::
+ * 표시를 붙이면 그 타입을 키로 쓰는 모든 사전에서 경고가 꺼진다. 0 이 진짜 값인지는 타입의
+ * 성질이므로 그것이 맞는 범위다.
  *
  * =========================================================
  * 2026-04-26 (수정 3) :: 헤더 형틀 복원 + 헤더/Dev Log #if UNITY_EDITOR 가드 적용
