@@ -9,7 +9,7 @@
 ## 요약
 
 Unity 에디터 안에서 **WebGL 빌드 → 배포 전용 git 레포에 산출물 교체 → push → Vercel 자동 배포**를
-버튼 하나로 수행한다. Vercel API 는 호출하지 않는다 — Vercel 이 배포 레포의 브랜치를 감시하고
+버튼 하나로 수행한다. Vercel API 는 호출하지 않는다 - Vercel 이 배포 레포의 브랜치를 감시하고
 있다는 전제 위에서, 이 패키지가 하는 일은 **git push 까지**다.
 
 세 갈래 폴더가 그대로 세 계층이다.
@@ -35,7 +35,7 @@ Unity 에디터 안에서 **WebGL 빌드 → 배포 전용 git 레포에 산출�
 
 | 경로 | 행수 | 역할 |
 |---|---|---|
-| `Vercel/VercelDeployWindow.cs` | 334 | `EditorWindow`. UI·입력·확인 다이얼로그만. 로직 없음 |
+| `Vercel/VercelDeployWindow.cs` | 353 | `EditorWindow`. UI·입력·확인 다이얼로그만. 로직 없음 |
 | `Vercel/VercelDeployService.cs` | 202 | Dev/Release 시퀀스 조립 + 커밋 메시지 템플릿 치환 |
 | `Vercel/VercelDeployProjectSettings.cs` | 61 | 팀 공유 설정 `ScriptableSingleton`. `ProjectSettings/` 저장 |
 | `Vercel/VercelDeployUserSettings.cs` | 49 | 머신 종속 설정 `ScriptableSingleton`. `UserSettings/` 저장 |
@@ -53,10 +53,10 @@ Unity 에디터 안에서 **WebGL 빌드 → 배포 전용 git 레포에 산출�
 
 ```mermaid
 flowchart TD
-    subgraph UI["Vercel — UI"]
+    subgraph UI["Vercel - UI"]
     W["VercelDeployWindow<br/>EditorWindow"]
     end
-    subgraph ORCH["Vercel — 오케스트레이션"]
+    subgraph ORCH["Vercel - 오케스트레이션"]
     S["VercelDeployService"]
     PS["VercelDeployProjectSettings<br/>ScriptableSingleton"]
     US["VercelDeployUserSettings<br/>ScriptableSingleton"]
@@ -72,13 +72,14 @@ flowchart TD
     subgraph EXT["외부"]
     UP["BuildPipeline.BuildPlayer"]
     GP["git 프로세스"]
-    VC["Vercel — 브랜치 감시 자동 배포"]
+    VC["Vercel - 브랜치 감시 자동 배포"]
     end
 
     W -->|"DeployDevAsync / PromoteReleaseAsync"| S
     W --> US
     W --> PS
-    W -->|"연결 테스트만 직접 호출"| R
+    W -->|"연결 테스트: ValidateRepoAsync"| G
+    W -->|"연결 테스트: rev-parse / status 직접 호출"| R
     S --> PS
     S --> US
     S --> B
@@ -93,9 +94,7 @@ flowchart TD
     L -->|"OnChanged"| W
 ```
 
-**창은 서비스 2개 메서드만 부른다.** 예외가 하나 있다 — "연결 테스트" 버튼은
-`GitCommandRunner.RunAsync` 를 직접 호출한다 (`VercelDeployWindow.cs:252`, `:259`).
-`DeployRepoGitService` 를 거치지 않는 유일한 경로다.
+**창은 서비스 2개 메서드만 부른다.** 예외가 하나 있다. "연결 테스트" 버튼은 `DeployRepoGitService.ValidateRepoAsync` 로 레포를 검증한 뒤 (`VercelDeployWindow.cs:252-257`) `GitCommandRunner.RunAsync` 를 직접 호출한다 (`:259`, `:266`). `VercelDeployService` 를 거치지 않는 유일한 경로다.
 
 ---
 
@@ -105,7 +104,7 @@ flowchart TD
 `ScriptableSingleton<T>` + `[FilePath(..., Location.ProjectFolder)]` 이고, 값 변경 후
 `SaveSettings()`(내부적으로 `Save(true)`)를 호출해야 파일에 기록된다.
 
-### `UserSettings/VercelDeployUserSettings.asset` — 미커밋
+### `UserSettings/VercelDeployUserSettings.asset` - 미커밋
 
 | 필드 | 타입 | 기본값 |
 |---|---|---|
@@ -113,14 +112,14 @@ flowchart TD
 | `LocalGitTimeoutSeconds` | `int` | `15` |
 | `RemoteGitTimeoutSeconds` | `int` | `120` |
 
-### `ProjectSettings/VercelDeployProjectSettings.asset` — 커밋 대상
+### `ProjectSettings/VercelDeployProjectSettings.asset` - 커밋 대상
 
 | 필드 | 기본값 |
 |---|---|
 | `DevBranchName` | `dev` |
 | `ReleaseBranchName` | `main` |
 | `CommitMessageTemplate` | `[Build] 🛠️ : WebGL 빌드 배포 v{version} ({timestamp})` |
-| `PromoteCommitMessageTemplate` | `[Build] 🛠️ : Release 배포 v{version} — {devBranch} → {releaseBranch} ({timestamp})` |
+| `PromoteCommitMessageTemplate` | `[Build] 🛠️ : Release 배포 v{version}` + em dash(U+2014) 한 글자 + ` {devBranch} → {releaseBranch} ({timestamp})` (`VercelDeployProjectSettings.cs:31`) |
 | `BuildOutputRelativePath` | `Builds/VercelDeploy` |
 | `DevServerUrl` | `string.Empty` |
 | `ReleaseServerUrl` | `string.Empty` |
@@ -137,7 +136,7 @@ flowchart TD
 
 ---
 
-## 흐름 1 — Dev Deploy
+## 흐름 1 - Dev Deploy
 
 ```mermaid
 sequenceDiagram
@@ -149,47 +148,47 @@ sequenceDiagram
     participant R as GitCommandRunner
 
     U->>W: Dev Deploy 버튼
-    W->>U: DisplayDialog — 버전·브랜치·URL·블로킹 고지
+    W->>U: DisplayDialog - 버전·브랜치·URL·블로킹 고지
     W->>W: SaveCurrentModifiedScenesIfUserWantsTo
     W->>S: DeployDevAsync
-    S->>S: _IsEditorReady — Play 모드/컴파일 중이면 거부
-    S->>S: _TryCreateGitService — 레포 경로 + 브랜치명 검증
+    S->>S: _IsEditorReady - Play 모드/컴파일 중이면 거부
+    S->>S: _TryCreateGitService - 레포 경로 + 브랜치명 검증
 
     rect rgb(240, 248, 255)
     Note over S,R: ① Preflight
     S->>G: RunPreflightAsync(dev)
     G->>R: rev-parse --is-inside-work-tree
-    G->>R: status --porcelain — dirty 면 중단
+    G->>R: status --porcelain - dirty 면 중단
     G->>R: fetch origin
     G->>R: checkout {dev}
     G->>R: pull --ff-only origin {dev}
     end
 
     rect rgb(255, 250, 240)
-    Note over S,B: ② 빌드 — 에디터 블로킹
+    Note over S,B: ② 빌드 - 에디터 블로킹
     S->>B: BuildAndValidate(outputPath, log)
-    B->>B: _ValidateOutputPath — 재귀 삭제 전 4단계 가드
+    B->>B: _ValidateOutputPath - 재귀 삭제 전 4단계 가드
     B->>B: Directory.Delete(output, recursive) + CreateDirectory
     B->>B: BuildPipeline.BuildPlayer(WebGL)
-    B->>B: _ValidateArtifacts — index.html + Build/ 4패턴 각 1개
+    B->>B: _ValidateArtifacts - index.html + Build/ 4패턴 각 1개
     end
 
     rect rgb(245, 255, 245)
     Note over S,R: ③ 교체 → 커밋 → push
     S->>G: ReplaceArtifacts(outputPath)
     Note over G: sanity check (.git + index.html) 통과 후에만 삭제
-    S->>G: StageArtifactsAsync — add -A -- Build index.html
+    S->>G: StageArtifactsAsync - add -A -- Build index.html
     alt 변경 없음
         G-->>S: false
-        S-->>W: true — "Nothing to push"
+        S-->>W: true - "Nothing to push"
     else 변경 있음
         S->>G: CommitAsync(템플릿 치환 메시지)
         S->>G: PushAsync(dev)
-        Note over S: push 실패해도 원복하지 않는다 — 로컬 커밋 보존
+        Note over S: push 실패해도 원복하지 않는다 - 로컬 커밋 보존
     end
     end
 
-    W->>U: 성공 시 DisplayDialog — 서버 URL 열기 제안
+    W->>U: 성공 시 DisplayDialog - 서버 URL 열기 제안
 ```
 
 **실패 시 원복 지점은 3곳뿐이다** (`VercelDeployService.cs:60-79`):
@@ -199,7 +198,7 @@ sequenceDiagram
 
 ---
 
-## 흐름 2 — Release Promote
+## 흐름 2 - Release Promote
 
 재빌드가 없다. Dev 에서 검증된 바이너리를 그대로 승격한다.
 
@@ -216,9 +215,9 @@ sequenceDiagram
     S->>G: CountPromotableCommitsAsync(dev, release)
     Note over G: rev-list origin/{release}..origin/{dev} --count
     alt 0 건
-        S-->>W: true — "Nothing to promote"
+        S-->>W: true - "Nothing to promote"
     else N 건
-        S->>G: GetRemoteLatestSubjectAsync(dev) — 로그 표시용
+        S->>G: GetRemoteLatestSubjectAsync(dev) - 로그 표시용
         S->>G: CheckoutAsync(release)
         S->>G: PullFastForwardAsync(release)
         Note over S: 실패 시 CheckoutAsync(dev) 로 복귀 후 중단
@@ -237,7 +236,7 @@ sequenceDiagram
 `GitCommandRunner.RunAsync` 가 모든 git 호출의 단일 통로다.
 
 ```csharp
-// Git/GitCommandRunner.cs:57-72 — 프롬프트 무한 대기 차단이 핵심
+// Git/GitCommandRunner.cs:57-72 - 프롬프트 무한 대기 차단이 핵심
 ProcessStartInfo startInfo = new ProcessStartInfo {
     FileName = "git",
     Arguments = arguments,
@@ -265,12 +264,12 @@ startInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
 
 ---
 
-## 파괴적 동작 — 재귀 삭제 2곳
+## 파괴적 동작 - 재귀 삭제 2곳
 
 이 패키지는 **두 곳에서 `Directory.Delete(path, recursive: true)` 를 호출한다.** 양쪽 다
 삭제 직전에 가드가 있다.
 
-### ① 빌드 출력 폴더 — `WebGLBuildService.cs:47`
+### ① 빌드 출력 폴더 - `WebGLBuildService.cs:47`
 
 ```csharp
 // 해시 파일명 특성상 이전 빌드 파일이 스테일로 남으므로 출력 폴더를 통째로 비운다.
@@ -285,14 +284,14 @@ Directory.CreateDirectory(outputAbsolutePath);
 ```mermaid
 flowchart TD
     A["outputAbsolutePath"] --> B{"① 비어 있거나 공백인가"}
-    B -->|예| X1["중단 — 'Build output path is empty'"]
-    B -->|아니오| C["Path.GetFullPath — ArgumentException 시 중단"]
+    B -->|예| X1["중단 - 'Build output path is empty'"]
+    B -->|아니오| C["Path.GetFullPath - ArgumentException 시 중단"]
     C --> D{"② 프로젝트 루트 하위인가<br/>StartsWith(root + 구분자), 대소문자 무시"}
-    D -->|아니오| X2["중단 — 'escapes the project root'"]
+    D -->|아니오| X2["중단 - 'escapes the project root'"]
     D -->|예| E{"③ 상대경로 세그먼트 ≥ 2 인가"}
-    E -->|"아니오 — 예: 'Builds'"| X3["중단 — 'too shallow'"]
+    E -->|"아니오 - 예: 'Builds'"| X3["중단 - 'too shallow'"]
     E -->|예| F{"④ 첫 세그먼트가 보호 폴더인가"}
-    F -->|예| X4["중단 — 'targets a protected folder'"]
+    F -->|예| X4["중단 - 'targets a protected folder'"]
     F -->|아니오| G["통과 → 재귀 삭제 진행"]
 ```
 
@@ -304,12 +303,13 @@ flowchart TD
 
 **즉 `Builds/VercelDeploy` 는 통과하고, `Builds` / `Assets/WebGL` / `../out` 은 전부 중단된다.**
 
-### ② 배포 레포의 `Build/` 폴더 — `DeployRepoGitService.cs:138`
+### ② 배포 레포의 `Build/` 폴더 - `DeployRepoGitService.cs:138`
 
 ```csharp
-// 삭제 전 sanity check — 배포 레포가 맞는지(.git + index.html) 확인 후에만 삭제 진행.
+// DeployRepoGitService.cs:128-139
+// 삭제 전 sanity check - 배포 레포가 맞는지(.git + index.html) 확인 후에만 삭제 진행.
 if (Directory.Exists(targetGitPath) == false || File.Exists(targetIndexPath) == false) {
-    log.Error($"Sanity check failed :: '{repoPath}' does not look like a deploy repo (.git + index.html). Abort.");
+    log.Error($"Sanity check failed :: '{repoPath}' does not look like a deploy repo (.git + {ARTIFACT_INDEX_FILE}). Abort.");
     return false;
 }
 try {
@@ -324,7 +324,7 @@ try {
 
 ---
 
-## 에디터 도구 — 메뉴 경로
+## 에디터 도구 - 메뉴 경로
 
 | 창 | 메뉴 경로 | 용도 |
 |---|---|---|
@@ -335,7 +335,7 @@ try {
 
 창 구성(위→아래): `배포 설정`(레포 경로 + 접이식 프로젝트 설정) → `버전 (bundleVersion)` →
 `배포`(Dev/Release 버튼 + 연결 테스트) → `Log`. 섹션 헤더는 전부
-`HInspector.Editor.HTitleDrawer.Draw` 다 — 이것이 `HCUP.HInspector.Editor` 를 참조하는 유일한 이유다.
+`HInspector.Editor.HTitleDrawer.Draw` 다 - 이것이 `HCUP.HInspector.Editor` 를 참조하는 유일한 이유다.
 
 ---
 
@@ -376,7 +376,7 @@ ps.SaveSettings();                                     // 호출해야 파일에
 4. **산출물 검증은 정확히 1개씩을 요구한다.** `index.html` + `Build/` 안의 `*.wasm` /
    `*.data` / `*.framework.js` / `*.loader.js` 가 **각 1개**여야 하며, 0개나 2개면 실패한다
    (`WebGLBuildService.cs:131-137`). 압축(Brotli/Gzip) 을 켜면 확장자가 `.wasm.br` 등으로
-   바뀌어 이 검증이 실패한다 — 패턴 보완이 필요하다 (`:163` 의 설계 메모).
+   바뀌어 이 검증이 실패한다 - 패턴 보완이 필요하다 (`:163` 의 설계 메모).
 5. **dirty 레포는 자동 stash 없이 중단한다.** 변경 목록을 로그로 남기고 사용자가 직접 정리한다
    (`DeployRepoGitService.cs:83-86`).
 6. **force push 를 하지 않는다.** push 거부 시 로컬 커밋을 보존하고 수동 해결을 안내한다
@@ -398,24 +398,11 @@ ps.SaveSettings();                                     // 호출해야 파일에
     (`DeployRepoGitService.cs:155`). 산출물 경로만 되돌리는 것이 아니다. preflight 가 클린 상태를 이미 확인했으므로
     정상 경로에서는 안전하지만, 배포 도중 사용자가 배포 레포의 다른 파일을 수정하면 그
     변경도 함께 사라진다.
-11. **`_RunConnectionTestAsync` 는 `DeployRepoGitService` 를 우회한다**
-    (`VercelDeployWindow.cs:252`, `:259`). 레포 유효성 검증 없이 임의 경로에서 git 을 실행하므로,
-    잘못된 경로를 넣으면 상위 디렉터리의 다른 레포 상태를 보고할 수 있다.
+11. **`_RunConnectionTestAsync` 의 레포 검증은 배포 흐름보다 느슨하다.** `ValidateRepoAsync` 는 경로 존재와 `rev-parse --is-inside-work-tree` 만 확인한다 (`DeployRepoGitService.cs:61-73`). `ReplaceArtifacts` 의 sanity check(`.git` 폴더 + `index.html`)는 거치지 않으므로, 다른 레포의 하위 폴더를 넣으면 검증을 통과하고 그 레포의 브랜치·상태를 보고한다.
 12. **`GitCommandRunner` 가 `git` 실행 실패를 예외로 흘린다.** `process.Start()` 가
     `Win32Exception`(git 미설치·PATH 누락)을 던지면 `RunAsync` 안에 try/catch 가 없어 호출자까지
     전파된다. `async void` 인 창 핸들러(`_RunDevDeployAsync` 등)까지 올라가면 `finally` 의
     `isBusy = false` 는 실행되지만 예외는 Unity Console 에 원시 형태로 남는다.
-
-### 기존 문서와의 불일치 (상위 `HDeploy/README.md`)
-
-`HDeploy/README.md` 는 아래 4항목이 현재 코드와 다르다. **이 문서의 값이 현행이다.**
-
-| 항목 | 상위 README | 실제 코드 |
-|---|---|---|
-| 메뉴 경로 | `Tools/HDeploy/Vercel Deploy` | `HCUP/Deployment/Vercel Deployment` (`VercelDeployWindow.cs:31`) |
-| 외부 참조 | "Editor 전용, 외부 참조 0" | `HCUP.HInspector.Editor` 참조 (asmdef `references`) |
-| 빌드 출력 기본값 | `Builds/WebGL_Deploy` | `Builds/VercelDeploy` (`VercelDeployProjectSettings.cs:34`) |
-| 커밋 템플릿 | `chore: WebGL 빌드 배포 v{version} ({timestamp})` | `[Build] 🛠️ : WebGL 빌드 배포 v{version} ({timestamp})` (`VercelDeployProjectSettings.cs:30-31`) |
 
 ---
 
@@ -427,6 +414,20 @@ ps.SaveSettings();                                     // 호출해야 파일에
 | 압축(Brotli/Gzip) 대응 | `WebGLBuildService.REQUIRED_ARTIFACT_PATTERNS` 에 `*.wasm.br` 등 추가 |
 | 보호 폴더 목록 조정 | `WebGLBuildService.FORBIDDEN_ROOT_FOLDERS` / `MIN_OUTPUT_PATH_DEPTH` |
 | 배포 산출물 구조 변경 | `DeployRepoGitService` 의 `ARTIFACT_BUILD_FOLDER` / `ARTIFACT_INDEX_FILE` 상수 + sanity check |
-| Vercel API 직접 호출 | `VercelDeployService` 에 단계 추가 — 현재 Vercel 의존은 "브랜치 push" 하나뿐 |
+| Vercel API 직접 호출 | `VercelDeployService` 에 단계 추가 - 현재 Vercel 의존은 "브랜치 push" 하나뿐 |
 | 다른 호스팅(Netlify 등) | `VercelDeployService` 를 본떠 새 오케스트레이터. `Deploy/` · `Git/` 은 그대로 재사용 |
-| 로그를 파일로 남기기 | `DeployLog._Append` — 현재는 메모리 리스트 + Unity Console 미러 |
+| 로그를 파일로 남기기 | `DeployLog._Append` - 현재는 메모리 리스트 + Unity Console 미러 |
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: 연결 테스트에 레포 검증 추가
+
+- 이전: `_RunConnectionTestAsync` 는 경로 공백 검사만 하고 `GitCommandRunner.RunAsync` 를 바로 호출했다. `DeployRepoGitService` 를 전혀 거치지 않아, 존재하지 않는 경로나 git 작업 트리가 아닌 폴더에서도 git 명령이 실행됐다.
+- 현재: git 명령 전에 `DeployRepoGitService.ValidateRepoAsync` 를 호출한다 (`VercelDeployWindow.cs:252-257`).
+
+### 2026-08-06 :: 상위 `HDeploy/README.md` 불일치 4항목 정정
+
+- 이전: 상위 README 가 메뉴 경로 `Tools/HDeploy/Vercel Deploy`, "Editor 전용, 외부 참조 0", 빌드 출력 기본값 `Builds/WebGL_Deploy`, 커밋 템플릿 `chore: WebGL 빌드 배포 v{version} ({timestamp})` 로 적고 있어 이 문서에 대조표를 두었다.
+- 현재: 상위 README 를 코드 기준 값(`HCUP/Deployment/Vercel Deployment`, `HCUP.HInspector.Editor` 참조, `Builds/VercelDeploy`, `[Build] 🛠️ : WebGL 빌드 배포 v{version} ({timestamp})`)으로 고쳤다.
