@@ -48,10 +48,9 @@ Russian`)과 파서(`LocalizationExcelParser.HEADER_KEYS`)를 공유하므로, �
 | 경로 | 행수 | 역할 |
 |---|---|---|
 | `HUnityLocalization/HUnityLocalizationTableLoader.cs` | 246 | 엑셀 Import / Export. `ExcelLoader<T>` 파생 |
-| `HUnityLocalization/LocalizationWiringWindow.cs` | 877 | 텍스트 컴포넌트에 `LocalizeStringEvent` 배선. `EditorWindow` 파생 |
+| `HUnityLocalization/LocalizationWiringWindow.cs` | 875 | 텍스트 컴포넌트에 `LocalizeStringEvent` 배선. `EditorWindow` 파생. 메뉴 `HCUP/Localization/Wiring Window` (`LocalizationWiringWindow.cs:86`, `:152`) |
 
-`LocaleCodeMap` 은 2026.09.17 에 런타임 어셈블리로 내려갔다 (`../Runtime/HUnityLocalization/LocaleCodeMap.cs`).
-Import 와 런타임 전환이 같은 매핑을 써야 해서 단일 소스를 런타임에 두고 이 어셈블리가 참조한다.
+`LocaleCodeMap` 은 런타임 어셈블리에 있다 (`../Runtime/HUnityLocalization/LocaleCodeMap.cs`). Import 와 런타임 전환이 같은 매핑을 써야 해서 단일 소스를 런타임에 두고 이 어셈블리가 참조한다.
 
 ---
 
@@ -62,7 +61,7 @@ flowchart TD
     XL["로컬라이제이션 엑셀<br/>UID / Korean / ... / Russian"]
 
     subgraph HE["HCUP.HExcel.Editor"]
-    EL["ExcelLoader&lt;T&gt; — NPOI"]
+    EL["ExcelLoader&lt;T&gt; - NPOI"]
     PARSE["LocalizationExcelParser<br/>HEADER_KEYS / Parse"]
     LD["LocalizationData"]
     AFU["AssetFolderUtility"]
@@ -138,7 +137,7 @@ static readonly Dictionary<LocalizationLanguage, SystemLanguage> systemLanguageM
 
 ---
 
-## 흐름 1 — Import (엑셀 → Unity Localization)
+## 흐름 1 - Import (엑셀 → Unity Localization)
 
 **Import 는 멱등하고, 원자성을 위해 순서가 설계돼 있다.**
 
@@ -153,10 +152,10 @@ sequenceDiagram
     U->>L: ImportData()
     L->>L: workBook null 검사 / DataOutputPath 검사
     L->>P: Parse(ExcelToJsonAllSheets())
-    P-->>L: LocalizationData 목록 — null 이면 중단
+    P-->>L: LocalizationData 목록 - null 이면 중단
 
     rect rgb(245,250,255)
-    Note over L,M: ① _EnsureLocales — 매핑 전량 검증 후에만 생성
+    Note over L,M: ① _EnsureLocales - 매핑 전량 검증 후에만 생성
     loop 전 언어
         L->>M: TryGetSystemLanguage(lang)
         alt 매핑 없음
@@ -173,7 +172,7 @@ sequenceDiagram
     end
 
     rect rgb(250,255,245)
-    Note over L,LES: ② _EnsureTableCollection — 없으면 생성
+    Note over L,LES: ② _EnsureTableCollection - 없으면 생성
     L->>LES: GetStringTableCollection("Localization")
     alt 없음
         L->>LES: CreateStringTableCollection("Localization", DataOutputPath, locales)
@@ -181,18 +180,18 @@ sequenceDiagram
     end
 
     rect rgb(255,250,240)
-    Note over L,LES: ③ 전 언어 StringTable 확보 — 실패 시 데이터 변형 전에 중단
+    Note over L,LES: ③ 전 언어 StringTable 확보 - 실패 시 데이터 변형 전에 중단
     loop locales
         L->>L: collection.GetTable ?? collection.AddNewTable
         alt 실패
-            L-->>U: HLogger.Error 후 return — stale 제거 전이라 무손실
+            L-->>U: HLogger.Error 후 return - stale 제거 전이라 무손실
         end
     end
     end
 
     rect rgb(255,245,245)
     Note over L: ④ 확보 완료 후에만 stale 제거 + 기록
-    L->>L: _RemoveStaleEntries — 엑셀에 없는 UID 를 컬렉션에서 제거
+    L->>L: _RemoveStaleEntries - 엑셀에 없는 UID 를 컬렉션에서 제거
     loop tables × dataList
         L->>L: table.AddEntry(uid, text) + SetDirty
     end
@@ -223,7 +222,7 @@ enum 이 확장됐는데 `LocaleCodeMap` 에 매핑을 안 넣으면, 검증 없
 
 ```csharp
 // HUnityLocalizationTableLoader.cs:72-83
-// 1) 모든 언어의 StringTable 을 먼저 확보 — 실패 시 데이터 변형 전에 중단 (테이블 신설은 추가적 부수효과라 무손실)
+// 1) 모든 언어의 StringTable 을 먼저 확보 - 실패 시 데이터 변형 전에 중단 (테이블 신설은 추가적 부수효과라 무손실)
 var tables = new Dictionary<LocalizationLanguage, StringTable>(locales.Count);
 foreach (var pair in locales) {
     var identifier = pair.Value.Identifier;
@@ -240,7 +239,7 @@ foreach (var pair in locales) {
 ### stale UID 정리
 
 ```csharp
-// HUnityLocalizationTableLoader.cs:203-214 — 역방향 순회로 RemoveEntry
+// HUnityLocalizationTableLoader.cs:203-214 - 역방향 순회로 RemoveEntry
 var sharedEntries = collection.SharedData.Entries;
 for (int k = sharedEntries.Count - 1; k >= 0; k--) {
     if (importedUids.Contains(sharedEntries[k].Key)) continue;
@@ -253,7 +252,7 @@ Localization Tables 창에서 직접 추가한 항목은 다음 Import 때 조�
 
 ---
 
-## 흐름 2 — Export (Unity Localization → 엑셀)
+## 흐름 2 - Export (Unity Localization → 엑셀)
 
 ```mermaid
 flowchart TD
@@ -270,7 +269,7 @@ flowchart TD
     J --> X["JsonToExcel(arr, 'Localization')"]
 ```
 
-Export 도 Import 와 같은 방침이다 — **전 언어 테이블을 먼저 확보하고, 하나라도 없으면
+Export 도 Import 와 같은 방침이다 - **전 언어 테이블을 먼저 확보하고, 하나라도 없으면
 아무것도 내보내지 않는다** (`:113-124`).
 
 UID 를 `StringComparer.Ordinal` 로 정렬하므로(`:130`) Export 결과는 결정적이다. diff 가
@@ -285,7 +284,7 @@ UID 를 `StringComparer.Ordinal` 로 정렬하므로(`:130`) Export 결과는 �
 
 1. `HCUP/Windows/Data Editor Window` → `01. HUnityLocalization` 선택
 2. 엑셀 파일 할당 (컬럼: `UID | Korean | English | Japanese | Chinese | Russian`)
-3. `dataOutputPath` 지정 (예: `Assets/Data/Localization`) — **필수**
+3. `dataOutputPath` 지정 (예: `Assets/Data/Localization`) - **필수**
 4. `ImportData()` 실행 → `{경로}/Locales/*.asset` 5개 + `Localization` 컬렉션 생성 확인
 
 런타임에서는 이 어셈블리를 전혀 쓰지 않는다.
@@ -318,9 +317,9 @@ string amount = UnityLocalizationManager.GetText("some.count_token", ("count", 3
 5. **`LocalizationLanguage` enum 을 확장하면 `LocaleCodeMap` 도 반드시 확장해야 한다.**
    매핑이 없으면 Import / Export 모두 **아무것도 하지 않고** 실패한다 (`:153-156`,
    `:114-117`). 이는 부분 생성을 막기 위한 의도된 설계다.
-6. **Chinese 는 간체 고정이다** (`LocaleCodeMap.cs:26`). 번체 지원은 enum 확장 경로다.
+6. **Chinese 는 간체 고정이다** (`LocaleCodeMap.cs:32`). 번체 지원은 enum 확장 경로다.
 7. **`Locale` 매칭은 파일명이 아니라 `LocaleIdentifier` 비교다** (`:171-176`). 이미
-   프로젝트에 같은 Identifier 의 Locale 이 있으면 그것을 재사용하고 새로 만들지 않는다 —
+   프로젝트에 같은 Identifier 의 Locale 이 있으면 그것을 재사용하고 새로 만들지 않는다 -
    에셋 파일명이 `Korean.asset` 이 아니어도 상관없다.
 
 ### 정리 대상
@@ -337,9 +336,7 @@ string amount = UnityLocalizationManager.GetText("some.count_token", ("count", 3
     컬렉션 자체가 다른 목적으로 만들어진 동명 컬렉션이어도 그대로 쓴다.
 11. **`ExportData` 는 `dataOutputPath` 를 검사하지 않는다** (`:103-143`). `JsonToExcel`
     이 어디에 쓰는지가 `HExcel` 쪽 규약에 달려 있고, Import 와 달리 사전 가드가 없다.
-12. **`Newtonsoft.Json.Linq` 를 참조하지만 asmdef references 에 없다** (`:33`).
-    `HCUP.HExcel.Editor` 를 통해 전이적으로 들어오는 것으로 보이나, 직접 참조를 명시하는
-    편이 안전하다.
+12. **`Newtonsoft.Json.Linq` 를 쓰지만 asmdef 에 명시 참조가 없다** (`:33`). asmdef 가 `overrideReferences: false` 라 프로젝트의 자동 참조 precompiled DLL(`Newtonsoft.Json.dll`)로 해석된다. asmdef `references` 는 전이되지 않으므로 `HCUP.HExcel.Editor` 를 거쳐 들어오는 것이 아니다. Newtonsoft.Json 이 없는 프로젝트에서는 `HExcel` 과 함께 컴파일되지 않는다.
 
 ---
 
@@ -349,8 +346,17 @@ string amount = UnityLocalizationManager.GetText("some.count_token", ("count", 3
 |---|---|
 | 언어 추가 | `LocalizationLanguage` enum(`HCUP.HcupLocalization`) → `LocaleCodeMap.systemLanguageMap` (`LocaleCodeMap.cs:28-34`) → 엑셀 컬럼 |
 | 중국어 번체 지원 | enum 에 `ChineseTraditional` 추가 후 `LocaleCodeMap` 매핑 (`LocaleCodeMap.cs:32` 주변) |
-| 컬렉션 이름 변경 | `TABLE_COLLECTION_NAME` (`:44`) — Export 의 조회 키이기도 하다 |
+| 컬렉션 이름 변경 | `TABLE_COLLECTION_NAME` (`:44`) - Export 의 조회 키이기도 하다 |
 | Locale 출력 폴더 변경 | `LOCALES_FOLDER_NAME` (`:45`) + `_EnsureLocales` 의 `localesPath` (`:161`) |
 | stale 제거 비활성화 | `ImportData` 에서 `_RemoveStaleEntries` 호출 제거 (`:86`) |
-| 엑셀 헤더 규격 변경 | `LocalizationExcelParser.HEADER_KEYS` (`HCUP.HExcel.Editor`) — 두 로더가 공유하므로 양쪽에 반영된다 |
+| 엑셀 헤더 규격 변경 | `LocalizationExcelParser.HEADER_KEYS` (`HCUP.HExcel.Editor`) - 두 로더가 공유하므로 양쪽에 반영된다 |
 | Data Editor Window 표시명 | `[DataEditorEntry("01. HUnityLocalization")]` (`:40`) |
+
+---
+
+## 히스토리
+
+### 2026-09-17 :: `LocaleCodeMap` 을 Runtime 어셈블리로 이동, `LocalizationWiringWindow` 추가
+
+- 이전: 이 어셈블리가 `LocaleCodeMap` 을 소유했고, `HUnityLocalization` 갈래 전체가 에디터 전용이었다. 파일은 `HUnityLocalizationTableLoader.cs` 와 `LocaleCodeMap.cs` 였다.
+- 현재: `LocaleCodeMap` 은 `HCUP.HUnityLocalization`(Runtime) 으로 옮겨 이 어셈블리가 참조한다. 텍스트 컴포넌트 배선 창 `LocalizationWiringWindow` 가 추가됐고, asmdef 에 `HCUP.HUnityLocalization` / `Unity.TextMeshPro` 참조가 추가됐다.
