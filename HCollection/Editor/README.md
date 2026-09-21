@@ -8,13 +8,13 @@
 
 ## 요약
 
-이 어셈블리는 **`HDictionary` 전용**이다. 두 파일뿐이고 둘 다 하나의 정책을 구현한다 —
+이 어셈블리는 **`HDictionary` 전용**이다. 두 파일뿐이고 둘 다 하나의 정책을 구현한다 -
 **중복 키는 경고가 아니라 하드 에러다.**
 
 | 파일 | 역할 | 정책에서의 위치 |
 |---|---|---|
-| `Collection/HDictionaryDrawer.cs` (814행) | 인스펙터 렌더 | 중복 상태를 **보여준다** |
-| `Collection/HDictionaryValidator.cs` (279행) | PlayMode / Build / Save 차단 | 중복 상태를 **막는다** |
+| `Collection/HDictionaryDrawer.cs` (870행) | 인스펙터 렌더 | 중복 상태를 **보여준다** |
+| `Collection/HDictionaryValidator.cs` (277행) | PlayMode / Build / Save 차단 | 중복 상태를 **막는다** |
 
 `HCollection` 의 다른 타입(`CircularList` / `EnumArray` / `CollectionUtil`)에 대한 에디터
 코드는 이 어셈블리에 없다.
@@ -77,21 +77,21 @@ flowchart TD
 `ScanObject` 가 판정의 전부다.
 
 ```csharp
-// HDictionaryValidator.cs:99-113 — BaseType 을 타고 올라가며 DeclaredOnly 필드를 본다.
+// HDictionaryValidator.cs:99-113 - BaseType 을 타고 올라가며 DeclaredOnly 필드를 본다.
 System.Type currentType = target.GetType();
 while (currentType != null && currentType != typeof(object)) {
     FieldInfo[] fields = currentType.GetFields(MEMBER_FLAGS);
     for (int k = 0; k < fields.Length; k++) {
         if (!typeof(IHDictionary).IsAssignableFrom(fields[k].FieldType)) continue;
         ...
-        errors.Add($"{context}.{fields[k].Name} → {dictionary.DuplicateKeyCount()} duplicate key(s)");
+        errors.Add($"{context}.{fields[k].Name} → {dictionary.DuplicateKeyCount()} duplicate row(s) (rows sharing an already-used key)");
     }
     currentType = currentType.BaseType;
 }
 ```
 
 `MEMBER_FLAGS` 는 `Instance | Public | NonPublic | DeclaredOnly` 다 (`:40-44`).
-`DeclaredOnly` 를 쓰기 때문에 `BaseType` 을 수동으로 타고 올라가는 while 루프가 필요하다 —
+`DeclaredOnly` 를 쓰기 때문에 `BaseType` 을 수동으로 타고 올라가는 while 루프가 필요하다 -
 상속 계층에 `private` 필드가 있어도 잡힌다.
 
 ### 3게이트
@@ -114,7 +114,7 @@ sequenceDiagram
     rect rgb(245,250,255)
     Note over U,P: ② Build
     U->>P: OnPreprocessBuild(report)
-    P->>V: ScanAllLoadedScenes — 열린 씬만 (early-fail)
+    P->>V: ScanAllLoadedScenes - 열린 씬만 (early-fail)
     P-->>U: throw BuildFailedException
     U->>P: OnProcessScene(scene, report)
     Note over P: report == null 이면 즉시 return<br/>(PlayMode 재컴파일 맥락)
@@ -136,7 +136,7 @@ sequenceDiagram
 ```
 
 `OnPreprocessBuild` 는 **현재 열려 있는 씬만** 본다. 빌드 씬 리스트 전체는
-`IProcessSceneWithReport` 가 각 씬 로드 시점에 개별 검사한다 — 전자는 early-fail 용도다
+`IProcessSceneWithReport` 가 각 씬 로드 시점에 개별 검사한다 - 전자는 early-fail 용도다
 (`:138-139` 주석).
 
 `OnWillSaveAssets` 는 반환 배열에 없는 경로를 **조용히** 저장하지 않는다. 사용자가
@@ -146,14 +146,14 @@ sequenceDiagram
 
 ## HDictionaryDrawer
 
-`[CustomPropertyDrawer(typeof(HDictionary<,>), true)]` — 제네릭 정의에 붙어 모든
-`HDictionary<*, *>` 를 담당한다 (`HDictionaryDrawer.cs:39-40`).
+`[CustomPropertyDrawer(typeof(HDictionary<,>), true)]` - 제네릭 정의에 붙어 모든
+`HDictionary<*, *>` 를 담당한다 (`HDictionaryDrawer.cs:40-41`).
 
 ### 렌더 구성
 
 ```mermaid
 flowchart TD
-    BOX["외곽 박스 _DrawBox"] --> H["헤더 — Foldout + Count + Add 버튼"]
+    BOX["외곽 박스 _DrawBox"] --> H["헤더 - Foldout + Count + Add 버튼"]
     H --> EXP{"펼쳐졌나"}
     EXP -->|아니오| END["여기서 끝"]
     EXP -->|예| SORT["Sort by Key 버튼"]
@@ -162,14 +162,14 @@ flowchart TD
     CNT -->|아니오| SKIP2["Search 생략"]
     SRCH --> ACT{"검색어가 있나"}
     SKIP2 --> LIST
-    ACT -->|예| FL["_DrawFilteredList — 매칭 행만"]
-    ACT -->|아니오| LIST["ReorderableList — 드래그 정렬 가능"]
-    LIST --> ROW["_DrawRow — Key / Value / X"]
+    ACT -->|예| FL["_DrawFilteredList - 매칭 행만"]
+    ACT -->|아니오| LIST["ReorderableList - 드래그 정렬 가능"]
+    LIST --> ROW["_DrawRow - Key / Value / X"]
     FL --> ROW
     ROW --> DUP{"중복 행인가"}
     DUP -->|예| RED["DUPLICATE_COLOR 붉은 오버레이"]
     ROW --> CT{"Value 가 컨테이너 타입인가"}
-    CT -->|예| CC["_DrawContainerCell — 내부 박스 + 타이틀 + 자식 필드"]
+    CT -->|예| CC["_DrawContainerCell - 내부 박스 + 타이틀 + 자식 필드"]
     CT -->|아니오| SC["_DrawSimpleCell"]
 ```
 
@@ -177,30 +177,32 @@ flowchart TD
 
 **1. `+` 버튼은 직전 요소를 복제하지 않는다.**
 Unity 의 `InsertArrayElementAtIndex` 는 기존 요소를 복제한다. 그래서 삽입 직후 모든 하위
-프로퍼티를 타입별 기본값으로 재귀 리셋한다 (`_ResetElementToDefault` `:629-639`,
-`_ResetPropertyToDefault` `:640-675`).
+프로퍼티를 타입별 기본값으로 재귀 리셋한다 (`_ResetElementToDefault` `:672-681`,
+`_ResetPropertyToDefault` `:683-716`).
 
 **2. 캐시 3종을 `(InstanceID + propertyPath)` 로 잡는다.**
 
 ```csharp
-// HDictionaryDrawer.cs:83-85
+// HDictionaryDrawer.cs:84-86
 static readonly Dictionary<string, ReorderableList> listCache = new();
 static readonly Dictionary<string, string> searchCache = new();
 static readonly Dictionary<string, HashSet<int>> duplicateCache = new();
 ```
 
 매 `OnGUI` 마다 `ReorderableList` 를 새로 만들면 드래그 hot-index 가 풀린다. 캐시된
-리스트가 여전히 유효한지는 `_IsCachedListValid` 가 확인한다 (`:677-694`).
+리스트가 여전히 유효한지는 `_IsCachedListValid` 가 확인한다 (`:720-736`).
+
+캐시 키가 선택할 때마다 늘어나지 않도록, `[InitializeOnLoadMethod]` 인 `_RegisterCachePruning` 이 `Selection.selectionChanged` 를 구독한다 (`:97-101`). 선택이 바뀔 때마다 `_PruneDeadCacheEntries` 가 키의 instanceID 를 확인해 이미 사라진 오브젝트의 항목만 세 캐시에서 지운다. 살아 있는 오브젝트의 캐시는 유지되므로 재선택해도 드래그 상태가 보존된다.
 
 **3. Sort / Search 는 `ToString()` 기반이다.**
-`_PropertyToString` (`:702-734`)이 `SerializedProperty.propertyType` 별로 문자열을 만든다.
+`_PropertyToString` (`:745-776`)이 `SerializedProperty.propertyType` 별로 문자열을 만든다.
 사용자 정의 키 타입은 `ToString` 을 구현해야 정렬·검색이 의미를 갖는다.
 
 ---
 
 ## 사용 예
 
-에디터 코드는 직접 호출할 일이 거의 없다 — 드로어와 프로세서 모두 Unity 가 호출한다.
+에디터 코드는 직접 호출할 일이 거의 없다 - 드로어와 프로세서 모두 Unity 가 호출한다.
 스캔 API 만 재사용 가능하다.
 
 ```csharp
@@ -219,8 +221,8 @@ if (errors.Count > 0) Debug.LogError(string.Join("\n", errors));
 
 ### 계약
 
-1. **드로어는 `HDictionary` 의 필드명 문자열에 묶여 있다** — `"entries"` / `"Key"` /
-   `"Value"` (`HDictionaryDrawer.cs:42-44`). 런타임 쪽 필드명을 바꾸면 컴파일 에러 없이
+1. **드로어는 `HDictionary` 의 필드명 문자열에 묶여 있다** - `"entries"` / `"Key"` /
+   `"Value"` (`HDictionaryDrawer.cs:43-45`). 런타임 쪽 필드명을 바꾸면 컴파일 에러 없이
    조용히 깨진다.
 2. **`IHDictionary` 를 구현하지 않는 직렬화 딕셔너리는 검증되지 않는다.** 판정이
    `IsAssignableFrom(IHDictionary)` 한 줄이기 때문이다 (`HDictionaryValidator.cs:103`).
@@ -231,15 +233,7 @@ if (errors.Count > 0) Debug.LogError(string.Join("\n", errors));
 
 ### 정리 대상
 
-5. ~~드로어 헤더가 존재하지 않는 필드를 계약으로 서술한다.~~ `logDuplicateKeyWarning`
-   언급을 주석 2곳(`HDictionaryDrawer.cs:24`, `:813`)에서 제거 — 실제로는 "entries"
-   필드만 참조한다 (2026-08-07 반영).
-6. ~~`DuplicateKeyCount()` 의 반환값이 메시지와 어긋난다.~~ 이 API 는 중복 "행" 수를
-   센다(같은 키 3행 → `2`). 검증 메시지를 `"{n} duplicate row(s) (rows sharing an
-   already-used key)"` 로 정정 (`HDictionaryValidator.cs:110`, 2026-08-07 반영).
-7. **`HDictionaryDrawer` 는 814 행 단일 파일이다.** 레이아웃 상수 20여 개 + 컨테이너 셀
-   렌더 + 필터 리스트 + 리셋 로직 + 캐시 관리가 한 클래스에 있다. partial 분할
-   (`HDictionaryDrawer.Row.cs` / `.Cache.cs` 등)이 유력하다.
+5. **`HDictionaryDrawer` 는 870 행 단일 파일이다.** 레이아웃 상수 20여 개 + 컨테이너 셀 렌더 + 필터 리스트 + 리셋 로직 + 캐시 관리가 한 클래스에 있다. partial 분할 (`HDictionaryDrawer.Row.cs` / `.Cache.cs` 등)이 유력하다.
 
 ---
 
@@ -247,9 +241,18 @@ if (errors.Count > 0) Debug.LogError(string.Join("\n", errors));
 
 | 하고 싶은 것 | 손댈 곳 |
 |---|---|
-| 검증 항목 추가 (값 null, 키 공백 등) | `HDictionaryValidator.ScanObject` (`:96-114`) — 판정 조건만 교체 |
+| 검증 항목 추가 (값 null, 키 공백 등) | `HDictionaryValidator.ScanObject` (`:96-114`) - 판정 조건만 교체 |
 | 차단을 경고로 완화 | `HDictionaryBuildPreprocessor` (`:143-152`) / `HDictionarySaveProcessor` (`:177-190`) 의 throw·필터 제거 |
-| 검색 노출 임계치 | `HDictionaryDrawer.SEARCH_THRESHOLD` (`:72`, 현재 10) |
-| 중복 하이라이트 색상 | `HDictionaryDrawer.DUPLICATE_COLOR` (`:74`) |
-| 행 레이아웃 (Key/Value 비율) | `_DrawRow` (`:358-384`) + `VALUE_LABEL_WIDTH_RATIO` (`:69`) |
-| 컨테이너 Value 의 접힘 UI | `_DrawContainerCell` (`:402-437`) / `_DrawContainerTitle` (`:438-451`) |
+| 검색 노출 임계치 | `HDictionaryDrawer.SEARCH_THRESHOLD` (`:73`, 현재 10) |
+| 중복 하이라이트 색상 | `HDictionaryDrawer.DUPLICATE_COLOR` (`:75`) |
+| 행 레이아웃 (Key/Value 비율) | `_DrawRow` (`:400-425`) + `VALUE_LABEL_WIDTH_RATIO` (`:70`) |
+| 컨테이너 Value 의 접힘 UI | `_DrawContainerCell` (`:444-478`) / `_DrawContainerTitle` (`:480-492`) |
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: 드로어 헤더 주석과 검증 메시지 정정
+
+- 이전: 드로어 헤더 주석 2곳이 존재하지 않는 `logDuplicateKeyWarning` 필드를 계약으로 서술했다. 검증 메시지는 `DuplicateKeyCount()` 반환값을 "duplicate key(s)" 로 표기해 행 수를 키 수처럼 보이게 했다.
+- 현재: 주석에서 `logDuplicateKeyWarning` 언급을 지웠다. 드로어가 참조하는 필드는 `"entries"` 뿐이다. 검증 메시지는 `"{n} duplicate row(s) (rows sharing an already-used key)"` 다 (`HDictionaryValidator.cs:110`).
