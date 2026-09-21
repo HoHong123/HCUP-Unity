@@ -9,7 +9,7 @@
 
 `AssetProvider<TKey, TAsset>` 는 5 개 컴포넌트(Cache / Store / Loader[] / Validator / LoadGate)를 생성자로 주입받아 **조율만** 한다. 점유는 캐시가, 소스 핸들은 로더가, 소유자 지문은 상주 `AssetLeashManager` 가 갖는다. provider 가 직접 들고 있는 표는 `loaderTable`(loadMode → 로더 라우팅)과 `releasableLoaderByKey`(key → 그 key 를 실제로 로드한 releasable 로더) 둘뿐이다 (`Provider/AssetProvider.cs:57-58`).
 
-외부에 드러나는 계약은 `IAssetSource<TKey, TAsset>` 다 (`Provider/IAssetSource.cs:46-74`). 자산을 얻는 멤버가 전부 소유자를 요구하므로, 소유자 없는 획득은 컴파일되지 않는다.
+외부에 드러나는 계약은 `IAssetSource<TKey, TAsset>` 다 (`Provider/IAssetSource.cs:47-82`). 자산을 얻는 멤버가 전부 소유자를 요구하므로, 소유자 없는 획득은 컴파일되지 않는다.
 
 ---
 
@@ -143,7 +143,7 @@ sequenceDiagram
 |---|---|
 | `Release(owner, key)` (`:171-177`) | `TryFingerprint` 로 기존 지문만 조회 → `assetCache.Release`. 점유한 적 없는 소유자면 발급하지 않고 `false` |
 | `ReleaseOwner(owner)` (`:180-184`) | `leashManager.Reclaim` → `ReleaseOwnerId` + `NotifyReleased` |
-| `ClearCache()` (`:197-200`) | `assetCache.Clear` |
+| `ClearCache()` (`:197-200`) | `assetCache.Clear`. 에디터 · 개발 빌드 전용 디버그 도구. 소유자와 무관하게 비워 살아있는 소유자가 반납된 에셋을 든다 |
 | `ReclaimOrphans()` (`:203-206`) | `leashManager.ReclaimDeadOwners` - 파괴된 Unity 소유자의 항목만 |
 | `Dispose()` (`:213-226`) | `disposed` 표시 → `assetCache.ReleaseAll` → 구독 해제 → `leashManager.Dispose` |
 
