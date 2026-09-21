@@ -208,8 +208,7 @@ Vector2 dir  = 90f.DegreeToDirection();         // (0, 1)
    감싸여 있는데(`:1`, `:39`), 이 심볼을 정의하는 곳이 없다 -
    `HCUP.HData.asmdef` 의 `versionDefines` 는 비어 있고 `references` 도 `[]` 라
    `Newtonsoft.Json` 어셈블리가 참조되지도 않는다. 심볼을 켜면 즉시 컴파일 에러가 난다.
-   **살리려면 asmdef 에 `versionDefines`(`com.unity.nuget.newtonsoft-json` → `NEWTONSOFT_JSON`)와 `precompiledReferences` 를 추가해야 하고, 아니면 파일을 삭제해야 한다.** 같은 저장소의 `HExcel/Editor/Tests/HCUP.HExcel.Tests.asmdef` 가 `precompiledReferences` 로 `Newtonsoft.Json.dll` 을 참조하는 예다.
-7. **`Assert` 기반 인자 검사는 릴리즈에서 사라진다.** `Base64TextEncoding.Encode` 의 null
+   **살리려면 asmdef 에 `versionDefines`(`com.unity.nuget.newtonsoft-json` → `NEWTONSOFT_JSON`)와 `precompiledReferences` 를 추가해야 하고, 아니면 파일을 삭제해야 한다.**7. **`Assert` 기반 인자 검사는 릴리즈에서 사라진다.** `Base64TextEncoding.Encode` 의 null
    검사(`:30-32`)와 `AesEncryptor` 의 pepper·plain 검사(`:33-35`, `:42-44`)는 전부
    `#if UNITY_ASSERTIONS` 다. 릴리즈 빌드에서 `Encode(null)` 은 `Assert` 없이
    `Convert.ToBase64String` 이 던지는 `ArgumentNullException` 으로 나간다.
