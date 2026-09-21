@@ -6,14 +6,16 @@
  * 주요 기능 ::
  * 문자열 key 정규화 (확장자 제거 + 슬래시 trim + rootPath 결합).
  * Resources.LoadAsync 로 메인 스레드 부담을 여러 프레임으로 나눈다 (통합은 메인, WebGL 은 로드도 메인). 없으면 null.
+ * Release(key) / ReleaseAll() - 로드한 에셋을 Resources.UnloadAsset 으로 내린다. 캐시 제거 시 provider 가 부른다.
  *
  * 사용법 ::
  * AssetProviderFactory.CreateResources(rootPath) 가 자동 등록. 또는 사용자 정의 조합으로
  * AssetProvider 생성자에 직접 주입. catalog 가 만든 path/token 이 그대로 key 로 들어옴.
  *
  * 주의 ::
- * resourcesRootPath 와 token path 조합 규칙이 프로젝트 규칙과 맞아야 함. Resources 는 별도
- * source release 를 요구하지 않으므로 IAssetReleasableLoader 를 구현하지 않음 (cache 만 정리).
+ * resourcesRootPath 와 token path 조합 규칙이 프로젝트 규칙과 맞아야 함.
+ * GameObject / Component(프리팹)는 UnloadAsset 대상이 아니다. 추적만 풀고 회수는 Resources.UnloadUnusedAssets 몫이다.
+ * UnloadAsset 이후에도 씬이 그 에셋을 참조하면 Unity 가 디스크에서 다시 읽는다. 다른 provider 의 참조가 깨지지는 않는다.
  * "이미 rootPath 하위" 판정은 경로 경계(뒤따르는 '/' 또는 완전 일치)까지 검사한다 - 단순
  * StartsWith 는 rootPath="Icon"·key="IconSet/A" 같은 접두 오탐으로 이중 결합을 만든다.
  * =========================================================
@@ -21,6 +23,7 @@
 #endif
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -28,10 +31,12 @@ using HResource.Data;
 using Object = UnityEngine.Object;
 
 namespace HResource.Load {
-    public sealed class ResourcesAssetLoader<TAsset> : IAssetLoader<string, TAsset>
+    public sealed class ResourcesAssetLoader<TAsset> : IAssetReleasableLoader<string, TAsset>
         where TAsset : Object {
         #region Fields
         readonly string resourcesRootPath;
+        // 정규화된 key -> 로드한 에셋. Release 가 되돌릴 대상을 찾는 표다.
+        readonly Dictionary<string, TAsset> loadedTable = new();
         #endregion
 
         #region Properties
@@ -54,7 +59,48 @@ namespace HResource.Load {
             }
 
             Object asset = await Resources.LoadAsync<TAsset>(normalizedKey).ToUniTask();
-            return asset as TAsset;
+            TAsset loadedAsset = asset as TAsset;
+            if (loadedAsset != null) {
+                loadedTable[normalizedKey] = loadedAsset;
+            }
+            return loadedAsset;
+        }
+        #endregion
+
+        #region Public - Release
+        public bool Release(string key) {
+            var normalizedKey = _NormalizeKey(key);
+            if (string.IsNullOrWhiteSpace(normalizedKey)) {
+                return false;
+            }
+
+            if (!loadedTable.Remove(normalizedKey, out var asset)) {
+                return false;
+            }
+
+            _UnloadAsset(asset);
+            return true;
+        }
+
+        public void ReleaseAll() {
+            foreach (var asset in loadedTable.Values) {
+                _UnloadAsset(asset);
+            }
+
+            loadedTable.Clear();
+        }
+        #endregion
+
+        #region Private - Release
+        private void _UnloadAsset(TAsset asset) {
+            // 이미 파괴된 에셋은 되돌릴 것이 없다.
+            if (asset == null) return;
+
+            // UnloadAsset 은 개별 에셋 전용이다. GameObject / Component 에 부르면 Unity 가 에러를 낸다.
+            // 프리팹은 추적만 풀고 메모리 회수는 Resources.UnloadUnusedAssets 에 맡긴다.
+            if (asset is GameObject || asset is Component) return;
+
+            Resources.UnloadAsset(asset);
         }
         #endregion
 
@@ -108,6 +154,27 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정 2) :: IAssetReleasableLoader 구현. Resources.UnloadAsset 으로 해제
+ *
+ * 변경 ::
+ * IAssetLoader 에서 IAssetReleasableLoader 로 올렸다. LoadAsync 가 정규화 key 별로 로드한 에셋을 loadedTable 에 기록하고,
+ * Release(key) 는 그 에셋을 Resources.UnloadAsset 으로 내린다. ReleaseAll 은 전부 내린다.
+ *
+ * 이유 ::
+ * 리뷰 지적. Addressable 로더는 로드와 해제를 다 하는데 Resources 로더는 해제가 없어, 캐시에서 빠져도
+ * 에셋이 씬 전환이나 UnloadUnusedAssets 까지 메모리에 남았다.
+ *
+ * 결과 ::
+ * provider 가 이 로더를 releasable 로 인식해 캐시 제거(OnAssetRemoved) 시 Release(key) 를 부른다.
+ * Save 거부 · store 저장 실패 · 로딩 중 폐기 경로의 _ReleaseLoaderHandle 도 이 로더에 닿는다.
+ *
+ * 주의 ::
+ * GameObject / Component 는 UnloadAsset 이 에러를 내므로 건너뛴다. 프리팹은 추적만 풀린다.
+ * 같은 에셋을 다른 provider 가 들고 있어도 UnloadAsset 은 불린다. Unity 가 참조 시 디스크에서 다시 읽으므로
+ * 참조가 깨지지는 않지만 재로드 비용이 생길 수 있다.
+ * 헤더 주의의 "IAssetReleasableLoader 를 구현하지 않음" 서술을 교체했다.
+ *
  * =========================================================
  * 2026-09-21 (수정) :: 비동기 로드의 스레드 서술 정정
  *
