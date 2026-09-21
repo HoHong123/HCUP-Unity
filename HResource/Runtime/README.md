@@ -286,7 +286,7 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 ### 계약
 
 1. **`TryGet` 은 점유를 만들지 않는다.** `AssetProvider.TryGet` 은 `assetCache.TryGet` 직행이라 조회만 한다 (`Provider/AssetProvider.cs:159-166`). 반대로 `GetAsync` 는 **캐시 히트여도** `Save` 를 거쳐 호출자를 소유자로 등록한다. 같은 소유자가 여러 번 요청해도 점유는 하나이므로 반납도 한 번이면 된다.
-2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다.
+2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다. **provider 하나 안에서도 같은 일이 생긴다.** 캐시와 게이트는 원본 key, 로더 표는 정규화 key 라 확장자만 다른 두 key(`Icon/A`, `Icon/A.png`)는 캐시 항목 2개가 로더 항목 1개를 나눠 쓴다. 한쪽 반납이 에셋을 내리고, 다른 쪽 반납 때는 되돌릴 항목이 없어 언로드가 빠진다 (`Tests/Editor/ResourcesKeyNormalizationTests.cs` 가 재현).
 3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:352-356`, `:371-375`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
 4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:456-464`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
 5. **같은 `LoadMode` 로더를 두 번 넘기면 뒤엣것이 이긴다.** 생성자는 막지 않고 경고만 남긴다 (`Provider/AssetProvider.cs:95-101`).
