@@ -47,8 +47,8 @@ flowchart TD
 
 | 규칙 | 넣는 곳 | 동작 |
 |---|---|---|
-| `ResourcesKeyNormalizer(rootPath)` | `CreateResources` | 확장자 제거 + 선행 슬래시 제거 + 역슬래시 → `/` + rootPath 결합 (`Load/ResourcesKeyNormalizer.cs:37-62`) |
-| `TrimKeyNormalizer` | `CreateAddressable`, 규칙을 생략한 `Create` | 앞뒤 공백만 제거 (`Load/TrimKeyNormalizer.cs:22-25`). Addressables 기본 주소는 확장자가 붙은 에셋 경로라 지우면 안 된다 |
+| `ResourcesKeyNormalizer(rootPath)` | `CreateResources`, Resources 로더만 넘기고 규칙을 생략한 `Create` (rootPath 없음) | 확장자 제거 + 선행 슬래시 제거 + 역슬래시 → `/` + rootPath 결합 (`Load/ResourcesKeyNormalizer.cs:37-62`) |
+| `TrimKeyNormalizer` | `CreateAddressable`, Addressable 로더만 넘기고 규칙을 생략한 `Create` | 앞뒤 공백만 제거 (`Load/TrimKeyNormalizer.cs:22-25`). Addressables 기본 주소는 확장자가 붙은 에셋 경로라 지우면 안 된다 |
 
 ```csharp
 // Load/ResourcesKeyNormalizer.cs:37-62 - 요약
@@ -201,14 +201,23 @@ sequenceDiagram
 
 ## 주의할 점
 
-1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다.2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:41-44`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
+1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다.
+2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:41-44`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
 3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:80-86`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
 4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:99-105`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
 5. **같은 Resources 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내린다.** Resources 는 참조 카운트가 없어 한 provider 의 캐시에서 빠지는 순간 `UnloadAsset` 이 불린다. 다른 쪽 참조는 Unity 가 디스크에서 다시 읽어 살아나지만 그 재로드 비용이 든다.
+6. **한 provider 는 한 소스만 담는다.** key 규칙이 provider 당 하나라 Resources 와 Addressables 를 섞으면 어떤 규칙으로도 한쪽이 틀린다. 규칙 없는 `Create` 는 섞인 로더를 `ArgumentException` 으로 거부한다.
+7. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나 `foo` 라는 다른 에셋을 가져온다.
+8. **대소문자만 다른 key 는 캐시 두 칸이 된다 (알려진 결함, 수정 미정).** 에디터에서 `Resources.LoadAsync` 는 경로 대소문자를 구분하지 않아 두 표기가 같은 에셋을 돌려주지만, 규칙은 대소문자를 그대로 둬 캐시 · 로더 기록이 둘로 갈라진다 (2026-09-22 실험). 한쪽 반납이 에셋을 내리고 다른 쪽은 참조 시 다시 읽는다. 플레이어 빌드 동작은 확인하지 않았다.
 
 ---
 
 ## 히스토리
+
+### 2026-09-22 :: `Create` 의 기본 규칙을 로더에서 추론
+
+- 이전: 규칙 없는 `Create` 는 항상 `TrimKeyNormalizer` 를 받았다. Resources 로더만 넘기면 `Icon/A.png` 가 확장자째 `Resources.LoadAsync` 로 들어가 실패했다 (2026-09-21 변경이 만든 회귀). 혼합 로더도 막지 않았다.
+- 현재: 로더의 `LoadMode` 로 정한다. Resources 만이면 `ResourcesKeyNormalizer(string.Empty)`, Addressable 만이면 `TrimKeyNormalizer`, 섞이면 `ArgumentException`. 규칙을 직접 넘기면 그대로 따른다.
 
 ### 2026-09-21 :: key 정규화를 로더에서 provider 입구로 이동
 
