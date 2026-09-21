@@ -3,7 +3,7 @@
 > 어셈블리: `HCUP.HWindows.NodeWindow.Editor` (`Editor/NodeWindow/HCUP.HWindows.NodeWindow.Editor.asmdef`, rootNamespace `HWindows.Editor.NodeWindow`)
 > 의존: `HCUP.HWindows.NodeWindow`, `HCUP.HInspector.Editor`, `HCUP.HUtil`, `HCUP.HUtil.Editor`, `HCUP.HDiagnosis`, `HCUP.HCollection`
 > `includePlatforms: ["Editor"]` / **`autoReferenced: false`**
-> 동반 어셈블리: `HCUP.HWindows.NodeWindow` — [`../../Runtime/NodeWindow/README.md`](../../Runtime/NodeWindow/README.md)
+> 동반 어셈블리: `HCUP.HWindows.NodeWindow` - [`../../Runtime/NodeWindow/README.md`](../../Runtime/NodeWindow/README.md)
 
 ---
 
@@ -35,14 +35,14 @@ GraphView 기반 노드 그래프 에디터 전체가 이 어셈블리에 있다
 | `Core/HGraphEdge.cs` | 114 | 시각 엣지. 선택 하이라이트 + 우클릭 메뉴 |
 | `Core/HGraphClipboard.cs` | 189 | Cut/Paste JSON 직렬화 + magic/version 검증 |
 | `Core/HGraphNodeStyles.cs` | 59 | 헤더 색 상수 + 도메인 타입별 색 레지스트리 |
-| `NodeCatalog/Authoring/NodeCatalogAuthor.cs` | 667 | **mutation 단일 게이트.** static, 상태 0 |
-| `NodeCatalog/Authoring/NodeCatalogObjectChangeWatcher.cs` | 63 | `[InitializeOnLoad]`. Inspector 직접 수정 감지 |
+| `NodeCatalog/Authoring/NodeCatalogAuthor.cs` | 672 | **mutation 단일 게이트.** static, 상태 0 |
+| `NodeCatalog/Authoring/NodeCatalogObjectChangeWatcher.cs` | 68 | `[InitializeOnLoad]`. Inspector 직접 수정 감지. `UNITY_6000_3_OR_NEWER` 에서 `EntityIdToObject`, 그 외 `InstanceIDToObject` |
 | `Settings/NodeSnapSettings.cs` | 71 | `ScriptableSingleton`. gridUnit / showGrid / mode |
 | `Settings/NodeWindowSettingsProvider.cs` | 126 | `[SettingsProvider]` + 공유 IMGUI + 변경 이벤트 |
 | `Settings/SnapMode.cs` | 36 | `Off` / `OnShiftHold` / `Always` |
 | `Identity/NodeUIDDrawer.cs` | 93 | `[CustomPropertyDrawer(typeof(NodeUID))]` |
-| `UI/HGraphWindow.uss` | — | 창 레이아웃 스타일 |
-| `UI/HGraphNode.uss` | — | 노드 스타일 |
+| `UI/HGraphWindow.uss` | - | 창 레이아웃 스타일 |
+| `UI/HGraphNode.uss` | - | 노드 스타일 |
 
 ---
 
@@ -50,7 +50,7 @@ GraphView 기반 노드 그래프 에디터 전체가 이 어셈블리에 있다
 
 ```mermaid
 flowchart TD
-    subgraph Core["Core — GraphView 어댑터"]
+    subgraph Core["Core - GraphView 어댑터"]
     W["HGraphWindow&lt;TCatalog&gt;"]
     C["HGraphCanvas"]
     N["HGraphNode"]
@@ -61,7 +61,7 @@ flowchart TD
     ST["HGraphNodeStyles"]
     end
 
-    subgraph Auth["Authoring — mutation 게이트"]
+    subgraph Auth["Authoring - mutation 게이트"]
     A["NodeCatalogAuthor"]
     OW["NodeCatalogObjectChangeWatcher"]
     end
@@ -81,8 +81,8 @@ flowchart TD
     end
 
     subgraph Ext["외부 어셈블리"]
-    HI["HCUP.HInspector.Editor — HTitleDrawer"]
-    HD["HCUP.HDiagnosis — HLogger"]
+    HI["HCUP.HInspector.Editor - HTitleDrawer"]
+    HD["HCUP.HDiagnosis - HLogger"]
     HC["HCUP.HCollection"]
     HU["HCUP.HUtil / HCUP.HUtil.Editor"]
     end
@@ -134,17 +134,17 @@ Experimental API 를 모른다. `HGraphCanvas` 가 `GetSelectedNodes()` /
 
 ## 진입점
 
-### 에디터 도구 — 메뉴 경로
+### 에디터 도구 - 메뉴 경로
 
 | 항목 | 경로 | 등록 방식 |
 |---|---|---|
-| Node Window 설정 | **`Project Settings ▸ HCUP ▸ Node Window`** | `[SettingsProvider]` — `NodeWindowSettingsProvider.cs:39`, 경로 상수 `"Project/HCUP/Node Window"` |
+| Node Window 설정 | **`Project Settings ▸ HCUP ▸ Node Window`** | `[SettingsProvider]` - `NodeWindowSettingsProvider.cs:39`, 경로 상수 `"Project/HCUP/Node Window"` |
 | 그래프 창 | **없음** | 파생 창이 각자 `[MenuItem]` 을 단다 |
-| `NodeUID` 인스펙터 표시 | — | `[CustomPropertyDrawer(typeof(NodeUID))]` — `NodeUIDDrawer.cs:26` |
+| `NodeUID` 인스펙터 표시 | - | `[CustomPropertyDrawer(typeof(NodeUID))]` - `NodeUIDDrawer.cs:26` |
 
 **`[MenuItem]` 이 이 어셈블리에 하나도 없다.** `HGraphWindow<TCatalog>` 의
 `Window/HWindows/Node Window/Graph Editor` 메뉴는 2026.05.15 제네릭 전환 시 제거됐다
-(`HGraphWindow.cs:366`) — 제네릭 클래스는 `GetWindow` 대상이 될 수 없기 때문이다.
+(`HGraphWindow.cs:366`) - 제네릭 클래스는 `GetWindow` 대상이 될 수 없기 때문이다.
 
 ### 코드 진입점
 
@@ -160,7 +160,7 @@ Experimental API 를 모른다. `HGraphCanvas` 가 `GetSelectedNodes()` /
 
 ---
 
-## 사용 예 — 파생 창
+## 사용 예 - 파생 창
 
 ```csharp
 using HWindows.Editor.NodeWindow;
@@ -181,7 +181,7 @@ public sealed class MyFeatureNodeWindow : HGraphWindow<MyFeatureCatalogSO> {
     }
 
     protected override void CreateGUI() {
-        base.CreateGUI();            // canvas 초기화 — 반드시 먼저
+        base.CreateGUI();            // canvas 초기화 - 반드시 먼저
         canvas.AdditionalContextMenuActions = evt => {
             if (currentCatalog == null) return;
             evt.menu.AppendAction("My Line Node",
@@ -192,7 +192,7 @@ public sealed class MyFeatureNodeWindow : HGraphWindow<MyFeatureCatalogSO> {
         };
     }
 
-    [InitializeOnLoadMethod]         // 도메인 리로드마다 재등록 — 레지스트리가 static
+    [InitializeOnLoadMethod]         // 도메인 리로드마다 재등록 - 레지스트리가 static
     static void _Register() {
         HGraphNodeStyles.RegisterHeaderColor(typeof(MyLineNode), new Color(0.2f, 0.4f, 0.8f));
     }
@@ -202,7 +202,7 @@ public sealed class MyFeatureNodeWindow : HGraphWindow<MyFeatureCatalogSO> {
 단계별 가이드와 노드 뷰 팩토리 등록은
 [`../../docs/GraphEditor.md` 의 "파생 창 구현"](../../docs/GraphEditor.md#파생-창-구현) 참조.
 
-소비 어셈블리의 asmdef 에는 아래 3개가 필요하다 — **양쪽 모두 `autoReferenced: false`** 이므로
+소비 어셈블리의 asmdef 에는 아래 3개가 필요하다 - **양쪽 모두 `autoReferenced: false`** 이므로
 명시 참조가 필수다.
 
 | 참조 | 이유 |
@@ -231,45 +231,19 @@ public sealed class MyFeatureNodeWindow : HGraphWindow<MyFeatureCatalogSO> {
    ghost UID 가 생긴다. 창을 다시 열면 `PurgeNullNodes` 가 자동 정리하지만, 정식 경로는
    우클릭 `삭제 (Delete)` 다.
 
-### 버전 호환
-
-7. **`NodeCatalogObjectChangeWatcher` 가 Unity 6000+ 전용 API 를 조건부 분기 없이 쓴다.**
-   `EditorUtility.EntityIdToObject(data.instanceId)` (`NodeCatalogObjectChangeWatcher.cs:18`)는 `InstanceIDToObject(int)` 가
-   6000.3.11f1 에서 Obsolete 처리되어 교체된 것인데, `#if UNITY_6000_0_OR_NEWER` 가드가 없다.
-   **이 파일은 2022.3 LTS 에서 컴파일되지 않는다** — 상위 `HWindows/README.md` 의
-   "Unity 최저 2022.3.x LTS" 선언과 어긋난다.
-
-### 기존 문서와의 불일치 (`../../Runtime/NodeWindow/docs/README.md`)
-
-이 어셈블리에는 311행짜리 선행 문서가 `Runtime/NodeWindow/docs/README.md` 에 있다. 대부분
-정확하지만 아래 3건이 현재 코드와 다르다. **`../../docs/` 의 3개 문서가 현행이다.**
-
-| 항목 | 선행 문서 | 실제 코드 |
-|---|---|---|
-| 노드 뷰 팩토리 시그니처 | `(node, catalog) => new HGraphNode(node, catalog)` | `Func<BaseNode, bool, HGraphNode>` — 둘째 인자는 **`isRoot`**(`HGraphCanvas.cs:63`, `:598`). `HGraphNode` 생성자도 `(BaseNode, bool isRoot = false)`(`HGraphNode.cs:77`) |
-| 디렉토리 구성 | `NodeCatalog/Identity/NodeUIDDrawer.cs` | 실제 경로는 `Editor/NodeWindow/Identity/NodeUIDDrawer.cs` (`NodeCatalog/` 하위가 아니다) |
-| 기능 목록 | Active 하이라이트 / Trace 모드 미기재 | `HighlightActiveNode` / `SetTraceMode` / `TracePathFrom` 이 `public` 으로 존재 (`HGraphCanvas.cs:812-898`) |
-
-추가로 선행 문서의 "Dev Log 이력" 표가 가리키는
-`../../../../docs/history/HWindows/Editor/NodeWindow/**` 11개 파일은 **실제로 존재한다** —
-링크는 유효하다.
-
 ### 정리 대상
 
-8. **`HGraphNode.GetOutputPort(int)` 에 호출처가 없다** (`HGraphNode.cs:61` +
-   `HGraphHubNode.cs:65` override, 패키지 전역 grep 0건).
-9. **`HGraphCanvas._searchQuery` 는 대입만 되고 읽히지 않는다** (`:51`, `:767`, `:794`).
-10. **`_ClearSearchUI` 와 `ClearSearch` 의 호출 시점이 어긋난다.** `_PopulateInternal` 은
+7. **`HGraphCanvas._searchQuery` 는 대입만 되고 읽히지 않는다** (`:51`, `:767`, `:794`).
+8. **`_ClearSearchUI` 와 `ClearSearch` 의 호출 시점이 어긋난다.** `_PopulateInternal` 은
     `ClearSearch`(캔버스 상태)만 하고 툴바 텍스트는 그대로 두므로, mutation 후 검색어가 남은
     채 결과가 비어 있다 (`HGraphCanvas.cs:618` vs `HGraphWindow.cs:291-294`).
-11. **`_OnCatalogMutated` 의 주석이 구현과 반대다** (`HGraphCanvas.cs:143-146`).
+9. **`_OnCatalogMutated` 의 주석이 구현과 반대다** (`HGraphCanvas.cs:143-146`).
     "`_Populate` 가 viewport 리셋을 포함하므로 깜빡일 가능성"이라 적혀 있으나 실제 호출은
     `_RepopulateNoViewportReset` 이다.
-12. **`RefreshPortLabels` 가 `Port.connections.Count()` 를 쓴다** (`HGraphNode.cs:66-67`,
+10. **`RefreshPortLabels` 가 `Port.connections.Count()` 를 쓴다** (`HGraphNode.cs:66-67`,
     `HGraphHubNode.cs:71-78`). `IEnumerable<Edge>` 전체 순회이고 populate 끝에서 노드 전량에
     호출되므로 O(노드×엣지) 다.
-13. **소비처 없는 Author API 1건** — `NodeCatalogAuthor.CreateHubNode` (`:267`).
-    2026.05.15 에 "허브 노드 생성" 우클릭 항목이 제거되며 호출자가 사라졌다.
+11. **`NodeCatalogAuthor.CreateHubNode` (`:267`) 는 캔버스 우클릭 메뉴에 노출되지 않는다.** 허브 노드 생성 항목은 2026.05.15 에 기본 메뉴에서 빠졌고, 허브 노드는 파생 창이 `AdditionalContextMenuActions` 로 자기 `HubNode` 파생 타입 생성 항목을 넣는다.
 
 ---
 
@@ -281,7 +255,21 @@ public sealed class MyFeatureNodeWindow : HGraphWindow<MyFeatureCatalogSO> {
 | 도메인 노드 시각 커스터마이즈 | `HGraphNode` 상속 + `HGraphCanvas.RegisterNodeViewFactory` |
 | 노드 헤더 색 | `HGraphNodeStyles.RegisterHeaderColor` |
 | 우클릭 메뉴 항목 추가 | `canvas.AdditionalContextMenuActions` (빈 캔버스) / `HGraphNode.BuildContextualMenu` override (노드) |
-| 새 mutation 연산 | `NodeCatalogAuthor` 에 static 메서드 — Undo → Internal* → SetDirty → SaveAssets → `_NotifyMutated` 순서 준수 |
+| 새 mutation 연산 | `NodeCatalogAuthor` 에 static 메서드 - Undo → Internal* → SetDirty → SaveAssets → `_NotifyMutated` 순서 준수 |
 | 설정 항목 추가 | [`Settings.md` 의 확장 지점](../../docs/Settings.md#확장-지점) |
-| 노드 스타일 | `UI/HGraphNode.uss` / `UI/HGraphWindow.uss` — 이름으로 검색해 로드된다 |
-| Play 모드 시각화 | `HighlightActiveNode(uid)` / `SetTraceMode(bool)` — 도메인 창이 런타임 이벤트를 구독해 호출 |
+| 노드 스타일 | `UI/HGraphNode.uss` / `UI/HGraphWindow.uss` - 이름으로 검색해 로드된다 |
+| Play 모드 시각화 | `HighlightActiveNode(uid)` / `SetTraceMode(bool)` - 도메인 창이 런타임 이벤트를 구독해 호출 |
+
+---
+
+## 히스토리
+
+### 2026-09-21 :: 선행 문서 `Runtime/NodeWindow/docs/README.md` 불일치 해소
+
+- 이전: 이 README 에 "기존 문서와의 불일치" 절이 있었다. 선행 문서가 노드 뷰 팩토리 시그니처를 `(node, catalog) => new HGraphNode(node, catalog)` 로 적었고(실제는 `Func<BaseNode, bool, HGraphNode>`, 둘째 인자 `isRoot`), `NodeUIDDrawer` 경로를 `NodeCatalog/Identity/` 로 적었고(실제는 `Editor/NodeWindow/Identity/`), Active 하이라이트·Trace 모드를 싣지 않았다.
+- 현재: 선행 문서의 세 항목을 코드에 맞게 고쳤다.
+
+### 2026-08-07 :: `NodeCatalogObjectChangeWatcher` 버전 분기
+
+- 이전: "버전 호환" 절에 `EditorUtility.EntityIdToObject(data.instanceId)` 를 `#if` 가드 없이 써서 2022.3 LTS 에서 컴파일되지 않는다는 항목이 있었다.
+- 현재: `#if UNITY_6000_3_OR_NEWER` 에서 `EntityIdToObject`, 그 외 버전에서 `InstanceIDToObject` 를 쓴다 (`NodeCatalogObjectChangeWatcher.cs:18-23`).
