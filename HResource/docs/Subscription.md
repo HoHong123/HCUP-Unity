@@ -1,25 +1,18 @@
 # Subscription - 소유자 식별과 leash
 
-> 대상: `Runtime/Subscription/*.cs` (`AssetOwnerId` / `AssetOwnerIdGenerator` /
-> `AssetLeashManager` / `ICSharpAssetLeash` / `OwnerLeashProbe`)
+> 대상: `Runtime/Subscription/*.cs` (`AssetOwnerId` / `AssetOwnerIdGenerator` / `AssetLeashManager` / `ICSharpAssetLeash` / `OwnerLeashProbe`)
 > 상위 문서: [Runtime/README.md](../Runtime/README.md)
 
 ---
 
 ## 요약
 
-이 폴더는 **"이 에셋을 누가 붙잡고 있나"를 값 하나로 표현하는 방법**을 정의한다. 실제 점유
-계산은 캐시가 하고([Cache.md](Cache.md)), 여기서는 그 계산에 쓸 식별자를 발급하고 수명 시작·종료를
-외부에 알리는 일만 한다.
+이 폴더는 **"이 에셋을 누가 붙잡고 있나"를 값 하나로 표현하는 방법**을 정의한다. 실제 점유 계산은 캐시가 하고 ([Cache.md](Cache.md)), 여기서는 그 계산에 쓸 식별자를 발급하고 소유자의 수명 시작·종료를 감지해 회수와 외부 통지를 맡는다.
 
 두 갈래로 나뉜다.
 
 - **식별자 축** - `AssetOwnerId` + `AssetOwnerIdGenerator`. 값과 발급기.
-- **leash 축** - `AssetLeashManager` + `ICSharpAssetLeash` + `OwnerLeashProbe`.
-  소유자 객체를 지문에 대응시키고, 파괴 시점을 감지해 회수한다.
-
-2026-09-04 개편 전에는 leash 축이 `AssetLeaseManager` 라는 이름의 **선택 계층**이었고
-사용처가 0건이었다. 지금은 `AssetProvider` 의 상주 객체라 모든 획득이 이곳을 지난다.
+- **leash 축** - `AssetLeashManager` + `ICSharpAssetLeash` + `OwnerLeashProbe`. 소유자 객체를 지문에 대응시키고, 파괴 시점을 감지해 회수한다. `AssetProvider` 의 상주 객체라 모든 획득이 이곳을 지난다.
 
 ---
 
@@ -32,27 +25,25 @@ public readonly struct AssetOwnerId : IEquatable<AssetOwnerId> {
     public static AssetOwnerId None => new(0);
     public bool IsValid => Value > 0;
 
+    internal AssetOwnerId(int value) { Value = value; }   // 어셈블리 밖에서 만들 수 없다
+
     public bool Equals(AssetOwnerId other) => Value == other.Value;
     public override int GetHashCode() => Value;
 
-    public static implicit operator int(AssetOwnerId ownerId) => ownerId.Value;
-    // int -> AssetOwnerId 역방향 변환은 2026-08-06 에 제거했다.
-    // 생성자는 2026-09-04 부터 internal 이다.
+    public static implicit operator int(AssetOwnerId ownerId) => ownerId.Value;   // 읽기 방향만
 }
 ```
 
-`readonly struct` + `IEquatable` 조합이 캐시의 `HashSet<AssetOwnerId>` 원소로 쓰일 때
-박싱을 피하는 근거다(`Cache/MemoryAssetCache.cs:46`).
+`readonly struct` + `IEquatable` 조합이 캐시의 `HashSet<AssetOwnerId>` 원소로 쓰일 때 박싱을 피하는 근거다 (`Cache/MemoryAssetCache.cs:48`).
 
-`Value > 0` 만 유효하다. 무효 id 로 들어온 `Save` 는 2026-09-04 부터 **거부되고 에러가 남는다**.
-익명 경로로 강등되던 종전 동작은 익명 축과 함께 제거됐다.
+`Value > 0` 만 유효하다. 무효 id 로 들어온 `Save` 는 **거부되고 에러가 남는다**. `int → AssetOwnerId` 방향의 변환은 없고 생성자는 internal 이라, 어셈블리 밖에서는 신원을 만들 수 없다.
 
 ---
 
 ## AssetOwnerIdGenerator
 
 ```csharp
-// Subscription/AssetOwnerIdGenerator.cs - 2026-09-04 기준
+// Subscription/AssetOwnerIdGenerator.cs:55-64
 // 둘 다 internal 이다. 발급은 AssetLeashManager 만 하고, 그곳은 항상 owner 를 넘긴다.
 internal static AssetOwnerId NewId(object owner) {
     var ownerId = new AssetOwnerId(Interlocked.Increment(ref nextId));
@@ -65,16 +56,14 @@ internal static void NotifyReleased(AssetOwnerId ownerId) {
 }
 ```
 
-`NotifyReleased` 는 **통지만** 한다. 실제 자산 회수는 `provider.ReleaseOwnerId` 가 따로 하고,
-둘의 짝을 맞추는 것은 `AssetLeashManager._ReclaimEntry` 한 곳이다. 소비자가 짝을 맞출 일은 없다.
+`NotifyReleased` 는 **통지만** 한다. 실제 자산 회수는 `provider.ReleaseOwnerId` 가 따로 하고, 둘의 짝을 맞추는 것은 `AssetLeashManager._ReclaimEntry` 한 곳이다 (`Subscription/AssetLeashManager.cs:314-324`). 소비자가 짝을 맞출 일은 없다.
 
-`owner` 인자는 식별에 쓰이지 않는다. 오직 `OnIdCreated` 이벤트를 통해 추적 도구에 전달되는
-보조 정보다.
+`owner` 인자는 식별에 쓰이지 않는다. 오직 `OnIdCreated` 이벤트를 통해 추적 도구에 전달되는 보조 정보다. 이벤트 페이로드가 `AssetOwnerId` 가 아니라 `int` 인 이유는, 공개 이벤트를 구독하는 것만으로 살아 있는 남의 신원을 손에 넣지 못하게 하기 위해서다 (`:32-37`).
 
 ### 정적 상태 리셋
 
 ```csharp
-// Subscription/AssetOwnerIdGenerator.cs:43-49
+// Subscription/AssetOwnerIdGenerator.cs:43-48
 [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 private static void _ResetStatics() {
     nextId = 0;
@@ -83,17 +72,14 @@ private static void _ResetStatics() {
 }
 ```
 
-Domain Reload 비활성 환경에서 id 카운터와 구독이 플레이 세션을 넘어 잔존하는 것을 막는다.
-**대가는 `[InitializeOnLoad]` 구독자가 함께 끊긴다는 것**이고, 그 복구를 에디터 워처가
-`AfterAssembliesLoaded` 재구독으로 맞춰 두었다(`Editor/Subscription/AssetOwnerIdWatchRegistry.cs:52-55`).
-리셋 시점을 바꾸면 그 순서 보장이 깨진다 - 코드 주석이 이를 명시한다(`:35-39`).
+Domain Reload 비활성 환경에서 id 카운터와 구독이 플레이 세션을 넘어 잔존하는 것을 막는다. **대가는 `[InitializeOnLoad]` 구독자가 함께 끊긴다는 것**이고, 그 복구를 에디터 워처가 `AfterAssembliesLoaded` 재구독으로 맞춰 두었다 (`Editor/Subscription/AssetOwnerIdWatchRegistry.cs:69-72`). 리셋 시점을 바꾸면 그 순서 보장이 깨진다 - 코드 주석이 이를 명시한다 (`:39-42`).
 
 ```mermaid
 sequenceDiagram
     participant U as Unity
     participant G as AssetOwnerIdGenerator
     participant W as AssetOwnerIdWatchRegistry
-    participant O as Owner (AudioManager / ImagePopup)
+    participant O as Owner (Component)
     participant P as AssetProvider
 
     U->>G: SubsystemRegistration → _ResetStatics
@@ -103,7 +89,7 @@ sequenceDiagram
     O->>P: GetAsync(this, key, loadMode)
     P->>G: NewId(owner)  (AssetLeashManager 경유)
     G->>W: OnIdCreated(id, owner)
-    U->>O: Destroy
+    U->>O: Destroy(gameObject)
     Note over O,P: OwnerLeashProbe.OnDestroy
     P->>P: ReleaseOwnerId(id)
     P->>G: NotifyReleased(id)
@@ -112,53 +98,38 @@ sequenceDiagram
 
 ---
 
-## 실제 사용 패턴
+## 사용 패턴
 
-소유자는 더 이상 `AssetOwnerId` 를 들지 않는다. 소유자 객체 자체를 넘기면 `AssetLeashManager`
-가 지문을 발급해 내부에 보관한다. 아래 코드는 개편 전 형태이고, 지금은 이런 코드를 쓰지 않는다.
+소유자는 `AssetOwnerId` 를 들지 않는다. 소유자 객체 자체를 넘기면 `AssetLeashManager` 가 지문을 발급해 내부에 보관한다. 첫 `GetAsync(owner, ...)` 에서 지문이 발급되고 파괴 프로브가 붙는다. 소비자가 하는 일은 다 쓴 시점의 반납뿐이다.
 
 ```csharp
-// HUI/Popup/ImagePopup.cs - 2026-09-04 기준
-// 소유자는 자기 자신을 넘길 뿐 id 를 보지 않는다.
+// HUI/Runtime/HUI/Popup/ImagePopup.cs - 소유자는 자기 자신을 넘길 뿐 id 를 보지 않는다.
 var sprite = await provider.GetAsync(this, key, mode, AssetFetchMode.CacheFirst);
-provider?.Release(this, currentKey);
 
-// OnDestroy - 정상 반납. 이것을 빠뜨려도 파괴 프로브가 같은 회수를 한다.
+// OnDestroy - 정상 반납 후 자기가 만든 provider 폐기.
 resourcesProvider?.ReleaseOwner(this);
 addressableProvider?.ReleaseOwner(this);
+resourcesProvider?.Dispose();
+addressableProvider?.Dispose();
 ```
 
-아래는 개편 전 형태다. `NewId` 와 `NotifyReleased` 는 이제 internal 이라 이 코드는
-패키지 밖에서 컴파일되지 않는다.
-
-```csharp
-// 2026-09-04 이전. 참고용이며 따라 쓰지 말 것
-AssetOwnerId ownerId;
-public AssetOwnerId OwnerId {
-    get { if (!ownerId.IsValid) ownerId = AssetOwnerIdGenerator.NewId(this); return ownerId; }
-}
-if (ownerId.IsValid) AssetOwnerIdGenerator.NotifyReleased(ownerId);
-```
-
-발급 시점은 이제 소비자가 정하지 않는다. 첫 `GetAsync(owner, ...)` 에서 provider 가 지문을
-발급하고 파괴 프로브를 붙인다. 소비자가 하는 일은 다 쓴 시점의 반납뿐이다.
+패키지 내 다른 모듈의 소유자 구성:
 
 | 소비자 | 소유자 | 반납 |
 |---|---|---|
-| `HAudio/AudioManager` | 매니저 자신 (`AudioClipRepository` 생성자에 전달) | `ReleaseAll()` -> 그 소유자 몫만 |
-| `HUI/Popup/ImagePopup` | 팝업 자신 | `OnDestroy` -> provider 2개 각각 `ReleaseOwner(this)` |
+| `HAudio/AudioManager` | 매니저 자신 (`AudioClipRepository` 생성자에 전달) | `ReleaseCatalog` 는 그 카탈로그 key 를 `Release`, `ReleaseAll` 은 `ReleaseOwner`. 기본 provider 를 저장소가 만들었으면 `Dispose` 까지 |
+| `HUI/Popup/ImagePopup` | 팝업 자신 | `OnDestroy` -> provider 2개 각각 `ReleaseOwner(this)` 후 `Dispose` |
 | `HDialogue/CharacterPortraitController` | 컨트롤러 각자 | 포즈 교체 시 `Release(this, key)`, 파괴 시 프로브 |
-| `HcupLocalization/LocalizationManager` | 매니저 자신 | 언어 교체 시 `Release(this, prevKey)` |
+| `HcupLocalization/LocalizationManager` | 매니저 자신 | 언어 교체 시 `Release(this, prevKey)`, 폐기 시 `Dispose` |
 
-`CharacterStageDirector` 는 provider 를 만들어 자식 컨트롤러에 넘기는 쪽이라 `Dispose` 로
-마감한다. 자식들은 각자 소유자로 참여하므로 한 컨트롤러의 파괴는 그 몫만 회수한다.
+`CharacterStageDirector` 는 provider 를 만들어 자식 컨트롤러에 넘기는 쪽이라 `Dispose` 로 마감한다. 자식들은 각자 소유자로 참여하므로 한 컨트롤러의 파괴는 그 몫만 회수한다.
 
 ---
 
 ## leash 축 - provider 의 상주 계층
 
 ```csharp
-// Subscription/AssetLeashManager.cs - Component 소유자 (가드 로그 생략)
+// Subscription/AssetLeashManager.cs:182-206 - Component 소유자 (가드 로그 생략)
 internal OwnerLiveToken Fingerprint(Component owner) {
     if (disposed) return default;
     if (owner == null) return default;                     // Unity == 는 파괴된 것도 건다
@@ -173,58 +144,73 @@ internal OwnerLiveToken Fingerprint(Component owner) {
 }
 ```
 
-지문 테이블은 `ConditionalWeakTable<object, LeashEntry>` 다. 일반 `Dictionary` 로 바꾸면
-provider 가 자기가 서비스한 모든 소유자를 영원히 살려두어, 소유권 누수를 고치려던 물건이
-더 큰 누수가 된다. `LeashEntry` 가 소유자를 참조해도 되는 이유는 CWT 가 ephemeron 이라
-값에서 키로 가는 참조가 키의 수집을 막지 않기 때문이다.
+지문 테이블은 `ConditionalWeakTable<object, LeashEntry>` 다 (`:169`). 일반 `Dictionary` 로 바꾸면 provider 가 자기가 서비스한 모든 소유자를 영원히 살려두어, 소유권 누수를 고치려던 물건이 더 큰 누수가 된다.
+
+**`LeashEntry` 에는 소유자로 가는 필드가 없다** (`:53-61`). 프로브 핸들러와 `CSharpAssetLeash` 는 `LeashEntry` 만 캡처한다. 하나라도 owner 를 캡처하면 앵커(다른 GameObject)의 컴포넌트가 순수 객체를 살려두어, 수명 상한을 주려던 앵커가 오히려 수명을 늘린다.
+
+`OwnerLiveToken` 은 발급 시점의 `LeashEntry` 와 신원을 함께 담는다 (`:67-84`). 로드 완료 후 provider 는 이 토큰 하나로 "그 소유자가 아직 살아 있고 같은 신원인가" 를 O(1) 로 판정한다. 회수된 소유자가 다시 요청하면 `_EnsureEntry` 가 새 지문을 발급하므로 (`:349-365`), 옛 토큰과 옛 창구는 신원 불일치로 죽은 것으로 판정된다.
 
 ```mermaid
 flowchart TD
     A["source.GetAsync(owner, key, loadMode, fetchMode)"] --> B{"owner 가 살아있나"}
     B -->|아니오| C["HLogger.Error - 귀속 불가로 거부"]
     B -->|예| D["Fingerprint(owner)"]
-    D --> E{"지문이 이미 있나"}
+    D --> E{"지문이 있고 회수되지 않았나"}
     E -->|예| F["기존 id 재사용"]
     E -->|아니오| G["NewId 발급 + OwnerLeashProbe 부착"]
+    G --> X{"프로브가 붙었나"}
+    X -->|아니오 - 파괴 진행 중| Y["지문 회수 후 default 반환"]
+    X -->|예| H
     F --> H["provider 내부 획득 - 소유자로 등록"]
-    G --> H
     I["GameObject 파괴"] --> J["probe.OnDestroy"]
-    J --> K["Reclaim(owner) → ReleaseOwnerId + NotifyReleased"]
+    J --> K["_ReclaimEntry → ReleaseOwnerId + NotifyReleased"]
 ```
 
-**순수 C# 소유자는 이 자동 경로가 없다.** 자기 GameObject 가 없어 파괴 이벤트를 스스로
-내지 못하므로 `source.Leash(owner, anchor)` 로 anchor 의 수명을 상한으로 빌린다. anchor 가
-죽으면 회수되지만 그 시점은 소유자가 실제로 쓸모를 다한 시점보다 늦을 수 있어, 돌려받은
-`ICSharpAssetLeash` 를 `using` 으로 닫는 것이 정확한 시점을 주는 유일한 보증이다.
-`Destroy(component)` 로 컴포넌트만 지우는 경우도 프로브가 잡지 못한다 - GameObject 는
-살아 있기 때문이다. 두 경우 모두 Owner Watcher 의 진단으로 드러나고, 회수는
-`AssetLeashManager.ReclaimDeadOwners()`(공개 경로는 `IAssetSource.ReclaimOrphans()`) 가 맡는다.
+**순수 C# 소유자는 이 자동 경로가 없다.** 자기 GameObject 가 없어 파괴 이벤트를 스스로 내지 못하므로 `source.Leash(owner, anchor)` 로 anchor 의 수명을 상한으로 빌린다. anchor 가 죽으면 회수되지만 그 시점은 소유자가 실제로 쓸모를 다한 시점보다 늦을 수 있어, 돌려받은 `ICSharpAssetLeash` 를 `using` 으로 닫는 것이 정확한 시점을 주는 유일한 보증이다.
+
+`Destroy(component)` 로 컴포넌트만 지우는 경우도 프로브가 잡지 못한다 - GameObject 는 살아 있기 때문이다. 이 점유는 `IAssetSource.ReclaimOrphans()` (내부적으로 `AssetLeashManager.ReclaimDeadOwners()`, `:290-311`) 를 부를 때 약한 표를 훑어 걷힌다. 대상은 파괴된 Unity 소유자뿐이다. GC 된 순수 C# 소유자는 약한 표에서 쌍이 사라져 여기에 걸리지 않고, anchor 파괴가 유일한 회수 시점이다.
 
 ---
 
 ## 주의할 점
 
-1. **`NotifyReleased` 는 자산을 해제하지 않는다**(`:55-58`). `provider.ReleaseOwner` 와 짝을
-   맞춰야 하고, 순서를 뒤집어도 무방하나 하나를 빠뜨리면 각각 다른 증상이 난다 -
-   `ReleaseOwner` 누락은 실제 누수, `NotifyReleased` 누락은 에디터 워처 목록의 유령 항목이다.
-2. ~~`AssetOwnerId` 의 `int` → `AssetOwnerId` implicit 변환은 발급기를 우회한다.~~
-   → 2026-08-06 변환 제거, 2026-09-04 생성자와 발급기를 internal 로. 어셈블리 밖에서는
-   신원을 만들 수도 발급받을 수도 없다. 이벤트 페이로드도 `int` 라 구독으로 새어 나가지 않는다.
-3. **정적 이벤트는 플레이 진입마다 비워진다**(`AssetOwnerIdGenerator.cs:43-49`). 런타임
-   구독자를 붙일 때는 재구독 경로를 스스로 설계해야 한다.
-4. **`nextId` 는 세션 내 단조 증가이고 재사용되지 않는다**(`:56`). 세션을 넘긴 id 비교는
-   의미가 없다.
-5. ~~lease 3파일(약 260행)은 사용처 0건이다.~~ -> 2026-09-04 해소. 세 파일을 삭제하고
-   `AssetLeashManager` / `ICSharpAssetLeash` / `OwnerLeashProbe` 로 대체했다. 새 계층은
-   `AssetProvider` 의 상주 객체라 모든 획득이 반드시 통과한다. `IAssetOwner` 도 함께
-   삭제했다 - 소유자 매개변수 타입이 `Component` / `object` 로 바뀌어 표식이 불필요해졌다.
-6. **자동 회수는 GameObject 파괴에만 걸린다.** `Destroy(component)` 단독과 순수 C# 소유자는
-   잡히지 않는다. ~~폴링을 도입하지 않는 한 구조적으로 감지할 수 없으므로 진단으로 다룬다.~~
-   → 2026-09-07 보완. 매 프레임 폴링 대신 `ReclaimDeadOwners()` 를 부르는 시점에만 약한 표를
-   훑어 걷어낸다. 감지가 자동이 아닌 것은 그대로이나 회수 수단은 생겼다.
-7. **명시적 반납이 정상 플로우다.** 프로브는 안전망이지 대체재가 아니다. 다 쓴 시점에
-   `Release(owner, key)` 를 부르는 것과 파괴될 때까지 들고 있는 것은 점유 기간이 다르다.
-   강도는 소유자 종류에 따라 다르다. Component 는 프로브가 자기 GameObject 에 붙어 회수
-   시점이 자기 수명과 같으므로 명시 반납이 선택이다. 순수 C# 소유자는 회수 시점이 anchor
-   수명이라 자기 수명과 어긋나므로 ICSharpAssetLeash.Dispose 가 의무다. 2026-09-08 에 강한 목록을
-   없앤 뒤로 GC 된 순수 소유자는 ReclaimOrphans() 로도 걷히지 않는다.
+1. **`NotifyReleased` 는 자산을 해제하지 않는다** (`AssetOwnerIdGenerator.cs:61-64`). 회수와 통지의 짝은 `_ReclaimEntry` 가 맞춘다. 통지가 빠지면 에디터 워처 목록에 유령 항목이 남고, 회수가 빠지면 실제 누수가 된다.
+2. **정적 이벤트는 플레이 진입마다 비워진다** (`AssetOwnerIdGenerator.cs:43-48`). 런타임 구독자를 붙일 때는 재구독 경로를 스스로 설계해야 한다.
+3. **`nextId` 는 세션 내 단조 증가이고 재사용되지 않는다** (`:56`). 세션을 넘긴 id 비교는 의미가 없다.
+4. **자동 회수는 GameObject 파괴에만 걸린다.** `Destroy(component)` 단독과 순수 C# 소유자는 잡히지 않는다. 전자는 `ReclaimOrphans()` 를 부를 때 걷히고, 후자는 anchor 파괴가 상한이다. 감지는 자동이 아니다 - 부르는 시점은 호출자가 정한다.
+5. **파괴가 진행 중인 GameObject 에서는 획득이 실패한다.** 프로브를 붙일 수 없으면 `GetAsync` 는 로드 없이 `default` 를, `Leash` 는 `null` 을 돌려주고 `HLogger.Error` 를 남긴다 (`AssetLeashManager.cs:367-380`). 자산은 teardown 전에 확보한다.
+6. **한 소유자는 하나의 앵커만 갖는다.** 이미 앵커가 있는 순수 C# 소유자에게 다른 앵커로 `Leash` 를 다시 부르면 새 앵커는 무시되고 경고가 남는다 (`:260-266`).
+7. **명시적 반납이 정상 플로우다.** 프로브는 안전망이지 대체재가 아니다. 다 쓴 시점에 `Release(owner, key)` 를 부르는 것과 파괴될 때까지 들고 있는 것은 점유 기간이 다르다. Component 는 프로브가 자기 GameObject 에 붙어 회수 시점이 자기 수명과 같으므로 명시 반납이 선택이다. 순수 C# 소유자는 회수 시점이 anchor 수명이라 자기 수명과 어긋나므로 `ICSharpAssetLeash.Dispose` 가 의무다.
+
+---
+
+## 히스토리
+
+### 2026-09-08 :: 순수 C# 소유자의 강한 목록 제거
+
+- 이전: 순수 C# 소유자의 항목을 강한 목록(`liveEntries`)에도 담아, GC 된 순수 소유자의 점유도 `ReclaimOrphans()` 로 걷을 수 있었다. 창구 반납은 "Dispose 하지 않고 버려도 anchor 가 파괴되면 회수된다" 는 허용형으로 적혀 있었다.
+- 현재: 강한 목록이 없다. GC 된 순수 소유자는 `ReclaimOrphans()` 로 걷히지 않고 anchor 파괴가 유일한 회수 시점이다. 창구 반납은 의무로 명시됐다.
+
+### 2026-09-07 :: 죽은 소유자 회수 수단 추가
+
+- 이전: `Destroy(component)` 로 죽은 소유자의 점유는 폴링 없이는 감지할 수 없어 진단으로만 다뤘다.
+- 현재: `ReclaimDeadOwners()` 를 부르는 시점에만 약한 표를 훑어 걷어낸다.
+
+### 2026-09-04 :: lease 계층을 leash 계층으로 대체
+
+- 이전: leash 축이 `AssetLeaseManager` / `IAssetLeaseManager` / `IAssetLease` 라는 **옵트인 계층**이었다. 소유자는 `IAssetOwner` 표식을 달고, 스스로 `AssetOwnerIdGenerator.NewId(this)` 로 id 를 발급받아 들고 있다가 `NotifyReleased` 로 통지했다.
+- 현재: 네 타입을 삭제하고 `AssetLeashManager` / `ICSharpAssetLeash` / `OwnerLeashProbe` 로 대체했다. 소유자 매개변수 타입이 `Component` / `object` 라 표식이 필요 없다. `NewId` / `NotifyReleased` 와 `AssetOwnerId` 생성자는 internal 이 됐고, 이벤트 페이로드는 `int` 가 됐다.
+
+```csharp
+// 2026-09-04 이전 소비자 코드. 지금은 패키지 밖에서 컴파일되지 않는다.
+AssetOwnerId ownerId;
+public AssetOwnerId OwnerId {
+    get { if (!ownerId.IsValid) ownerId = AssetOwnerIdGenerator.NewId(this); return ownerId; }
+}
+if (ownerId.IsValid) AssetOwnerIdGenerator.NotifyReleased(ownerId);
+```
+
+### 2026-08-06 :: 역방향 implicit 변환 제거
+
+- 이전: `int → AssetOwnerId` implicit 변환이 있어 임의 정수가 owner 로 통과했다.
+- 현재: `AssetOwnerId → int` 읽기 방향만 남았다.
