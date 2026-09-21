@@ -12,14 +12,12 @@ HAudio 는 **`string token` 하나로 오디오를 지목하는 재생 계층**�
 번역되는 과정과, 그 에셋의 수명을 누가 붙잡고 있는지를 추적하는 일은 전부 이 어셈블리 안에서
 끝나고, **실제 로드·캐시·해제는 `HCUP.HResource` 의 `AssetProvider<string, AudioClip>` 에 위임**한다.
 
-설계의 중심에 두 가지 규약이 있다.
+설계의 중심에 세 가지 규약이 있다.
 
 1. **재생은 로드하지 않는다.** `Play*` 계열은 이미 메모리에 있는 클립만 재생한다. 없으면 조용히
    실패하고(에디터에서는 스택 트레이스 경고) 로드를 시작하지 않는다. 로드는 `Prewarm*` 의 몫이다.
-2. **해제는 소유자(owner) 단위다.** `AudioManager` 는 `Awake` 에서 자신에게 묶인 `AssetOwnerId` 를
-   발급받고, `OnDestroy` 에서 그 id 로 잡고 있던 전부를 한 번에 반납한다.
-3. **식별자는 `string token` 하나다.** int/enum 으로 클립을 지목하는 경로는 존재하지 않는다.
-   `AudioMajorCategory` 는 카탈로그를 읽을 때의 분류 라벨일 뿐 로드에 관여하지 않는다.
+2. **해제는 소유자(owner) 단위다.** `AudioClipRepository` 는 생성자에서 `AudioManager` 컴포넌트를 소유자로 한 번 받아 모든 점유를 그 이름으로 잡고, `AudioManager.OnDestroy` 에서 그 소유자의 점유를 한 번에 반납한다.
+3. **식별자는 `string token` 과 `int uid` 두 축이다.** 두 축 모두 `AudioManager` 에 오버로드가 있고 레지스트리에 인덱스가 따로 있다. `AudioMajorCategory` 는 카탈로그를 읽을 때의 분류 라벨일 뿐 로드에 관여하지 않는다.
 
 ---
 
@@ -39,8 +37,8 @@ HAudio 는 **`string token` 하나로 오디오를 지목하는 재생 계층**�
 | `AddOn/AudioSpatialPool.cs` | 3D 원샷 재생용 `AudioSource` 풀 |
 | `AddOn/SfxView.cs` | 카탈로그 묶음 직렬화 컨테이너 + 에디터 토큰 미리보기 |
 | `AddOn/SfxAgent.cs` | 오브젝트 수명에 맞춘 prewarm/release + 재생 프록시 |
-| `AddOn/BaseSfxAddon.cs` | 클릭 사운드 공통 처리 (기본 클릭 토큰 / 오버라이드) |
-| `AddOn/ButtonSfxAddon.cs` | `DelegateButton.OnPointUp` 배선 |
+| `AddOn/BaseSfxAddon.cs` | 클릭 사운드 공통 필드 (`overrideClickUid`, 0 이면 오버라이드 없음) + 추상 `_HandleClick` |
+| `AddOn/ButtonSfxAddon.cs` | `DelegateButton.OnPointUp` 배선. 오버라이드 uid 가 있으면 `PlayUI(uid)`, 없으면 `PlayClick()` |
 | `AddOn/ToggleSfxAddon.cs` | `Toggle.onValueChanged` 배선 (on 일 때만) |
 
 ---
@@ -95,7 +93,8 @@ flowchart TD
 [Serializable]
 public sealed class Entry {
     [SerializeField] AudioMajorCategory major;   // 분류 라벨. 읽기 편하라고 있는 것이지 키가 아니다
-    [SerializeField] string token;               // 유일한 키. 시스템 전체의 기준
+    [SerializeField] int uid;                    // 런타임 신원. token 접두 "{uid}_" 와 같은 값
+    [SerializeField] string token;               // 카탈로그 키. 파일명에서 온다
     [SerializeField] string path;                // Resources 모드에서 폴더 경로
 #if UNITY_EDITOR
     [SerializeField] AudioClip editorClip;       // 편집·미리보기 전용. 빌드에는 없다
@@ -103,15 +102,14 @@ public sealed class Entry {
 }
 ```
 
-**`token` 이 Entry 의 유일한 식별자다.** `AudioCatalogSO.BuildCache` 도 token 으로 인덱싱하고
-중복을 그 기준으로 잡는다. `major` 는 정렬·검색·폴더 추론에만 쓰인다.
+**카탈로그 안의 키는 `token` 이다.** `AudioCatalogSO.BuildCache` 는 token 으로 인덱싱하고 중복을 그 기준으로 잡는다. `uid` 는 `EditorAddEntry` 가 token 의 `{uid}_{이름}` 접두에서 뽑아 채우는 값이고, 레지스트리의 uid 인덱스와 재생 경로의 `int` 오버로드가 이 값을 쓴다 (`AudioCatalogSO.TryParseUid`). `major` 는 정렬·검색·폴더 추론에만 쓰인다.
 
 ### load key 로의 번역
 
 `token` 은 그 자체로 에셋을 찾지 못한다. 모드에 따라 두 갈래로 번역된다.
 
 ```csharp
-// Core/AudioCatalogSO.cs:96-104
+// Core/AudioCatalogSO.cs:168-172
 public static string BuildResourcesLoadKey(string path, string token) {
     if (string.IsNullOrWhiteSpace(token)) return string.Empty;
     if (string.IsNullOrWhiteSpace(path)) return token;
@@ -134,7 +132,7 @@ flowchart TD
 ```
 
 **Resources 모드에서는 카탈로그에 등록되지 않은 토큰이 절대 로드되지 않는다.** `path` 를 알
-방법이 없기 때문이다(`AudioClipRepository.cs:146-159`). Addressable 모드에만 "토큰 = 주소"
+방법이 없기 때문이다(`AudioClipRepository.cs:213-226`). Addressable 모드에만 "토큰 = 주소"
 폴백이 있다.
 
 ---
@@ -145,7 +143,6 @@ flowchart TD
 sequenceDiagram
     participant U as Unity
     participant AM as AudioManager
-    participant GEN as AssetOwnerIdGenerator
     participant REG as AudioCatalogRegistry
     participant REPO as AudioClipRepository
     participant F as AssetProviderFactory
@@ -156,7 +153,8 @@ sequenceDiagram
     Note over AM: Mixer·AudioSource·spatialPool null 검사 후 로그
     AM->>REG: new AudioCatalogRegistry
     AM->>REPO: new AudioClipRepository(loadMode, registry, this)
-    REPO->>F: CreateResources / CreateAddressable
+    Note over REPO: owner = AudioManager 컴포넌트. 이후 모든 점유가 이 소유자로 잡힌다
+    REPO->>F: CreateResources / CreateAddressable - provider 주입이 없을 때만
     F-->>REPO: IAssetSource
     U->>AM: Start
     AM->>AM: _CheckPlayerPrefs - 볼륨 4종 + 기본 클릭 토큰 복원
@@ -164,7 +162,7 @@ sequenceDiagram
 
 `_BuildRepository` 의 null 검사는 `Assert` 가 아니라 `HLogger.Error` 다. Assert 는 릴리즈
 빌드에서 통째로 제거되므로, 인스펙터 배선 누락은 릴리즈에서도 드러나야 한다는 판단이다
-(`AudioManager.cs:138`).
+(`AudioManager.cs:196`).
 
 ---
 
@@ -184,12 +182,13 @@ sequenceDiagram
     rect rgb(240, 248, 255)
     Note over C,AP: ① Prewarm - 비동기, 로드를 실제로 수행한다
     C->>AM: await PrewarmCatalog(catalog)
-    AM->>REPO: PrewarmCatalogAsync(catalog, ownerId)
+    AM->>AM: _TrackPrewarmAsync - 진행 중 건수 +1
+    AM->>REPO: PrewarmCatalogAsync(catalog)
     REPO->>REG: RegisterCatalog(catalog)
     REG->>REG: BuildCache + Entry 전량 인덱싱, refCount = 1
     loop catalog.Entries
         REPO->>REPO: GetOrLoadAsync(entry.Token, ownerId)
-        REPO->>AP: GetAsync(loadKey, loadMode, fetchMode, ownerId)
+        REPO->>AP: GetAsync(owner, loadKey, LoadMode, fetchMode)
     end
     AP-->>REPO: AudioClip - 캐시 등록 + owner 점유
     end
@@ -213,10 +212,13 @@ sequenceDiagram
 "소리가 한 박자 늦게 나는" 문제를 구조적으로 없애는 대신, 호출자에게 prewarm 책임을 지운다.
 
 ```csharp
-// AudioManager.cs:272-289 - 조회 실패는 조용하다. 에디터에서만 시끄럽다.
+// AudioManager.cs:402-419 - 조회 실패는 조용하다. 에디터에서만 시끄럽다.
 private bool _TryGetLoadedClip(string token, out AudioClip clip) {
     if (clipRepository == null) { HLogger.Error("[AudioManager] clipRepository is null."); clip = null; return false; }
     string normalizedToken = _NormalizeToken(token);
+#if UNITY_EDITOR
+    _TrackPreviewToken(normalizedToken);
+#endif
     if (clipRepository.TryGet(normalizedToken, out clip) && clip) return true;
 #if UNITY_EDITOR
     HDebug.StackTraceError($"[AudioManager] Clip not loaded yet. Prewarm required. token={normalizedToken}", 10);
@@ -253,7 +255,7 @@ flowchart TD
 카탈로그 B 가 그 토큰을 붙잡고 있으면 인덱스도 에셋도 살아남는다.
 
 ```csharp
-// Catalog/AudioCatalogRegistry.cs:21-38
+// Catalog/AudioCatalogRegistry.cs:22-39
 sealed class EntrySlot {
     public AudioCatalogSO.Entry Entry { get; private set; }
     public int RefCount { get; private set; }
@@ -271,19 +273,26 @@ sequenceDiagram
     participant AM as AudioManager
     participant REPO as AudioClipRepository
     participant AP as AssetProvider
-    participant GEN as AssetOwnerIdGenerator
+    participant LM as AssetLeashManager
 
     U->>AM: OnDestroy
-    AM->>REPO: ReleaseAll()
-    REPO->>AP: ReleaseOwner(this)
-    AP->>AP: 이 매니저가 점유한 전 key 반납
+    AM->>AM: isDestroyed = true - 이후 prewarm 요청은 경고 후 무시
+    alt 진행 중 prewarm 없음
+        AM->>REPO: ReleaseAll() + Dispose()
+    else 진행 중 prewarm 있음
+        AM->>AM: _DisposeRepositoryAfterPrewarmAsync - 최대 600 프레임 대기
+        AM->>REPO: ReleaseAll() + Dispose()
+    end
+    REPO->>AP: ReleaseOwner(owner)
+    AP->>LM: Reclaim(owner)
+    LM->>LM: 이 매니저가 점유한 전 key 반납
     Note over AP: 마지막 점유였던 key 는 OnAssetRemoved → 로더 핸들 해제로 이어진다
-    Note over AP,GEN: 지문 폐기와 NotifyReleased 는 AssetLeashManager 안에서 일어난다
+    Note over LM: 지문 폐기와 NotifyReleased 는 AssetLeashManager 안에서 일어난다
+    REPO->>AP: Dispose() - 저장소가 만든 기본 provider 일 때만
     AM->>AM: base.OnDestroy - static instance 해제
 ```
 
-카탈로그를 몇 개 붙잡고 있었든 **`OnDestroy` 한 번으로 전부 정리된다.** 개별 `ReleaseCatalog`
-호출을 빠뜨려도 매니저 파괴 시점에 누수가 남지 않는 이유다.
+카탈로그를 몇 개 붙잡고 있었든 **`OnDestroy` 한 번으로 전부 정리된다.** 개별 `ReleaseCatalog` 호출을 빠뜨려도 매니저 파괴 시점에 누수가 남지 않는 이유다. 폐기를 prewarm 완료 뒤로 미루는 이유는, 곧바로 폐기하면 await 중인 prewarm 이 뒤늦게 캐시에 등록돼 로더 핸들이 남기 때문이다 (`AudioManager.cs:132-148`). 600 프레임 안에 끝나지 않으면 경고를 남기고 그대로 폐기한다.
 
 ---
 
@@ -307,7 +316,7 @@ sequenceDiagram
 ```
 
 ```csharp
-// AddOn/SfxAgent.cs:121-127
+// AddOn/SfxAgent.cs:74-80
 private async UniTaskVoid _ReleaseViewsAfterPrewarm() {
     // prewarm 이 in-flight 인 채로 release 가 먼저 실행되면 등록이 뒤늦게 도착해
     // registry refCount 가 영구 잔류한다 - 완료를 기다린 뒤 해제한다.
@@ -325,28 +334,32 @@ private async UniTaskVoid _ReleaseViewsAfterPrewarm() {
 
 ## 재생 채널
 
+모든 재생 API 는 `string token` 과 `int uid` 오버로드를 함께 갖는다 (`StopBGM` / `PlayClick` 제외).
+
 | API | 출력 | 비고 |
 |---|---|---|
 | `Play(token)` | `sfxAudio.PlayOneShot` | 2D 효과음 |
 | `PlayUI(token)` | `uiAudio.PlayOneShot` | UI 효과음 |
 | `PlayClick()` | `PlayUI(기본 클릭 uid)` | 토큰이 아니라 uid 다. `SetGlobalClickUid` 로 지정하고 0 이면 무동작 |
-| `Play3D(token, Transform)` | `AudioSpatialPool.PlayAt` | 부모에 붙여 따라다닌다 |
+| `Play3D(token, Transform)` | `AudioSpatialPool.PlayAt` | 부모를 바꾸지 않고 매 프레임 타깃 위치를 따라간다. 타깃이 파괴되면 마지막 위치에서 끝까지 재생 |
 | `Play3D(token, Vector3)` | `AudioSpatialPool.PlayAt` | 월드 좌표 고정 |
 | `PlayBGM(token, ignoreSameClip)` | `bgmAudio.clip` 교체 후 `Play` | 같은 클립 재생 중이면 기본 무시 |
 | `StopBGM(fadeOut)` | 볼륨 램프 후 `Stop` | `Time.unscaledDeltaTime` 기준 |
 
-`AudioSpatialPool` 은 `ComponentPool<AudioSource>` 위에 얹은 원샷 풀이다. 반납 시점을
-타이머가 아니라 **`isPlaying` 감시**로 잡기 때문에, 외부에서 `Stop` 하거나 씬이 바뀌어도
-소스가 새지 않는다.
+`AudioSpatialPool` 은 `ComponentPool<AudioSource>` 위에 얹은 원샷 풀이다. 반납 시점을 타이머가 아니라 **`isPlaying` 감시**로 잡기 때문에, 외부에서 `Stop` 하거나 씬이 바뀌어도 소스가 새지 않는다. 풀이 파괴되면 취소 토큰이 감시를 끊고, 외부에서 파괴된 소스는 `_Release` 가 반납 대신 장부에서만 지운다.
 
 ```csharp
-// AddOn/AudioSpatialPool.cs:118-129
+// AddOn/AudioSpatialPool.cs:161-170
 try {
     // 종료 감시 : isPlaying 기준, 강제 Stop/씬 전환에도 안전
     await UniTask.WaitUntil(() => !audio || !audio.isPlaying, PlayerLoopTiming.Update, token);
 }
-catch { /* 파괴/취소 시 무시 */ }
-finally { if (audio) audioPool.Return(audio); }
+catch (OperationCanceledException) {
+    // 풀 파괴로 취소. 장부 정리는 finally 가 맡는다.
+}
+finally {
+    _Release(audio);
+}
 ```
 
 ---
@@ -366,19 +379,13 @@ flowchart LR
 
 노출 파라미터 이름(`MasterVolume` / `SFXVolume` / `UIVolume` / `BGMVolume`)은 상수로 고정되어
 있으므로, **AudioMixer 애셋에 같은 이름으로 파라미터를 Expose 해 두어야 한다**
-(`AudioManager.cs:39-42`).
+(`AudioManager.cs:38-41`).
 
 ---
 
 ## 식별자 체계
 
-주 키는 `string token` 이지만 **`int uid` 축도 살아 있다.** 2026-08-05 에 제거된 것은
-`*.Uid.cs` 파일들뿐이고(개수는 이 레포에 삭제 이력이 없어 상류에서 확인), `AudioManager` 의 `int` 오버로드 / `AudioClipRepository._TryBuildLoadKey(int)`
-/ `AudioCatalogRegistry` 의 uid 인덱스는 그대로다. uid 는 `Entry.Uid` 필드에서 오고, 그 값이 0 이면
-token 앞머리에서 파싱한다. 둘이 어긋나면 오류를 남기고 **uid 인덱스에만 등록되지 않는다** -
-token 축은 이미 등록돼 있어 토큰 조회는 정상 동작한다.
-`AudioClips` enum 은 이 모듈에 없다. Enum Generator 가 사용처 어셈블리에 생성하고 원소 값이 곧
-uid 라, 생성된 `Play(this AudioManager, AudioClips)` 확장은 `manager.Play((int)id)` 로 이어진다.
+키는 **`string token` 과 `int uid` 두 축**이다. `AudioManager` 의 `int` 오버로드, `AudioClipRepository._TryBuildLoadKey(int)`, `AudioCatalogRegistry` 의 uid 인덱스가 uid 축이다. uid 축 조회는 `loadKeyByUid` 캐시에 히트하면 문자열을 만지지 않는다 (`AudioClipRepository.cs:195-211`). uid 는 `Entry.Uid` 필드에서 오고, 그 값이 0 이면 token 앞머리에서 파싱한다(경고 로그). 둘이 어긋나거나 token 이 `{uid}_{이름}` 규약을 따르지 않으면 오류를 남기고 **uid 인덱스에만 등록되지 않는다** - token 축은 이미 등록돼 있어 토큰 조회는 정상 동작한다 (`AudioCatalogRegistry._TryResolveUid`). `AudioClips` enum 은 이 모듈에 없다. Enum Generator 가 사용처 어셈블리에 생성하고 원소 값이 곧 uid 라, 생성된 `Play(this AudioManager, AudioClips)` 확장은 `manager.Play((int)id)` 로 이어진다.
 
 ```mermaid
 flowchart LR
@@ -409,6 +416,9 @@ flowchart LR
 | └ `AudioClipEnumPanel` | (Enum Generator 탭) | 카탈로그 → AudioClips enum + 재생 확장 메서드 생성 |
 | `AudioClipDiagnosticsWindow` | HCUP/Audio/Sound Data Diagnostics | **Play Mode 전용.** 토큰별 로드 여부 실시간 확인 |
 | `EditorAudioPreview` | (내부) | `UnityEditor.AudioUtil` 리플렉션 래퍼 - 에디터 미리듣기 |
+| `AudioAuthoringSettingsSO` | Create > HCUP/Audio/Audio Authoring Settings | enum 생성 대상 카탈로그 목록, 출력 폴더·네임스페이스·타입명. 출력 폴더 기본값이 없다 |
+| `AudioClipEnumGenerator` | (내부) | `{타입명}` enum 과 `{타입명}PlayExtensions.g.cs` 재생 확장을 쓴다 |
+| `AudioClipDropdownSource` | (내부) | `[HDropdown(AudioCatalogSO.DROPDOWN_SOURCE_ID)]` 항목 공급자. 라벨은 `{Major}/{token}`, 값은 uid |
 
 진단 창은 `AudioManager.CreateSnapshot()`(`AudioManager.Preview.cs`)이 만든
 `AudioClipManagerSnapshot` 을 표시한다. 토큰을 올리는 경로는 `string` 오버로드와 카탈로그 단위
@@ -457,30 +467,21 @@ AudioManager.Instance.ReleaseCatalog(uiCatalog);
 
 ### 정리 대상
 
-5. **`bgmAltAudio` 는 직렬화만 되고 사용처가 없다** (`AudioManager` 필드 선언, 전역 grep 0건).
-   크로스페이드용으로 예약된 슬롯으로 보이나(추론) 현재 코드에는 그 경로가 없다.
-6. **`AudioCatalogSO.BuildAddressableLoadKey` 는 호출처가 없다.**
-   `AudioClipRepository._ResolveAddressableLoadKey` 가 같은 로직을 자체 구현한다 - 둘 중 하나로 모아야 한다.
-7. ~~상위 폴더 `HAudio/README.md` 는 낡았다.~~ -> 2026-09-07 해소. 그 문서의 IMPORTANT 블록이
-   현행 구조를 서술하도록 갱신됐다.
+5. **`bgmAltAudio` 는 직렬화만 되고 이 패키지 코드는 그 필드를 읽지 않는다** (`AudioManager.cs:87`). private 필드라 외부에서도 쓸 수 없다. 크로스페이드용으로 예약된 슬롯으로 보이나(추론) 그 경로가 없다.
+6. **`AudioClipRepository` 는 `AudioCatalogSO.BuildAddressableLoadKey` 를 쓰지 않는다.** `_ResolveAddressableLoadKey` 가 같은 로직을 자체 구현한다(이쪽은 Trim 을 더한다) - 둘 중 하나로 모아야 한다.
 
 ### 진단이 릴리즈에서 사라지는 지점
 
-8. `AudioCatalogRegistry` 는 `UnityEngine.Assertions.Assert` 를 광범위하게 쓴다.
+7. `AudioCatalogRegistry` 는 `UnityEngine.Assertions.Assert` 를 광범위하게 쓴다.
    Assert 는 릴리즈에서 제거되므로, 그 뒤의 런타임 가드
    (`if (!catalog) return 0;`)가 실제 방어선이다. 다만 **`_RegisterEntry` 의 "빈 토큰" 검사에는
    런타임 가드가 없어**, 토큰이 비어 있으면 빈 문자열 키로 인덱스에 들어간다.
    조회 측(`TryGetEntry`)이 빈 토큰을 거르므로 실피해는 없고 쓰레기 항목만 남는다.
 
-### 2026-08-05 `*.Uid.cs` 제거로 바뀐 동작
+### 저작
 
-> 아래 번호는 위 "진단이 릴리즈에서 사라지는 지점" 절의 8번 다음을 잇는다.
-
-9. **생성기의 파일명 제약이 사라졌다.** 종전에는 `{uid}_{이름}.wav` 형식만 발굴 대상이었다
-   (`_TryParseUid` 가 실패하면 스킵). 이제 루트 아래 **모든 `AudioClip`** 이 대상이 된다.
-   token 규칙(`파일명에서 확장자 제거`)은 그대로이므로 기존 파일의 token 값은 변하지 않는다.
-10. `AudioCatalogPolicySO` 의 `UidRange` / `TryGetUidRange` / `OnValidate` 가 제거됐다.
-    기존 정책 에셋의 `uidRanges` YAML 블록은 읽히지 않고 남는다 - 에셋을 한 번 저장하면 정리된다.
+8. **생성기는 루트 아래 모든 `AudioClip` 을 발굴하지만 uid 는 파일명 규약에서만 나온다.** token 은 파일명에서 확장자를 뗀 값이고, `EditorAddEntry` 가 그 token 의 `{uid}_{이름}` 접두를 파싱해 `Entry.Uid` 를 채운다. 규약을 어긴 파일명은 오류 로그를 남기고 uid 가 0 으로 남아, 그 Entry 는 token 축으로만 조회된다 (`AudioCatalogSO.EditorAddEntry`).
+9. **카탈로그 창의 Update(clip 에서 token/path 역산)는 uid 를 다시 채우지 않는다** (`AudioCatalogSO.EditorUpdateTokenAndPathFromClips`). 파일명의 uid 접두가 바뀐 클립에 적용하면 필드와 token 이 어긋나, 레지스트리가 등록 시 오류를 남기고 uid 인덱스에서 뺀다. 카탈로그를 생성기로 다시 만들면 맞춰진다.
 
 ---
 
@@ -493,3 +494,17 @@ AudioManager.Instance.ReleaseCatalog(uiCatalog);
 | 카탈로그 자동 생성 규칙 변경 | `AudioCatalogPolicySO` 의 `FolderMidMapping` + 생성기의 `_InferMajor` |
 | 3D 재생 기본값 (감쇠·거리) | `AudioSpatialPool` 의 `[HTitle("3D Audio Settings")]` 필드군 |
 | 클릭음 정책 | `BaseSfxAddon` 상속 후 `_HandleClick` 오버라이드 |
+
+---
+
+## 히스토리
+
+### 2026-09-07 :: 상위 `HAudio/README.md` 갱신
+
+- 이전: 상위 폴더 README 가 `Runtime/New` / `Runtime/Legacy` 구조를 서술해 낡아 있었고, 이 문서의 "정리 대상" 에 항목으로 올라 있었다.
+- 현재: 상위 README 의 IMPORTANT 블록이 현행 구조를 서술하도록 갱신돼 항목을 닫았다.
+
+### 2026-08-05 :: `*.Uid.cs` 제거로 바뀐 동작
+
+- 이전: uid 축 코드가 `*.Uid.cs` 파일들로 분리돼 있었다 (개수는 이 저장소에 삭제 이력이 없어 상류에서 확인). 생성기는 `{uid}_{이름}.wav` 형식 파일만 발굴했다 (`_TryParseUid` 가 실패하면 스킵). `AudioCatalogPolicySO` 에 `UidRange` / `TryGetUidRange` / `OnValidate` 가 있었다.
+- 현재: `*.Uid.cs` 파일은 없고 uid 축은 본 파일들 안에 남아 있다. 생성기는 루트 아래 모든 `AudioClip` 을 발굴한다. token 규칙(파일명에서 확장자 제거)은 그대로라 기존 파일의 token 값은 변하지 않는다. 정책 SO 의 uid 범위 API 는 제거됐고, 기존 정책 에셋의 `uidRanges` YAML 블록은 읽히지 않고 남는다 - 에셋을 한 번 저장하면 정리된다.
