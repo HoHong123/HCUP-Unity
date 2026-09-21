@@ -49,22 +49,26 @@
 
 | 항목 | 비고 |
 |---|---|
-| Unity | 이 프로젝트 기준 6000.3.18f1 |
+| Unity | 최소 2021.3 (두 `package.json` 의 `unity` 필드). 6000.3 에서 개발·검증 |
 | Addressables / UniTask | `HcupLocalization` 의 테이블 로드 |
 | Unity Localization | `HUnityLocalization` 두 어셈블리 모두. 없으면 심볼이 정의되지 않아 양쪽이 컴파일 대상에서 빠진다 |
-| NPOI | `HUnityLocalization` 이 `HExcel` 을 경유하므로 간접 필요 |
+| NPOI | `HUnityLocalization.Editor` 가 `HExcel` 을 경유하므로 간접 필요 |
 
 ---
 
 ## 주의할 점
 
-1. **`LocalizationManager.InitializeAsync` 를 두 번 부르면 provider 가 샌다.** 가드 없이
-   `AssetProviderFactory.CreateAddressable` 을 다시 호출해, 이전 provider 가 점유한 에셋이
-   반납 없이 참조를 잃는다.
-2. **`OnDestroy` 가 무조건 `HTextLocalizer.GetText = null` 을 실행한다.** `SingletonBehaviour`
-   의 중복 인스턴스 파괴 경로에서도 실행되면, 살아 있는 본 인스턴스의 델리게이트가 끊긴다.
-   `instance != this` 가드가 필요한 자리다.
-3. **`HCUP_UNITY_LOCALIZATION` 을 정의하지 않으면 `HUnityLocalization` 은 존재하지 않는 것과 같다.**
+1. **`HCUP_UNITY_LOCALIZATION` 을 정의하지 않으면 `HUnityLocalization` 은 존재하지 않는 것과 같다.**
    임포터가 동작하지 않는데 원인을 못 찾는 경우 여기부터 확인한다.
+2. **두 매니저는 PlayerPrefs 키가 다르다.** `LocalizationManager` 는 `LocalizationManager.Language`, `UnityLocalizationManager` 는 `UnityLocalizationManager.Language` 에 저장한다. 갈래를 바꾸면 저장된 언어 선택이 이어지지 않는다.
 
-근거 라인은 각 어셈블리 README 의 "정리 대상" 절에 있다.
+근거 라인은 각 어셈블리 README 의 "주의할 점" 절에 있다.
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: `LocalizationManager` 재호출 누수·중복 인스턴스 파괴 오염 수정
+
+- 이전: 이 카드의 "주의할 점" 에 두 결함이 있었다. `InitializeAsync` 를 두 번 부르면 이전 provider 가 점유한 에셋이 반납 없이 참조를 잃었고, `OnDestroy` 가 중복 인스턴스 파괴 경로에서도 `HTextLocalizer.GetText = null` 을 실행해 본 인스턴스의 델리게이트를 끊었다.
+- 현재: `InitializeAsync` 는 provider 재생성 전에 기존 provider 를 `Dispose` 하고, `OnDestroy` 는 `instance == this` 인 소유자일 때만 델리게이트와 provider 를 정리한다.
