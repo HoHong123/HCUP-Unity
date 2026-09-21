@@ -1,4 +1,4 @@
-# HCore — 패키지 카드
+# HCore - 패키지 카드
 
 > 모듈: `HCore/` · 소스 17파일 · `package.json` 없음 (저장소 통째 사용)
 > 구성 어셈블리 1개
@@ -27,7 +27,7 @@
 
 | asmdef | 범위 | 소스 | 참조 |
 |---|---|---|---|
-| `HCUP.HCore` | Runtime | 17 | `HCUP.HData`, `HCUP.HDiagnosis`, `HCUP.HInspector`, `HCUP.HUtil`, `UniTask`, `UniTask.Addressables`, `Unity.Addressables`, `Unity.ResourceManager` |
+| `HCUP.HCore` | Runtime | 17 | `HCUP.HData`, `HCUP.HDiagnosis`, `HCUP.HInspector`, `UniTask` |
 
 동반 Editor 어셈블리는 없다.
 
@@ -35,14 +35,13 @@
 
 ## 설치 · 요구 사항
 
-저장소를 통째로 가져다 쓴다 — 이 모듈에는 `package.json` 이 없어 개별 UPM 설치 대상이 아니다
+저장소를 통째로 가져다 쓴다 - 이 모듈에는 `package.json` 이 없어 개별 UPM 설치 대상이 아니다
 ([루트 README 의 설치 절](../README.md#설치) 참조).
 
 | 항목 | 비고 |
 |---|---|
-| Unity | 이 프로젝트 기준 6000.3.18f1 |
+| Unity | 6000.3 에서 개발·검증 |
 | UniTask | 씬 로드의 비동기 흐름 |
-| Addressables / ResourceManager | **asmdef 에는 있으나 코드 근거가 없다** — 아래 참조 |
 | Odin Inspector | 선택. 정의 시 `SingletonBehaviour` 의 base 가 `SerializedMonoBehaviour` 로 바뀐다 |
 
 ---
@@ -65,15 +64,16 @@
 
 ## 주의할 점
 
-1. **asmdef 참조 4건이 코드 근거 0건이다** — `Unity.Addressables`, `Unity.ResourceManager`,
-   `UniTask.Addressables`, `HCUP.HUtil`. `HCore` 를 참조하는 모든 어셈블리에 Addressables
-   의존이 전파된다.
-2. **`Scene/Demo/` 가 런타임 asmdef 안에 있다.** `SceneTester.cs`(전역 네임스페이스)와 테스트 씬
-   3개가 플레이어 빌드에 포함된다.
-3. **`HServiceLocator` 는 호출처가 0건이다.** 채택할지 제거할지 결정이 필요하다.
-4. **`ReloadActiveSceneAsync` 가 in-flight 가드보다 먼저 `Time.timeScale = 1f` 를 대입한다.**
-   거부된 요청도 배속을 초기화한다.
-5. **`SceneCatalogSO` 만 `UnityEngine.Debug.LogError` 를 직접 쓴다.** `HLogger.OnLogPublished`
-   를 타지 않아 인게임 콘솔에 잡히지 않는다.
+1. **`Scene/Demo/` 가 런타임 asmdef 폴더 안에 있다.** `SceneTester.cs`(전역 네임스페이스)는 파일 전체가 `#if UNITY_EDITOR` 로 가드돼 빌드 컴파일에서 빠진다. 테스트 씬 3개(`Test1~3.unity`)와 `TestScenes.asset` 은 같은 폴더에 남아 있다.
+2. **`CooldownTimer` / `DateChecker` / `TimeUtil` 의 네임스페이스는 `HCore.HTime` 이다.** 폴더명 `Time` 과 다르고, `HCore` 만 `using` 하면 보이지 않는다.
 
 근거 라인은 [Runtime README](Runtime/README.md) 의 "정리 대상" 절에 있다.
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: asmdef 미사용 참조 제거와 감사 지적 해소
+
+- 이전: `HCUP.HCore.asmdef` 가 코드 근거 없는 참조 4건(`Unity.Addressables`, `Unity.ResourceManager`, `UniTask.Addressables`, `HCUP.HUtil`)을 들고 있어, `HCore` 를 참조하는 모든 어셈블리에 Addressables 의존이 전파됐다. `SceneLoader.ReloadActiveSceneAsync` 는 in-flight 가드보다 먼저 `Time.timeScale = 1f` 를 대입해 거부된 요청도 배속을 초기화했다. `SceneCatalogSO` 는 `UnityEngine.Debug.LogError` 를 직접 써서 `HLogger.OnLogPublished` 를 타지 않았다. `Scene/Demo/SceneTester.cs` 는 가드 없이 런타임 asmdef 에 포함돼 플레이어 빌드에 실렸다.
+- 현재: asmdef 참조는 `HCUP.HData` / `HCUP.HDiagnosis` / `HCUP.HInspector` / `UniTask` 넷이다. `ReloadActiveSceneAsync` 는 `isLoading` 검사를 `timeScale` 보정보다 앞에 둔다. `SceneCatalogSO` 의 진단 로그는 `HLogger.Error` 경유다. `SceneTester.cs` 는 파일 전체가 `#if UNITY_EDITOR` 가드 안에 있다.
