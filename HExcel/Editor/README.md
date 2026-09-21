@@ -2,8 +2,6 @@
 
 > 어셈블리: `HCUP.HExcel.Editor` (`Editor/HCUP.HExcel.asmdef` - **파일명과 어셈블리명이 다름**, rootNamespace `HExcel`)
 > 의존: `HCUP.HcupLocalization`, `HCUP.HInspector.Editor`, GUID 참조 4건(아래 표) / `includePlatforms: ["Editor"]`
-> 동반 어셈블리: `HCUP.HExcel.Tests`([`Tests/README.md`](Tests/README.md))
-
 ---
 
 ## 요약
@@ -294,7 +292,6 @@ private void _CallMethod(string methodName) {
 | `"GetPreviewHeaders"` / `"GetPreviewRows"` | `ExcelLoader` internal | 미리보기 갱신 |
 | `"excelFileAsset"` / `"sheetName"` / `"dataOutputPath"` | `SerializedProperty` | `FindProperty` |
 | `"Instance"` (static, `FlattenHierarchy`) | `AssetDatabaseInstance<T>.Instance` | `DataEditorWindow._BuildEntries` |
-| `"sheetName"` / `"GetSheet"` | 〃 | `HCUP.HExcel.Tests` 도 같은 우회를 쓴다 |
 
 **이 문자열들은 컴파일러가 검증하지 않는다.** 필드·메서드 리네임이 무음 실패로 이어진다 -
 `?.Invoke` 가 null 을 흘려보내 버튼이 아무 일도 하지 않는 형태로 나타난다.
@@ -343,8 +340,7 @@ public class EquipmentTableLoader : ExcelLoader<EquipmentTableLoader> {
 2. **`ExcelToJson` 은 빈 셀을 JSON 에서 생략한다** (`:167-168`). 소비 측은 항상
    `row["key"]?.Value<T>() ?? 기본값` 형태로 읽어야 한다.
 3. **`cell.ToString()` 결과가 값이다.** NPOI 수치 셀의 `ToString()` 은 서식에 따라 편차가
-   있으므로, 테스트는 모든 셀을 문자열로 저장해 이를 회피한다
-   (`Tests/ExcelLoaderTests.cs:164`).
+   있으므로, 값이 서식에 흔들리지 않게 하려면 원본 엑셀에서 셀을 문자열 형식으로 저장한다.
 4. **`AssetDatabaseInstance.Instance` 는 타입당 첫 에셋 하나만 잡는다.**
    `FindAssets($"t:{typeof(T).Name}").FirstOrDefault()` (`AssetDatabaseInstance.cs:63`).
    같은 타입 에셋이 둘 이상이면 어느 쪽이 잡힐지 정의되지 않는다.
