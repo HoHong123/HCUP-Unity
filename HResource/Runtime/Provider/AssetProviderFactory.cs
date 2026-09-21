@@ -49,7 +49,7 @@ namespace HResource.Provider {
         }
 
         /// <summary>
-        /// 로더를 직접 고르는 조합. 한 provider 는 한 소스만 담는다.
+        /// 로더를 직접 고르는 조합. 규칙을 직접 넘기지 않는 한 한 provider 는 한 소스만 담는다.
         /// keyNormalizer 를 넘기지 않으면 로더의 LoadMode 로 정한다. Resources 면 ResourcesKeyNormalizer(rootPath 없음),
         /// Addressable 이면 TrimKeyNormalizer, 둘이 섞이면 ArgumentException. 규칙을 직접 넘기면 그 선택을 따른다.
         /// </summary>
@@ -108,6 +108,13 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-22 (검증) :: 규칙 추론 변경의 실행 기록
+ *
+ * 변경 ::
+ * 코드 변경 없음. 아래 (수정) 항목은 HCUP.HResource.Tests 30/30 (2026-09-21 15:31 UTC) 을 통과했고, 기본 규칙을 Trim 으로
+ * 되돌린 돌연변이에서 AssetProviderFactoryTests 두 건이 모두 실패했다. 상세는 AssetProviderFactoryTests.cs Dev Log.
+ *
  * =========================================================
  * 2026-09-22 (수정) :: Create 의 기본 key 규칙을 로더에서 알아내고 두 소스 혼합을 거부
  *
