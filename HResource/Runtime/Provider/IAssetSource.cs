@@ -31,6 +31,7 @@ using UnityEngine;
  * Leash 는 null 을 돌려준다. 두 경우 모두 HLogger.Error 로 원인을 남긴다.
  * 즉 teardown 도중의 획득은 실패할 수 있다. 자산은 파괴 전에 확보할 것.
  * Dispose 는 provider 자체 폐기다. 소유자 단위 반납은 ReleaseOwner 나 ICSharpAssetLeash.Dispose 다.
+ * ClearCache 는 에디터 · 개발 빌드 전용 디버그 도구다. 정식 빌드 코드에서 부르면 컴파일되지 않는다.
  *
  * 유일한 사각 :: Destroy(component)
  * 프로브는 GameObject 파괴만 본다. Destroy(gameObject) 는 잡지만, Destroy(component) 로
@@ -65,7 +66,14 @@ namespace HResource.Provider {
 
         #region Owner Independent
         bool TryGet(TKey key, out TAsset asset);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>
+        /// 디버그 · 테스트용 강제 초기화. 소유자와 무관하게 모든 점유를 지우고 로더 핸들까지 반납한다.
+        /// 살아있는 소유자는 반납된 에셋을 들게 된다. 정식 빌드에는 없다.
+        /// </summary>
         void ClearCache();
+#endif
 
         /// <summary> 소유자를 잃은 점유의 수동 일괄 회수. 반환값은 회수한 key 수. 자동 경로 없음 </summary>
         int ReclaimOrphans();
@@ -77,6 +85,22 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: ClearCache 를 에디터 · 개발 빌드 전용으로 제한
+ *
+ * 변경 ::
+ * ClearCache 선언을 #if UNITY_EDITOR || DEVELOPMENT_BUILD 로 감싸고 XML 주석에 위험을 적었다.
+ *
+ * 이유 ::
+ * 리뷰 지적. ClearCache 는 소유자 집합을 보지 않고 캐시를 비워 로더 핸들까지 반납한다. 살아있는
+ * 소유자가 반납된 에셋을 든다. 사용자가 의도를 "디버그 · 테스트 도구" 로 정했다.
+ *
+ * 결과 ::
+ * 정식 빌드에서 이 멤버가 사라진다. 2026-09-21 기준 런타임 호출처는 HCUP · DesktopForest 모두 0건이다.
+ *
+ * 주의 ::
+ * 구현(AssetProvider.ClearCache)도 같은 조건으로 감쌌다. 한쪽만 감싸면 정식 빌드에서 계약 불일치로 컴파일이 깨진다.
+ *
  * =========================================================
  * 2026-09-08 (수정) :: Leash 반납 규격을 의무형으로 명시
  *
