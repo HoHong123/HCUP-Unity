@@ -21,9 +21,7 @@ HDialogue 는 **노드 그래프로 저작된 대화를 런타임에 순회해 �
 2. **분기 결과는 `string hubKey` 하나로 표현한다.** 단순 노드는 `null`, `HubNode` 파생
    (Choice/Branch)은 선택된 포트 키를 반환한다. 루프는 두 경우를 같은 시그니처로 다룬다
    (`DialogueDirector.cs:208-240`).
-3. **비정상 종료도 반드시 `OnCatalogExit` 를 발행한다.** 실패 경로는 전부 `_FinishWithError`
-   한 곳으로 모이고, exitKey `"Error"` 로 종료를 알린다 (`DialogueDirector.cs:547-553`).
-   이 규약이 없으면 대화 UI 가 열린 채 좀비 상태로 남는다.
+3. **비정상 종료도 반드시 `OnCatalogExit` 를 발행한다.** 실패 경로는 전부 `_FinishWithError` 한 곳으로 모이고, exitKey `"Error"` 로 종료를 알린다 (`DialogueDirector.cs:558-564`). 이 규약이 없으면 대화 UI 가 열린 채 좀비 상태로 남는다.
 
 텍스트 표시·포트레이트·오디오는 **디렉터가 이벤트로 밀어내고 각 컨트롤러가 받는** 단방향
 구조다. 컨트롤러 쪽에서 디렉터를 역참조하는 경로는 없다.
@@ -195,9 +193,7 @@ flowchart TD
     MGR --> IS
 ```
 
-`DialogueChoiceNode` 와 `DialogueBranchNode` 만 `HubNode` 를 상속한다. 나머지 7종은
-`BaseNode` 직속이고 출구 엣지가 하나뿐이다 - 이 상속 차이가 곧 `_ResolveNextNode` 의
-두 갈래다 (`DialogueDirector.cs:249-275`).
+`DialogueChoiceNode` 와 `DialogueBranchNode` 만 `HubNode` 를 상속한다. 나머지 7종은 `BaseNode` 직속이고 출구 엣지가 하나뿐이다. 이 상속 차이가 곧 `_ResolveNextNode` 의 두 갈래다 (`DialogueDirector.cs:249-280`).
 
 ---
 
@@ -207,7 +203,7 @@ flowchart TD
 대화 도메인 값은 자체 필드로 갖는다.
 
 ```csharp
-// Graph/DialogueCatalogSO.cs:30-56
+// Graph/DialogueCatalogSO.cs:30-64 (요약)
 public sealed class DialogueCatalogSO : NodeCatalogSO {
     [SerializeField] DialogueCatalogTag catalogTag = DialogueCatalogTag.Normal; // Cutscene 이면 자동 진행
     [SerializeField] string bgmKey;              // DialogueAudioController 가 소비
@@ -220,9 +216,7 @@ public sealed class DialogueCatalogSO : NodeCatalogSO {
 }
 ```
 
-**라인 텍스트는 카탈로그에 없다.** `DialogueLineNode` 는 `localizationUID` 만 갖고,
-런타임에 `HTextLocalizer.GetText` 로 해석된다. 로컬라이저가 없으면 UID 문자열이 그대로
-표시된다 (`DialogueDirector.cs:520`).
+**라인 텍스트는 카탈로그에 없다.** `DialogueLineNode` 는 `localizationUID` 만 갖고, 런타임에 `HTextLocalizer.GetText` 로 해석된다. 로컬라이저가 없으면 UID 문자열이 그대로 표시된다 (`DialogueDirector.cs:531`).
 
 ```mermaid
 flowchart LR
@@ -252,14 +246,14 @@ sequenceDiagram
     M->>M: _ValidateRefs - director / textController / uiController
     Note over M: 셋 중 하나라도 null 이면 Error 로그 후 배선 전체 스킵
     M->>SD: Bind(defaultRegistry, defaultLayout, textController)
+    Note over M,SD: stageDirector·defaultRegistry·defaultLayout 이 모두 있을 때만
     M->>D: Bind(textController, variableContext)
     M->>AC: Bind(director)
     M->>HC: Bind(director)
     M->>M: _SubscribeUiEvents / _SubscribeInputEvents / _SubscribeDirectorEvents
 ```
 
-`_ValidateRefs` 가 false 를 반환하면 `_Bind` 이하가 전부 건너뛰어진다
-(`DialogueManager.cs:120-128`). 자세한 계약은 [`Controller.md`](../docs/Controller.md) 에 있다.
+`_ValidateRefs` 가 false 를 반환하면 `_Bind` 이하가 전부 건너뛰어진다 (`DialogueManager.cs:122-130`). 자세한 계약은 [`Controller.md`](../docs/Controller.md) 에 있다.
 
 ---
 
@@ -336,10 +330,7 @@ sequenceDiagram
     TC-->>D: OnLineComplete
 ```
 
-**인라인 `<event=...>` 태그의 수신자는 `CharacterStageDirector` 뿐이다**
-(`CharacterStageDirector.cs:89-92`). `DialogueDirector.OnEventFired` 는 그래프의
-`DialogueEventNode` 에서만 발행되므로(`DialogueDirector.cs:428`), 인라인 태그와 그래프
-이벤트는 서로 다른 경로다. 자세한 것은 [`Audio.md`](../docs/Audio.md) 의 "정리 대상" 절에 있다.
+**패키지 안에서 인라인 `<event=...>` 태그를 받는 것은 `CharacterStageDirector` 뿐이다** (`CharacterStageDirector.cs:99-103` 의 `Bind` 에서 구독). `DialogueDirector.OnEventFired` 는 그래프의 `DialogueEventNode` 에서만 발행되므로(`DialogueDirector.cs:439`), 인라인 태그와 그래프 이벤트는 서로 다른 경로다. 자세한 것은 [`Audio.md`](../docs/Audio.md) 의 "정리 대상" 절에 있다.
 
 ---
 
@@ -373,66 +364,29 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
 
 ### 계약
 
-1. **`OnCatalogExit` 는 종료마다 정확히 한 번이다.** 정상 종료(`ExitNode`)·실패 종료
-   (`_FinishWithError`)·강제 중단(`Stop`)·교체(`PlayCatalog` 재호출) 네 경로 모두 발행하되,
-   이미 `Finished` 상태면 재발행하지 않는다 (`DialogueDirector.cs:555-566`). 보상 지급처럼
-   멱등하지 않은 구독자를 붙여도 안전하다.
-2. **`DialogueManager` 의 공개 API 는 `director` null 을 가정하지 않는다.**
-   `PlayCatalog` / `Stop` / `IsSkipping` / `AutoAdvanceDelay` 는 `director` 를 무조건
-   역참조한다 (`DialogueManager.cs:149`, `:181`, `:108`, `:112`). `_ValidateRefs` 실패
-   상태에서 호출하면 `NullReferenceException` 이다.
+1. **`OnCatalogExit` 는 종료마다 정확히 한 번이다.** 정상 종료(`ExitNode`)·실패 종료(`_FinishWithError`)·강제 중단(`Stop`)·교체(`PlayCatalog` 재호출) 네 경로 모두 발행하되, 이미 `Finished` 상태면 재발행하지 않는다 (`DialogueDirector.cs:558-577`). 보상 지급처럼 멱등하지 않은 구독자를 붙여도 안전하다.
+2. **`DialogueManager` 의 공개 API 는 `director` 누락을 스스로 막는다.** `PlayCatalog` / `Stop` 은 `director` 가 null 이면 `HLogger.Error` 후 반환하고 (`DialogueManager.cs:149-152`, `:187-190`), `IsSkipping` / `AutoAdvanceDelay` 는 `false` / `-1` 을 돌려준다 (`:108-115`). `_ValidateRefs` 가 실패해도 인스턴스는 씬에 남아 있으므로 외부 코드가 계속 호출할 수 있다.
 3. **인라인 `<event=...>` 와 `DialogueEventNode` 는 다른 채널이다.** 전자는
    `CharacterStageDirector` 만 받고, 후자는 `DialogueDirector.OnEventFired` 로만 나간다.
    인라인 태그로 SFX 를 울릴 수는 없다 - [`Audio.md`](../docs/Audio.md) 참조.
 4. **`Play` 계열 오디오는 prewarm 을 요구한다.** HDialogue 는 토큰만 넘기고 로드하지
    않는다. `AudioManager.PrewarmCatalog` 는 게임 코드 책임이다.
-5. **스프라이트는 `CharacterStageDirector` 가 소유한다.** `Awake` 에서 Addressable
-   provider 를 만들고 `OnDestroy` 에서 `ReleaseAll` 한다
-   (`CharacterStageDirector.cs:70`, `:77`). 개별 포트레이트는 반납하지 않는다.
+5. **스프라이트는 `CharacterStageDirector` 가 소유한다.** `Awake` 에서 `AssetProviderFactory.CreateAddressable<Sprite>()` 로 provider 를 만들고 `OnDestroy` 에서 `Dispose` 한다 (`CharacterStageDirector.cs:75`, `:87`). `Dispose` 가 `ReleaseAll` 을 먼저 수행한다. 개별 포트레이트는 `BindProvider` 로 같은 provider 를 받지만 소유자가 아니므로 반납하지 않는다.
 
 ### 정리 대상
 
-6. **`DialogueUiController` 의 텍스트 슬롯 3종 중 `dialogueContentText` 는 런타임에 쓰이지
-   않는다.** `ShowDialogueContent`(`:87`) / `SetPlayButtonInteractable`(`:95`) /
-   `DialogueContentText`(`:124`) 전부 호출처 0건(패키지 전역 grep). 실제 대사는
-   `DialogueTextController.tmpText` 가 그린다 - 두 슬롯을 같은 오브젝트에 물려야 하는
-   암묵 규칙이 남아 있다.
-7. **호출처 0건 공개 API 목록** (패키지 전역 grep, 주석 제외):
-   `DialogueTextController.Clear` / `Pause` / `Resume` / `SetSpeedMode` / `SetHoldAccelerate`
-   / `IsTyping` / `IsWaiting` / `OnLineStart` / `OnCharPrinted`,
-   `DialogueDirector.CurrentNode`,
-   `CharacterStageDirector.OnCharacterEntered` / `OnCharacterExited` / `OnPoseChanged`,
-   `CharacterPortraitController.CurrentFacing` / `CurrentSlot` / `IsVisible`,
-   `CharacterPortraitSetSO.Poses` / `PivotOffset`, `CharacterRegistrySO.Characters`,
-   `DialogueLine.Simple`. 외부 게임 코드용 확장점인 것과 순수 사문(死文)인 것이 섞여 있다.
-8. **`CharacterPortraitSetSO.pivotOffset` 은 읽는 코드가 없다** (`:41`, `:51`).
-   슬롯 기준 보정은 `PortraitPose.PoseOffset` 이 담당한다
-   (`CharacterPortraitController.cs:338`) - 필드가 중복 설계로 남았다.
-9. **`PortraitTransitionType.SlideIn` / `Scale` 은 팩토리만 있고 처리 분기가 없다.**
-   `PortraitTransition.SlideIn`(`:36`) / `Scale`(`:46`) 은 타입만 채우고,
-   `CharacterPortraitController` 의 분기는 `Instant` / `Crossfade` / 그 외(=Fade) 셋뿐이다
-   (`:134`, `:219`). 두 타입을 지정하면 Fade 로 동작한다.
-10. **`PortraitPoseType.Sequence` 는 코드 전역에서 참조되지 않는다** (grep 0건).
-    `_ApplyPoseImmediate` 는 `Static` / `Animated` 만 처리하고 `Sequence` 는 무동작이다
-    (`CharacterPortraitController.cs:328-340`).
-11. **`DialogueWaitNode.conditionKey` 는 런타임이 읽지 않는다.** `WaitMode.Condition` 은
-    키와 무관한 전역 신호 `NotifyWaitConditionMet()` 로만 풀린다
-    (`DialogueDirector.cs:483-497`). 이 필드는 에디터 노드 뷰 표시에만 쓰인다
-    (`HGraphDialogueWaitNode.cs:32`).
-12. **`DialogueTokenType.Sfx` 는 파서·검증기까지만 살아 있고 런타임은 no-op 이다**
-    (`DialogueTextController.cs:238-239`). 검증기가 이를 경고로 명시한다
-    (`DialogueTextValidator.cs:104-105`).
+6. **`DialogueUiController` 의 `dialogueContentText` 슬롯은 패키지 흐름에서 채워지지 않는다.** `DialogueManager` 는 `ShowDialogueContent`(`:87`) / `SetPlayButtonInteractable`(`:95`) 를 호출하지 않고, 실제 대사는 `DialogueTextController.tmpText` 가 그린다. 두 슬롯을 같은 오브젝트에 물려야 하는 암묵 규칙이 남아 있다.
+7. **`CharacterPortraitSetSO.pivotOffset` 을 적용하는 코드가 없다** (`:41`, 프로퍼티 `:51`). 포트레이트 위치는 `AnchorPos + currentPoseOffset + motionOffset` 이고 슬롯 기준 보정은 `PortraitPose.PoseOffset` 이 담당한다 (`CharacterPortraitController.cs:328`, `:341`). 필드가 중복 설계로 남았다.
+8. **`PortraitTransitionType.SlideIn` / `Scale` 은 팩토리만 있고 처리 분기가 없다.** `PortraitTransition.SlideIn`(`:36`) / `Scale`(`:46`) 은 타입만 채운다. `CharacterPortraitController` 는 `Show` / `Hide` 에서 `Instant` 가 아니면 알파 페이드로(`:160`, `:184`), `SetPose` 에서 `Crossfade` 가 아니면 즉시 교체로(`:137`, `:222`) 처리한다. 두 타입을 지정하면 등퇴장은 Fade, 포즈 전환은 즉시 교체로 동작한다.
+9. **`PortraitPoseType.Sequence` 를 처리하는 분기가 없다.** `_ApplyPoseImmediate` 는 `Static` / `Animated` 만 처리하고 `Sequence` 는 무동작이다 (`CharacterPortraitController.cs:331-343`).
+10. **`DialogueWaitNode.conditionKey` 는 런타임이 읽지 않는다.** `WaitMode.Condition` 은 키와 무관한 전역 신호 `NotifyWaitConditionMet()` 로만 풀린다 (`DialogueDirector.cs:166-172`, `:494-508`). 이 필드는 에디터 노드 뷰 표시에만 쓰인다 (`HGraphDialogueWaitNode.cs:32`).
+11. **`DialogueTokenType.Sfx` 는 파서·검증기까지만 살아 있고 런타임은 no-op 이다** (`DialogueTextController.cs:240-241`). 검증기가 이를 경고로 명시한다 (`DialogueTextValidator.cs:104-105`).
 
 ### 진단이 릴리즈에서 사라지는 지점
 
-13. `DialogueTextController.Awake` 의 `tmpText` 검사는 `Debug.Assert` 다
-    (`:79`). Assert 는 릴리즈 빌드에서 제거되므로, 배선 누락은 릴리즈에서 조용히
-    `tmpText == null` 가드로 흡수되어 **글자가 한 자도 안 나오는 무증상 실패**가 된다.
-    같은 패키지의 `CharacterStageDirector.Awake`(`:67-69`)와
-    `DialogueManager._ValidateRefs`(`:189-203`)는 `HLogger.Error` 를 쓴다 - 기준이 갈린다.
+12. `DialogueTextController.Awake` 의 `tmpText` 검사는 `Debug.Assert` 다 (`:79`). Assert 는 릴리즈 빌드에서 제거되므로, 배선 누락은 릴리즈에서 조용히 `tmpText == null` 가드로 흡수되어 **글자가 한 자도 안 나오는 무증상 실패**가 된다. 같은 패키지의 `CharacterStageDirector.Awake`(`:72-74`)와 `DialogueManager._ValidateRefs`(`:199-213`)는 `HLogger.Error` 를 쓴다. 기준이 갈린다.
 
 ---
-
 ## 확장 지점
 
 | 하고 싶은 것 | 손댈 곳 |
@@ -445,3 +399,17 @@ DialogueManager.Instance.Director.NotifyWaitConditionMet();
 | 포트레이트 트랜지션 추가 | `PortraitTransitionType` + `CharacterPortraitController` 의 `transition.Type` 분기 |
 | 입력 바인딩 변경 | `Runtime/Input/DialogueInputActions.inputactions` 의 `"Dialogue"` 액션맵 |
 | 카탈로그별 무대 교체 | `DialogueCatalogSO.registry` / `layout` - null 이면 `DialogueManager` 씬 기본값 |
+
+---
+
+## 히스토리
+
+### 2026-09-07 :: 포트레이트 스프라이트 provider 를 `IAssetSource` 로 이관
+
+- 이전: `CharacterStageDirector.OnDestroy` 가 provider 의 `ReleaseAll` 을 직접 호출했다.
+- 현재: provider 는 `IAssetSource<string, Sprite>` 이고 `OnDestroy` 에서 `Dispose` 한다. `Dispose` 가 `ReleaseAll` 을 먼저 수행한다.
+
+### 2026-08-07 :: `DialogueManager` 공개 API 에 `director` null 가드 추가
+
+- 이전: `PlayCatalog` / `Stop` / `IsSkipping` / `AutoAdvanceDelay` 가 `director` 를 무조건 역참조해, `_ValidateRefs` 실패 상태에서 호출하면 `NullReferenceException` 이었다.
+- 현재: `PlayCatalog` / `Stop` 은 에러 로그 후 반환하고, `IsSkipping` / `AutoAdvanceDelay` 는 `false` / `-1` 을 돌려준다.
