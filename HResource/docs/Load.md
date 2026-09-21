@@ -25,7 +25,7 @@ flowchart TD
     H["SharedAssetLoadGate&lt;TKey, TAsset&gt;"]
 
     A --> B
-    A --> C
+    B --> C
     B --> D
     E --> F
     G --> H
@@ -35,16 +35,16 @@ flowchart TD
 
 | 로더 | `LoadMode` | 소스 해제 | 핸들 보관 |
 |---|---|---|---|
-| `ResourcesAssetLoader` | `Resources` | 없음 (`IAssetReleasableLoader` 미구현) | 없음 |
+| `ResourcesAssetLoader` | `Resources` | `Resources.UnloadAsset` (GameObject / Component 제외) | `Dictionary<string, TAsset>` |
 | `AddressableAssetLoader` | `Addressable` | `Addressables.Release` | `Dictionary<string, AsyncOperationHandle<TAsset>>` |
 | `AddressableLabelLoader` | 해당 없음 | 4종 label 별 Release | single/multi 두 테이블 |
 
 ---
 
-## ResourcesAssetLoader - 정규화 후 비동기 로드
+## ResourcesAssetLoader - 정규화, 비동기 로드, 해제
 
 ```csharp
-// Load/ResourcesAssetLoader.cs:62-87 - 요약
+// Load/ResourcesAssetLoader.cs:108-133 - 요약
 private string _NormalizeKey(string key) {
     var normalizedKey = _TrimExtension(key).TrimStart('/');          // 확장자 제거 + 선행 슬래시
     if (string.IsNullOrEmpty(resourcesRootPath)) return normalizedKey;
@@ -57,7 +57,11 @@ private string _NormalizeKey(string key) {
 
 "이미 rootPath 하위" 판정은 경로 경계까지 본다. rootPath 가 `Icon` 일 때 key `IconSet/A` 는 `Icon` 으로 시작하지만 뒤에 `/` 가 오지 않으므로 하위로 보지 않고 `Icon/IconSet/A` 로 결합한다.
 
-`LoadAsync` 는 `Resources.LoadAsync<TAsset>` 가 돌려준 `ResourceRequest` 를 `ToUniTask()` 로 await 한다 (`Load/ResourcesAssetLoader.cs:50-58`). 메인 스레드 부담을 여러 프레임으로 나눌 뿐 없애지는 않는다. 로드 후 오브젝트 통합과 텍스처 업로드는 모든 플랫폼에서 메인 스레드에서 일어나고, WebGL 은 기본 설정에 로딩 스레드가 없어 로드 자체도 메인 스레드에서 진행된다. 완료는 다음 프레임 이후에 온다. 자산이 없으면 예외 없이 `null` 을 반환한다.
+`LoadAsync` 는 `Resources.LoadAsync<TAsset>` 가 돌려준 `ResourceRequest` 를 `ToUniTask()` 로 await 한다 (`Load/ResourcesAssetLoader.cs:55-67`). 메인 스레드 부담을 여러 프레임으로 나눌 뿐 없애지는 않는다. 로드 후 오브젝트 통합과 텍스처 업로드는 모든 플랫폼에서 메인 스레드에서 일어나고, WebGL 은 기본 설정에 로딩 스레드가 없어 로드 자체도 메인 스레드에서 진행된다. 완료는 다음 프레임 이후에 온다. 자산이 없으면 예외 없이 `null` 을 반환한다.
+
+로드에 성공한 에셋은 정규화된 key 로 `loadedTable` 에 기록한다. `Release(key)` 는 그 에셋을 표에서 빼고 `Resources.UnloadAsset` 으로 내린다 (`:71-83`). `ReleaseAll()` 은 전부 내린다 (`:85-91`). provider 가 이 로더를 releasable 로 인식하므로 캐시 제거(`OnAssetRemoved`) 때 자동으로 불린다.
+
+`Resources.UnloadAsset` 은 개별 에셋 전용이라 `GameObject` / `Component` 에 부르면 Unity 가 에러를 낸다. 그 둘은 추적만 풀고 메모리 회수는 `Resources.UnloadUnusedAssets` 에 맡긴다 (`:95-104`). 내린 에셋을 씬이나 다른 provider 가 계속 참조하면 Unity 가 디스크에서 다시 읽으므로 참조가 깨지지는 않는다.
 
 ---
 
@@ -186,14 +190,20 @@ sequenceDiagram
 
 ## 주의할 점
 
-1. **`ResourcesAssetLoader` 는 해제 계약이 없다.** 캐시에서 지워져도 메모리에서 내려가지 않는다 (`Load/ResourcesAssetLoader.cs:31`). `Resources` 모드는 씬 전환 시 Unity 의 자동 정리에 의존한다.
+1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다.
 2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:42-45`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
 3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:82-88`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
 4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:95-101`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
+5. **같은 Resources 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내린다.** Resources 는 참조 카운트가 없어 한 provider 의 캐시에서 빠지는 순간 `UnloadAsset` 이 불린다. 다른 쪽 참조는 Unity 가 디스크에서 다시 읽어 살아나지만 그 재로드 비용이 든다.
 
 ---
 
 ## 히스토리
+
+### 2026-09-21 :: `ResourcesAssetLoader` 에 해제 경로 추가
+
+- 이전: `IAssetLoader` 만 구현해 해제 수단이 없었다. 캐시에서 빠져도 에셋은 씬 전환이나 `Resources.UnloadUnusedAssets` 까지 메모리에 남았다.
+- 현재: `IAssetReleasableLoader` 를 구현한다. 캐시 제거 시 provider 가 `Release(key)` 를 부르고, 로더가 `Resources.UnloadAsset` 으로 내린다.
 
 ### 2026-09-21 :: `SharedAssetLoadGate` 를 지연 생성 완료 소스로 교체
 
