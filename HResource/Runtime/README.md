@@ -225,17 +225,17 @@ flowchart LR
 ## 조립
 
 ```csharp
-// Provider/AssetProviderFactory.cs:64-70 - 기본 조합은 한 곳에서만 정해진다
+// Provider/AssetProviderFactory.cs:69-75 - 기본 조합은 한 곳에서만 정해진다
 return new AssetProvider<string, TAsset>(
-    assetLoaders: assetLoaders,
+    assetLoaders: loaders,
     assetCache:   new MemoryAssetCache<string, TAsset>(),
     assetValidator: new DefaultAssetValidator<string, TAsset>(),
     assetLoadGate:  new SharedAssetLoadGate<string, TAsset>(),
-    keyNormalizer:  keyNormalizer ?? new TrimKeyNormalizer(),   // CreateResources 는 ResourcesKeyNormalizer 를 넘긴다
+    keyNormalizer:  keyNormalizer ?? _InferKeyNormalizer(loaders),   // 규칙이 없으면 로더의 LoadMode 로 정한다
     assetStore:   assetStore);   // 기본 null
 ```
 
-`CreateResources` / `CreateAddressable` 는 **로더를 하나만** 등록하고 그 로더에 맞는 key 규칙을 함께 넣는다 (`:33-48`). 두 소스를 한 provider 에서 쓰려면 `Create(new IAssetLoader[]{ ... })` 로 직접 넘겨야 하고, 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 던진다.
+**한 provider = 한 key 규칙 = 한 소스.** `CreateResources` / `CreateAddressable` 는 로더를 하나만 등록하고 그 로더에 맞는 key 규칙을 함께 넣는다 (`:34-49`). 두 소스가 필요하면 provider 를 둘 만든다. provider 는 규칙을 하나만 쓰고 `Release` / `TryGet` 은 `loadMode` 를 받지 않아, 한 provider 에 두 소스를 담으면 어떤 규칙으로도 한쪽이 틀린다. 그래서 `Create` 가 규칙 없이 Resources 와 Addressable 로더를 함께 받으면 `ArgumentException` 을 던진다. 규칙을 직접 넘기면 그 선택은 호출자 책임이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 던진다.
 
 패키지 내 다른 모듈의 조립:
 
@@ -302,6 +302,8 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 8. **`IAssetStore` 는 기본 구현이 없다** (`Store/IAssetStore.cs`). `LocalStoreFirst`/`LocalStoreOnly` 두 fetch mode 와 `IAssetSource.ClearStoreAsync` (`Provider/AssetProvider.cs:232-236`) 는 사용자가 store 를 직접 구현해 넘길 때만 동작하는 확장 슬롯이다. 팩토리의 `assetStore` 인자 기본값은 `null` 이다.
 9. **`AddressableLabelLoader` / `IAddressableLabelLoader` 는 provider 와 분리된 축이다.** `IAssetLoader` 를 구현하지 않아 `AssetProvider` 에 등록할 수 없다. 캐시·소유권·게이트 어느 것도 적용되지 않으므로 핸들 해제는 호출자 책임이다. → [../docs/Load.md](../docs/Load.md)
 10. **`MemoryAssetCache.ReleaseAll()` 과 `Clear()` 는 완전히 같은 동작이다** - 둘 다 `_ClearItems()` 한 줄이다 (`Cache/MemoryAssetCache.cs:158-164`). `IAssetReleaser` 가 두 이름을 계약으로 강제하고 있어 (`Cache/IAssetReleaser.cs:29-30`) 호출자는 의미 차이를 기대하게 된다.
+11. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나, `foo` 라는 다른 에셋이 있으면 그것을 가져온다 (`Load/ResourcesKeyNormalizer.cs:37-62`). 2026-09-21 이전 로더도 같았다.
+12. **대소문자만 다른 key 는 캐시 두 칸이 된다 (알려진 결함, 수정 미정).** 에디터에서 `Resources.LoadAsync` 는 경로 대소문자를 구분하지 않아 `HResourceTests/KeyProbe` 와 `hresourcetests/keyprobe` 가 같은 에셋을 돌려준다 (2026-09-22 실험). 그런데 규칙은 대소문자를 그대로 두므로 캐시와 로더 기록이 둘로 갈라진다. 한쪽 반납이 에셋을 `UnloadAsset` 으로 내리고 다른 쪽은 참조 시 다시 읽는다. 플레이어 빌드의 대소문자 동작은 확인하지 않았다. 한 에셋은 한 가지 표기로만 부른다.
 
 ---
 
