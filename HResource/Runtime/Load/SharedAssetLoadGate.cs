@@ -1,11 +1,11 @@
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * 동일 key 동시 로드를 공유하는 기본 게이트 구현. UniTaskCompletionSource 하나로 대기자를 모은다.
+ * 동일 key 동시 로드를 공유하는 기본 게이트 구현. 합류자가 올 때만 완료 소스를 만든다.
  *
  * 주요 기능 ::
- * loadingTable 로 진행 중 로드의 UniTaskCompletionSource 추적. 같은 key 요청은 그 .Task 에 합류해 source 호출 1 회.
- * 완료 시 대기자는 SynchronizationContext 를 거치지 않고 그 자리에서 동기로 재개된다. Task 할당이 없다.
+ * loadingTable 로 진행 중 key 추적. 같은 key 요청은 factory 1 회로 합쳐지고 합류자는 완료 소스를 await.
+ * 완료 시 합류자는 같은 호출 스택에서 동기로 재개된다 (프레임을 넘기지 않음).
  *
  * 사용법 ::
  * AssetProvider 가 _GetAsync 에서 fetch mode 전 구간을 본 게이트로 감쌈. 우회 경로 0건.
@@ -18,8 +18,12 @@
  *
  * Resources 축도 병합된다. ResourcesAssetLoader 가 Resources.LoadAsync 를 await 하므로 진행 중 구간이 있다.
  * Resources 는 핸들 refcount 가 없어 게이트가 없어도 잔존은 생기지 않는다. 합쳐지는 것은 중복 로드 요청이다.
- * factory 가 던져도 표에서 빼고 예외를 대기자 전원에게 전달한다. Preserve 로 바꾸지 말 것 - 진행 중 두 번째 합류자가 던진다. 게이트는
+ * 성공 · 실패 모두 합류자를 깨우기 전에 loadingTable 에서 뺀다. Preserve 로 바꾸지 말 것 - 진행 중 두 번째 합류자가 던진다. 게이트는
  * 결과 캐시가 아니라 진행 중 작업 공유만 담당 - 캐시 정책은 상위 provider 가 가져감.
+ * factory 안에서 같은 key 로 RunAsync 를 부르면 자기 자신에게 합류해 영원히 끝나지 않는다 (교착).
+ * 등록을 factory 뒤로 옮기면 교착 대신 이중 로드 = refcount 잔존이 되므로, 교착을 택하고 계약으로 금지한다.
+ * 동기 재개는 "합류자가 늦게 깨는" 틈을 줄일 뿐 닫지 않는다. 합류자 쪽 호출자가 받자마자 반납하면
+ * 뒤이어 재개되는 최초 호출자가 반납된 에셋을 받는다 (획득 직후 동기 반납 경합, 별도 과제).
  * =========================================================
  */
 #endif
@@ -32,50 +36,46 @@ using HDiagnosis.Logger;
 namespace HResource.Load {
     public sealed class SharedAssetLoadGate<TKey, TAsset> : IAssetLoadGate<TKey, TAsset> {
         #region Private - Fields
+        // 진행 중인 key -> 합류자용 완료 소스. null 은 "진행 중이지만 합류자가 아직 없음" 이다.
         // UniTaskCompletionSource<T> 는 클래스 쪽이라 진행 중 동시 await 를 여럿 받는다.
         // 구조체 Core 나 Preserve 의 MemoizeSource 는 진행 중 continuation 슬롯이 하나라 두 번째 합류자가 던진다.
         readonly Dictionary<TKey, UniTaskCompletionSource<TAsset>> loadingTable = new();
         #endregion
 
         #region Public - Run
-        public UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
+        public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
             if (factory == null) {
                 HLogger.Throw(new ArgumentNullException(nameof(factory), "[SharedAssetLoadGate] factory is null."));
             }
 
-            if (loadingTable.TryGetValue(key, out var runningSource)) {
-                return runningSource.Task;
+            if (loadingTable.TryGetValue(key, out var joined)) {
+                // 완료 소스는 첫 합류자가 만든다. 합류가 없으면 할당도, 아무도 읽지 않는 예외도 생기지 않는다.
+                if (joined == null) {
+                    joined = new UniTaskCompletionSource<TAsset>();
+                    loadingTable[key] = joined;
+                }
+
+                return await joined.Task;
             }
 
-            var newSource = new UniTaskCompletionSource<TAsset>();
-            loadingTable[key] = newSource;
-            _RunFactoryAsync(key, factory, newSource).Forget();
-            return newSource.Task;
-        }
-        #endregion
+            loadingTable.Add(key, null);
 
-        #region Private - Run
-        private async UniTaskVoid _RunFactoryAsync(
-            TKey key,
-            Func<UniTask<TAsset>> factory,
-            UniTaskCompletionSource<TAsset> source) {
-
-            TAsset asset;
+            TAsset result;
             try {
-                asset = await factory.Invoke();
+                result = await factory.Invoke();
             }
-            catch (Exception e) {
-                // 삼키지 않는다. 합류한 대기자 전원에게 그대로 전달한다 (OperationCanceledException 은 취소로 변환된다).
-                // 예외 타입을 좁히지 않는 이유 : factory 가 던지는 것은 무엇이든 대기자의 몫이고, 여기서 빠뜨린 타입은 대기자를 영원히 멈춘다.
-                loadingTable.Remove(key);
-                source.TrySetException(e);
-                return;
+            catch (Exception exception) {
+                // 삼키지 않는다. 합류자에게 같은 예외를 넘긴 뒤 최초 호출자에게 그대로 다시 던진다.
+                loadingTable.Remove(key, out var failed);
+                failed?.TrySetException(exception);
+                throw;
             }
 
-            // 순서 주의 : 표에서 먼저 뺀다. TrySetResult 는 대기자를 그 자리에서 동기로 재개하므로,
-            // 재개된 대기자가 같은 key 를 다시 요청하면 끝난 source 가 아니라 새 로드를 타야 한다.
-            loadingTable.Remove(key);
-            source.TrySetResult(asset);
+            // 먼저 뺀다. 재개된 합류자가 같은 key 를 다시 요청하면 새 로드로 가야 한다.
+            loadingTable.Remove(key, out var source);
+            // 합류자들이 이 호출 스택 안에서 차례로 재개된다. 최초 호출자는 그 뒤에 반환한다.
+            source?.TrySetResult(result);
+            return result;
         }
         #endregion
     }
@@ -84,6 +84,25 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (병합) :: master 의 게이트 구현과 dev/hong/fix/hresource-load-gate 의 구현을 병합
+ *
+ * 변경 ::
+ * 두 줄기가 같은 날 각자 Task 공유를 UniTaskCompletionSource 공유로 바꿨다. 코드는 브랜치 쪽을 채택했다.
+ * master 쪽의 "Preserve 로 바꾸지 말 것" 경고와 필드 주석 두 줄은 헤더와 필드에 옮겨 살렸다.
+ *
+ * 이유 ::
+ * 브랜치 구현은 첫 합류자가 올 때만 완료 소스를 만든다. master 구현은 로드마다 항상 만들어,
+ * 합류자 없는 실패에서 아무도 읽지 않은 예외가 미관측으로 다시 보고되고 TaskTracker 항목이 남았다.
+ * 브랜치의 EditMode 테스트(HResource/Tests/Editor)도 브랜치 구현의 동작을 고정한다.
+ *
+ * 결과 ::
+ * RunAsync 는 async 이고 최초 호출자는 factory 결과를 직접 받는다. 합류가 없으면 할당이 없다.
+ * 아래 두 2026-09-21 항목은 각 줄기의 기록이며 고치지 않는다. "(수정 2)" 항목의 코드는 이 병합으로 대체됐다.
+ *
+ * 주의 ::
+ * Unity 에디터 컴파일과 EditMode 테스트 실행은 병합 시점에 확인하지 못했다.
+ *
  * =========================================================
  * 2026-09-21 (수정 2) :: Task 공유를 UniTaskCompletionSource 공유로 교체
  *
@@ -108,6 +127,29 @@ namespace HResource.Load {
  * 미관측 예외로 보고하고 나머지 대기자는 계속 재개된다.
  * catch (Exception) 는 예외를 삼키는 것이 아니라 대기자에게 전달하는 경로다. 좁히면 빠진 타입에서 대기자가 멈춘다.
  * Unity 컴파일은 이 세션에서 확인하지 못했다.
+ *
+ * =========================================================
+ * 2026-09-21 (수정) :: 진행 중 공유를 Task 에서 지연 생성 UniTaskCompletionSource 로 교체
+ *
+ * 변경 ::
+ * loadingTable 값을 Task<TAsset> 에서 UniTaskCompletionSource<TAsset> 로 바꿨다. 값은 첫 합류자가
+ * 올 때 만들고 그 전에는 null 이다. finally 정리를 성공 · 실패 두 경로의 명시적 Remove 로 바꿨다.
+ *
+ * 이유 ::
+ * Task 합류자의 await 는 continuation 을 UnitySynchronizationContext 에 넘겨 최초 호출자보다 늦게
+ * 재개될 수 있다. UniTaskCompletionSource 는 TrySetResult 안에서 합류자를 동기로 재개한다.
+ * 완료 소스를 항상 만들면 결함이 둘 생긴다 (UniTask 소스로 확인). 합류자 없는 실패는 아무도 읽지 않은
+ * ExceptionHolder 가 소멸자에서 PublishUnobservedTaskException 으로 한 번 더 보고되고, 생성자가
+ * TaskTracker 에 등록한 항목이 MarkHandled 없이 남는다. 지연 생성은 둘 다 없애고 합류 없는 흔한
+ * 경우의 할당을 0 으로 만든다.
+ *
+ * 결과 ::
+ * 합류가 없으면 AsTask() 할당도 완료 소스 할당도 없다. 취소는 TrySetException 이 TrySetCanceled 로
+ * 넘겨 합류자에게 취소로 전달된다. 동작 검증은 HResource/Tests/Editor 의 EditMode 테스트.
+ *
+ * 주의 ::
+ * 등록이 factory 호출 앞이라 같은 key 재진입은 교착한다 (헤더 참조). 이전 구현은 factory 를 먼저
+ * 불러 재진입 시 이중 로드였다. 획득 직후 동기 반납 경합은 이 변경으로 닫히지 않는다.
  *
  * =========================================================
  * 2026-09-21 (수정) :: Resources 축 서술 정정

@@ -33,7 +33,7 @@ HResource 는 **`TKey` 하나로 에셋을 지목하고, 그 에셋을 누가 �
 | `Load/AddressableLabelLoader.cs` | label 질의 전용(all/first/single/index). **provider 축과 분리** | [Load](../docs/Load.md) |
 | `Load/IAddressableLabelLoader.cs` | 위의 계약 | [Load](../docs/Load.md) |
 | `Load/IAssetLoadGate.cs` | 동시 요청 합류 계약 | [Load](../docs/Load.md) |
-| `Load/SharedAssetLoadGate.cs` | 진행 중 `UniTaskCompletionSource` 공유로 소스 호출 1회 dedupe | [Load](../docs/Load.md) |
+| `Load/SharedAssetLoadGate.cs` | 진행 중 key 합류로 소스 호출 1회 dedupe. 완료 소스는 첫 합류자가 생성 | [Load](../docs/Load.md) |
 | `Cache/IAssetReader.cs` / `IAssetWriter.cs` / `IAssetReleaser.cs` | 읽기·쓰기·해제 3분할 계약 | [Cache](../docs/Cache.md) |
 | `Cache/IAssetCache.cs` | 위 셋 + `OnAssetRemoved` 이벤트 | [Cache](../docs/Cache.md) |
 | `Cache/MemoryAssetCache.cs` | **점유의 실 보유자.** 소유자 집합 + 양방향 인덱스 | [Cache](../docs/Cache.md) |
@@ -157,7 +157,7 @@ sequenceDiagram
     end
     P->>G: RunAsync(key, factory)
     alt 같은 key 가 이미 진행 중
-        G-->>P: 진행 중 source.Task 에 합류 - 소스 호출 없음
+        G-->>P: 진행 중 로드에 합류 (완료 소스 await) - 소스 호출 없음
     else 최초 호출자
         G->>P: factory 실행 - _GetByFetchModeAsync
         P->>M: TryGet - 점유 등록 없이 존재만 확인

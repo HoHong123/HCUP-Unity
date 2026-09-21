@@ -187,7 +187,7 @@ if (table.Count > 0) HLogger.Error("[AssetCache] Clear did not converge: ...");
 ## 주의할 점
 
 1. **`ReleaseAll()` 과 `Clear()` 는 동일 구현이다** (`:158-164`). 계약상 두 이름이 있으나 의미 차이가 없다.
-2. **스레드 안전하지 않다.** `Dictionary` 를 잠금 없이 쓴다. `AssetOwnerIdGenerator` 만 `Interlocked` 로 보호되어 있어 (`Subscription/AssetOwnerIdGenerator.cs:56`) id 발급은 스레드 안전하지만 캐시 조작은 메인 스레드 전제다.
+2. **스레드 안전하지 않다. 시스템 전체가 메인 스레드 전제다.** `Dictionary` 를 잠금 없이 쓴다. `AssetOwnerIdGenerator` 의 `Interlocked` (`Subscription/AssetOwnerIdGenerator.cs:56`) 는 방어적 선택이며, id 발급을 다른 스레드에서 해도 된다는 계약이 아니다.
 3. **`OnAssetRemoved` 의 구독자는 `AssetProvider` 하나다.** 구독 해제는 `AssetProvider.Dispose()` 에서 `ReleaseAll` 로 연쇄를 태운 뒤에 한다 (`Provider/AssetProvider.cs:213-226`). 순서를 뒤집으면 남은 점유의 로더 핸들이 반납되지 않는다.
 4. **진단 표면도 잠금이 없다.** `CaptureOccupancy` 는 2번과 같은 메인 스레드 전제를 따른다. 캐시 조작 중에 다른 스레드에서 캡처하면 열거 도중 수정 예외가 난다.
 
