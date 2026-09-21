@@ -206,7 +206,7 @@ sequenceDiagram
 3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:80-86`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
 4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:99-105`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
 5. **같은 Resources 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내린다.** Resources 는 참조 카운트가 없어 한 provider 의 캐시에서 빠지는 순간 `UnloadAsset` 이 불린다. 다른 쪽 참조는 Unity 가 디스크에서 다시 읽어 살아나지만 그 재로드 비용이 든다.
-6. **한 provider 는 한 소스만 담는다.** key 규칙이 provider 당 하나라 Resources 와 Addressables 를 섞으면 어떤 규칙으로도 한쪽이 틀린다. 규칙 없는 `Create` 는 섞인 로더를 `ArgumentException` 으로 거부한다.
+6. **규칙을 직접 넘기지 않는 한, 한 provider 는 한 소스만 담는다.** key 규칙이 provider 당 하나라 Resources 와 Addressables 를 섞으면 어떤 규칙으로도 한쪽이 틀린다. 규칙 없는 `Create` 는 섞인 로더를 `ArgumentException` 으로 거부한다. 규칙을 직접 넘기면 혼합도 조립되며, 그 규칙이 두 소스에 맞는지는 호출자 책임이다.
 7. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나 `foo` 라는 다른 에셋을 가져온다.
 8. **대소문자만 다른 key 는 캐시 두 칸이 된다 (알려진 결함, 수정 미정).** 에디터에서 `Resources.LoadAsync` 는 경로 대소문자를 구분하지 않아 두 표기가 같은 에셋을 돌려주지만, 규칙은 대소문자를 그대로 둬 캐시 · 로더 기록이 둘로 갈라진다 (2026-09-22 실험). 한쪽 반납이 에셋을 내리고 다른 쪽은 참조 시 다시 읽는다. 플레이어 빌드 동작은 확인하지 않았다.
 
