@@ -2,7 +2,7 @@
 
 > 어셈블리: `HCUP.HDialogue.Editor` (`Editor/HCUP.HDialogue.Editor.asmdef`, rootNamespace `HDialogue.Editor`)
 > 의존: `Unity.Addressables`, `Unity.Addressables.Editor`, `Unity.ResourceManager`, `UniTask`, `UniTask.Addressables`, `HCUP.HDialogue`, `HCUP.HWindows.NodeWindow`, `HCUP.HWindows.NodeWindow.Editor`
-> 동반 어셈블리: `HCUP.HDialogue`(런타임 — [`Runtime/README.md`](../Runtime/README.md))
+> 동반 어셈블리: `HCUP.HDialogue`(런타임 - [`Runtime/README.md`](../Runtime/README.md))
 > 플랫폼: `includePlatforms: ["Editor"]`
 
 ---
@@ -11,10 +11,10 @@
 
 에디터 어셈블리는 **저작과 검증** 둘만 담당한다.
 
-1. **저작** — `DialogueNodeWindow` 가 `HGraphWindow<DialogueCatalogSO>` 를 상속해 노드
+1. **저작** - `DialogueNodeWindow` 가 `HGraphWindow<DialogueCatalogSO>` 를 상속해 노드
    그래프 편집기를 열고, `DialogueNodeViewRegistrar` 가 노드 9종의 시각 표현과 헤더 색을
    등록한다. 노드 생성 메뉴·Play 모드 하이라이트·Trace 토글이 창의 확장분이다.
-2. **검증** — `DialogueCatalogValidator` 가 그래프 구조를 정적 검사(E001~E010 / W001~W007)
+2. **검증** - `DialogueCatalogValidator` 가 그래프 구조를 정적 검사(E001~E010 / W001~W007)
    하고, `DialogueTextValidator` 가 태그 구조를 검사한다. 둘 다 **수동 실행 전용**이며
    자동 훅이 없다.
 
@@ -89,12 +89,12 @@ flowchart TD
     W -.->|"currentCatalog / canvas"| HC
 ```
 
-`HGraphHubNode` 를 상속하는 것은 `Choice` / `Branch` 둘뿐이다 — 런타임의 `HubNode`
+`HGraphHubNode` 를 상속하는 것은 `Choice` / `Branch` 둘뿐이다 - 런타임의 `HubNode`
 상속 구조와 정확히 대응한다.
 
 ---
 
-## 흐름 — 저작에서 검증까지
+## 흐름 - 저작에서 검증까지
 
 ```mermaid
 sequenceDiagram
@@ -120,7 +120,7 @@ sequenceDiagram
 
 **검증은 저작 파이프라인에 물려 있지 않다.** 저장·빌드·플레이 진입 어디에도 훅이 없고,
 사용자가 창을 열어 버튼을 눌러야 실행된다. 런타임의 순회 상한
-(`DialogueDirector.MAX_NODE_TRANSITIONS`)이 필요한 이유가 여기 있다 —
+(`DialogueDirector.MAX_NODE_TRANSITIONS`)이 필요한 이유가 여기 있다 -
 [`Graph.md`](../docs/Graph.md) 참조.
 
 ---
@@ -163,7 +163,7 @@ sequenceDiagram
    이상이면 잘못된 것을 볼 수 있다.
 7. **Play 모드 진입 전에 창이 열려 있어야 한다** (`:96-99`). `EnteredPlayMode` 이벤트를
    `OnEnable` 에서 구독하므로, 플레이 중에 창을 열면 그 세션의 하이라이트가 붙지 않는다.
-8. **메뉴 루트가 갈린다** — `Tools/HDialogue/Dialogue Tag Validator` 만 다른 계열이다
+8. **메뉴 루트가 갈린다** - `Tools/HDialogue/Dialogue Tag Validator` 만 다른 계열이다
    (`DialogueTextValidatorWindow.cs:63`).
 
 각 시스템의 상세는 [`Editor-NodeView.md`](../docs/Editor-NodeView.md) 와
@@ -177,7 +177,7 @@ sequenceDiagram
 |---|---|
 | 새 노드의 시각 표현 | `HGraphNode`/`HGraphHubNode` 파생 클래스 + `DialogueNodeViewRegistrar._Register` 2곳(색·팩토리) |
 | 새 노드의 생성 메뉴 | `DialogueNodeWindow._AppendDialogueNodeItems` (메뉴바·우클릭 공용) |
-| 노드 뷰 스타일 | `Editor/UI/HDialogueNode.uss` — 클래스명 `hdialogue-*` |
+| 노드 뷰 스타일 | `Editor/UI/HDialogueNode.uss` - 클래스명 `hdialogue-*` |
 | 새 그래프 검증 규칙 | `DialogueCatalogValidator` 의 `_CheckErrors` / `_CheckWarnings` + 코드 상수 |
 | 새 태그 검증 규칙 | `DialogueTextValidator._CheckTag` + `DialogueTagRegistry` 집합 |
-| 검증 자동화 | `DialogueCatalogValidator.Validate` 는 부작용이 없다 — `AssetPostprocessor` 나 빌드 훅에서 직접 호출 가능 |
+| 검증 자동화 | `DialogueCatalogValidator.Validate` 는 부작용이 없다 - `AssetPostprocessor` 나 빌드 훅에서 직접 호출 가능 |
