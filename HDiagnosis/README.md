@@ -1,7 +1,7 @@
-# HDiagnosis — 패키지 카드
+# HDiagnosis - 패키지 카드
 
 > 모듈: `HDiagnosis/` · 소스 4파일 · `package.json` 없음 (저장소 통째 사용)
-> 구성 어셈블리 1개 — **참조 0** (기반 계층)
+> 구성 어셈블리 1개 - **참조 0** (기반 계층)
 > 코드 문서: **[Runtime README](Runtime/README.md)**
 
 ---
@@ -17,8 +17,7 @@
 | `Debug/HDebug.cs` | 에디터 전용 진단 (스택 트레이스 강조 등) |
 | `Debug/ComponentActivationWatcher.cs` | 컴포넌트 활성 상태 감시 |
 
-`HCUP.HDiagnosis` 는 **아무것도 참조하지 않는다.** 그래서 어느 모듈에서든 순환 참조 걱정 없이
-쓸 수 있고, 실제로 12개 이상의 어셈블리가 이걸 참조한다.
+`HCUP.HDiagnosis` 는 **아무것도 참조하지 않는다.** 그래서 어느 모듈에서든 순환 참조 걱정 없이 쓸 수 있고, 이 저장소 안에서 17개 어셈블리가 이걸 참조한다.
 
 ---
 
@@ -34,10 +33,10 @@
 
 ## 설치 · 요구 사항
 
-저장소를 통째로 가져다 쓴다 — 이 모듈에는 `package.json` 이 없어 개별 UPM 설치 대상이 아니다
+저장소를 통째로 가져다 쓴다 - 이 모듈에는 `package.json` 이 없어 개별 UPM 설치 대상이 아니다
 ([루트 README 의 설치 절](../README.md#설치) 참조).
 
-Unity 외 외부 의존이 없다.
+Unity 6000.3 에서 개발·검증했다. Unity 외 외부 의존이 없다.
 
 ---
 
@@ -58,15 +57,22 @@ Unity 외 외부 의존이 없다.
 
 ## 주의할 점
 
-1. **정적 상태 리셋 훅이 에디터에서 컴파일되지 않는다.** `_ResetStatics` 가
-   `#if !UNITY_EDITOR` 블록 안에 있는데, Domain Reload 비활성은 **에디터 전용 기능**이다.
-   즉 그 훅이 필요한 유일한 환경에서 정확히 빠진다 — `OnLogPublished` 구독자가 플레이 세션을
-   넘어 잔존한다. 이 모듈에서 가장 먼저 고쳐야 할 항목이다.
-2. **`logQue` 는 쓰기 전용이다.** 유일한 소비 예정처 `SendLogsToServer()` 가 빈 스텁이고 호출처도
-   0건이라, 플레이어 빌드에서 최대 1000건의 로그 엔트리를 붙잡기만 한다.
-3. **네임스페이스 `HDiagnosis.HDebug` 와 클래스 `HDebug` 가 동명이다.** 외부에서
-   `using HDiagnosis;` 만 하면 이름이 네임스페이스로 해석되어 실패한다.
-4. **`LogLevel` 의 `Debug`/`Fatal`/`Assert` 는 생산자가 0건이다.** 소비 측(`HUI` 의 로그 콘솔)이
-   도달 불가 분기를 유지하고 있다.
+1. **`logQue` 는 쓰기 전용이다.** 이 큐를 읽을 예정이던 `SendLogsToServer()` 가 빈 스텁이라, 플레이어 빌드에서 최대 1000건의 로그 엔트리를 붙잡기만 한다.
+2. **네임스페이스 `HDiagnosis.HDebug` 와 클래스 `HDebug` 가 동명이다.** 외부에서 `using HDiagnosis;` 만 하면 이름이 네임스페이스로 해석되어 실패한다.
+3. **`HLogger` 는 `LogLevel` 의 `Debug`/`Fatal`/`Assert` 를 만들지 않는다.** `HUI` 의 로그 콘솔은 이 셋을 분기 처리하고 있어 `HLogger` 경로에서는 도달 불가 분기다.
 
 근거 라인은 [Runtime README](Runtime/README.md) 의 "정리 대상" 절에 있다.
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: `HLogger` static 봉인과 UTC 시각 교정
+
+- 이전: `HLogger` 가 `public class` 라 `new HLogger()` 가 가능했고, `_UtcNow` 가 `DateTimeOffset.Now`(로컬 시각)를 반환했다.
+- 현재: `public static class` 이고 `_UtcNow` 는 `DateTimeOffset.UtcNow` 다.
+
+### 2026-08-07 :: `_ResetStatics` 를 `#if !UNITY_EDITOR` 밖으로 이동
+
+- 이전: `_ResetStatics` 가 `#if !UNITY_EDITOR` 블록 안에 있어, Domain Reload 비활성(에디터 전용 기능) 환경에서 정확히 빠졌고 `OnLogPublished` 구독자가 플레이 세션을 넘어 잔존했다.
+- 현재: 훅은 항상 컴파일되고 `OnLogPublished = null` 을 수행한다. `logQue.Clear()` 만 `#if !UNITY_EDITOR` 안에 남아 있다.
