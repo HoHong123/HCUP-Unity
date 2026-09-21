@@ -190,7 +190,7 @@ sequenceDiagram
 
 ## 주의할 점
 
-1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다.
+1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다. 또 `loadedTable` 은 정규화 key 를 쓰는데 캐시와 게이트는 원본 key 를 써서, 확장자만 다른 두 key 는 캐시 항목 2개가 로더 항목 1개를 나눠 쓴다. 한쪽 반납이 에셋을 내리고(참조되면 디스크에서 다시 읽힌다) 다른 쪽 반납 때는 언로드가 빠진다 (`Tests/Editor/ResourcesKeyNormalizationTests.cs` 가 재현, 수정 방향 미정).
 2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:42-45`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
 3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:82-88`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
 4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:95-101`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
