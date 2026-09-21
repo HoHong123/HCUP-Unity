@@ -194,10 +194,10 @@ namespace HResource.Provider {
             return assetCache.ReleaseOwner(ownerId);
         }
 
-        public void ClearCache() {
-            if (_RejectIfDisposed(nameof(ClearCache))) return;
-            assetCache.Clear();
-        }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary> 디버그 · 테스트용 강제 초기화. 살아있는 소유자가 반납된 에셋을 들게 된다. 정식 빌드에는 없다. </summary>
+        public void ClearCache() { if (!_RejectIfDisposed(nameof(ClearCache))) assetCache.Clear(); }
+#endif
 
         /// <summary> 소유자를 잃은 점유의 수동 일괄 회수. 판정은 leash 계층의 약한 표 </summary>
         public int ReclaimOrphans() {
@@ -509,6 +509,24 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: ClearCache 를 에디터 · 개발 빌드 전용으로 제한
+ *
+ * 변경 ::
+ * ClearCache 를 #if UNITY_EDITOR || DEVELOPMENT_BUILD 로 감싸고 XML 요약에 위험을 적었다.
+ * 원래 4줄(선언 · 가드 · 호출 · 닫는 괄호)을 4줄(#if · 요약 · 한 줄 본문 · #endif)로 바꿨다.
+ *
+ * 이유 ::
+ * 리뷰 지적. 소유자 집합을 보지 않고 비워 살아있는 소유자가 반납된 에셋을 든다.
+ * 사용자가 의도를 "디버그 · 테스트 도구" 로 정했다. 계약(IAssetSource)도 같은 조건으로 감쌌다.
+ *
+ * 결과 ::
+ * 정식 빌드에서 사라진다. 동작은 에디터 · 개발 빌드에서 그대로다.
+ *
+ * 주의 ::
+ * 본문을 한 줄로 접은 것은 줄 수를 지키기 위해서다. docs 와 README 가 이 파일 197 행 이후를
+ * 행 번호로 20 곳 넘게 가리키므로, 줄이 늘면 그 참조가 한꺼번에 어긋난다.
+ *
  * =========================================================
  * 2026-09-08 (수정 2) :: 신원을 토큰에서만 꺼낸다
  *
