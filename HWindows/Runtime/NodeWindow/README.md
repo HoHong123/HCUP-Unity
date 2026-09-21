@@ -2,7 +2,7 @@
 
 > 어셈블리: `HCUP.HWindows.NodeWindow` (`Runtime/NodeWindow/HCUP.HWindows.NodeWindow.asmdef`, rootNamespace `HWindows.NodeWindow`)
 > 의존: `HCUP.HCollection`, `HCUP.HInspector` / `includePlatforms: []` (전 플랫폼) / **`autoReferenced: false`**
-> 동반 어셈블리: `HCUP.HWindows.NodeWindow.Editor` — [`../../Editor/NodeWindow/README.md`](../../Editor/NodeWindow/README.md)
+> 동반 어셈블리: `HCUP.HWindows.NodeWindow.Editor` - [`../../Editor/NodeWindow/README.md`](../../Editor/NodeWindow/README.md)
 
 ---
 
@@ -12,7 +12,7 @@
 `AssetDatabase` 도, `UnityEditor` 네임스페이스도 참조하지 않는다.
 
 `includePlatforms` 가 비어 있어 플레이어 빌드에 포함된다. 런타임에서 카탈로그를 읽어 그래프를
-순회하는 것이 정상 사용이다 — 실제로 `HDialogue` 가 `BaseNode` 를 파생해 대화 그래프를 만든다.
+순회하는 것이 정상 사용이다 - 실제로 `HDialogue` 가 `BaseNode` 를 파생해 대화 그래프를 만든다.
 
 **전체 설명은 시스템 문서에 있다** → [`../../docs/NodeCatalog.md`](../../docs/NodeCatalog.md)
 
@@ -54,8 +54,8 @@ flowchart LR
     F["게임 코드 / HDialogue 등"]
     end
     subgraph DEP["의존"]
-    G["HCUP.HCollection — HDictionary"]
-    H["HCUP.HInspector — HTitle / HHideLabel / HReadOnly"]
+    G["HCUP.HCollection - HDictionary"]
+    H["HCUP.HInspector - HTitle / HHideLabel / HReadOnly"]
     end
 
     D -->|"InternalsVisibleTo 로 internal 접근"| A
@@ -70,7 +70,7 @@ flowchart LR
 ```
 
 ```csharp
-// AssemblyInfo.cs:1-3 — 이 한 줄이 mutation 계약을 컴파일러 수준에서 강제한다
+// AssemblyInfo.cs:1-3 - 이 한 줄이 mutation 계약을 컴파일러 수준에서 강제한다
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("HCUP.HWindows.NodeWindow.Editor")]
@@ -93,7 +93,7 @@ using System.Runtime.CompilerServices;
 | `EdgeByPair` | `IReadOnlyDictionary<(NodeUID, NodeUID), BaseNodeEdge>` | lazy rebuild |
 | `NodeCount` / `EdgeCount` | `int` | |
 | `RootUID` / `HasRoot` | `NodeUID` / `bool` | |
-| `EditorDescription` | `string` | **소비처 없음** |
+| `EditorDescription` | `string` | 인스펙터 `TextArea` 로 입력하는 설명 문자열 (`NodeCatalogSO.cs:11-13`) |
 | `GetIncomingEdges(leaf)` / `GetOutgoingEdges(branch)` | `IEnumerable<BaseNodeEdge>` | `edges` 선형 순회 |
 | `GetBranchNodes(leaf)` / `GetLeafNodes(branch)` | `IEnumerable<BaseNode>` | 위 두 개 경유 |
 | `HasEdgeBetween(b, l)` / `TryGetEdge(b, l, out)` | `bool` | `EdgeByPair` 해시 조회 |
@@ -103,7 +103,7 @@ using System.Runtime.CompilerServices;
 | `UID` / `Title` | 읽기 전용 |
 | `ClipboardMagic` | `virtual`. 파생에서 override 권장 |
 | `GetInspectorSummary(catalog)` | `virtual`. `HDialogue.DialogueLineNode` 가 실제로 override |
-| `EditorPosition` / `EditorFoldoutOpen` | **`#if UNITY_EDITOR`** — 런타임 코드에서 참조 불가 |
+| `EditorPosition` / `EditorFoldoutOpen` | **`#if UNITY_EDITOR`** - 런타임 코드에서 참조 불가 |
 
 `internal` 인 것: `NodeCatalogSO.Internal*` 6개, `BaseNode.AssignIdentity` / `SetTitle` /
 `ResetIdentity` / `SetEditorPosition` / `SetEditorFoldoutOpen`,
@@ -120,11 +120,11 @@ using System.Runtime.CompilerServices;
 | 파생 카탈로그 | 파생 클래스에 `[CreateAssetMenu]` 를 직접 붙인다 |
 | 노드 | **에셋 메뉴 없음.** `NodeCatalogAuthor.CreateNode<T>` 가 sub-asset 으로 생성 |
 
-이 어셈블리에는 `[MenuItem]` 이 없다 — 런타임 어셈블리이므로 당연하다.
+이 어셈블리에는 `[MenuItem]` 이 없다 - 런타임 어셈블리이므로 당연하다.
 
 ---
 
-## 사용 예 — 런타임 순회
+## 사용 예 - 런타임 순회
 
 ```csharp
 using HWindows.NodeWindow;
@@ -202,8 +202,5 @@ public sealed class MyFeatureCatalogSO : NodeCatalogSO { }
 
 7. **`SimpleNode` 는 `sealed` 라 상속이 불가한데, "직접 사용 금지" 규약을 코드가 강제하지 않는다.**
    `NodeCatalogAuthor.CreateNode<SimpleNode>` 는 정상 동작한다.
-8. **소비처 없는 멤버 3건** — `NodeCatalogSO.EditorDescription`,
-   `BaseNodeEdge.GetEdgeSummary()`, `HubNode.SetEntryKey(int, string)`.
-   상세는 [`../../docs/NodeCatalog.md` 의 정리 대상](../../docs/NodeCatalog.md#정리-대상) 참조.
-9. **`BaseNodeEdge.AssignIdentity` 의 재할당 가드가 OR 조건이다** (`:23`).
+8. **`BaseNodeEdge.AssignIdentity` 의 재할당 가드가 OR 조건이다** (`BaseNodeEdge.cs:23`).
    한쪽 endpoint 만 유효해도 전체가 차단된다. 정상 경로에서는 둘이 함께 설정되므로 무해하다.
