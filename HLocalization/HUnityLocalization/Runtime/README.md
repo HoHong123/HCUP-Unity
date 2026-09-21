@@ -27,8 +27,7 @@ Unity 네이티브 Localization 의 **언어 전환 단일 경로**와 **코드�
 | `HUnityLocalization/UnityLocalizationManager.cs` | 싱글톤 매니저 + static 파사드. 전환과 토큰 조회 |
 | `HUnityLocalization/LocaleCodeMap.cs` | `LocalizationLanguage` ↔ Unity 언어 식별자 매핑 단일 소스 |
 
-`LocaleCodeMap` 은 종전 Editor 어셈블리 소속이었고 2026.09.17 에 이곳으로 내려왔다. Import 와
-런타임 전환이 같은 매핑을 써야 하므로 단일 소스를 런타임에 두고 Editor 가 참조한다.
+Import 와 런타임 전환이 같은 매핑을 써야 하므로 `LocaleCodeMap` 은 런타임에 두고 Editor 어셈블리가 참조한다.
 
 ---
 
@@ -72,6 +71,7 @@ flowchart TD
     AP --> C["_CacheTableAsync - StringTable 1회 캐시"]
     SS --> C
     AP --> SV["_SetAppliedLanguage - 값이 바뀌면 PlayerPrefs 저장"]
+    SS --> SV
 
     R["SetLanguageAsync(language)"] --> M{"LocaleCodeMap 매핑 있나"}
     M -->|없음| E2["HLogger.Error - 매핑 추가"]
@@ -91,7 +91,7 @@ flowchart TD
 `Start` 가 시작 언어를 정한다. 순서는 **저장값 → 매니저 기본값 → 앱(기기) 언어**다. 적용 언어가
 바뀌면 그때마다 `PlayerPrefsHandler` 로 저장되므로, 두 번째 실행부터는 항상 1번 갈래로 들어온다.
 세 갈래가 모두 비면(앱 언어가 `LocaleCodeMap` 에 없는 경우) 강제하지 않고 Startup Locale Selector
-결과를 그대로 쓴다 (`CommandLine` → `System` → `Specific`).
+결과를 그대로 쓴다. 그 결과는 Localization Settings 에셋의 Startup Locale Selectors 구성 순서가 정한다. 이 경로도 `_SyncAppliedLanguage` 를 거쳐 적용 언어를 저장한다.
 
 인스펙터에는 토글 `useDefaultLanguage` 와 언어 `defaultLanguage` 가 있다. 토글이 꺼져 있으면 2번 갈래를
 건너뛰고 앱 언어를 쓴다. 매니저가 씬에 없으면 Startup Selector 가 시작 언어를 정하고, 배선된 UI
@@ -127,7 +127,7 @@ Import 는 `SmartFormatTag` 메타데이터를 심지 않으므로 **생성된 �
 1. **static 파사드는 씬에 매니저가 있어야 동작한다.** 없으면 에러 로그를 남기고 전환은 무동작,
    조회는 토큰 문자열을 반환한다. 조용한 실패를 만들지 않는다.
 2. **조회 실패는 모두 토큰 반환 + 에러 로그다.** 미로드 / 키 없음 / 값이 빈 문자열 세 경우를
-   각각 다른 메시지로 구분한다. `ru` 와 `zh-hans` 는 번역이 비어 있어 세 번째 경우에 걸린다.
+   각각 다른 메시지로 구분한다 (`UnityLocalizationManager.cs:307-331`). 엑셀에서 비워 둔 언어 칸은 세 번째 경우에 걸린다.
 3. **테이블 이름은 Import 규약과 같아야 한다.** 기본값 `"Localization"` 은
    `HUnityLocalizationTableLoader.TABLE_COLLECTION_NAME` 과 같은 값이다. 한쪽을 바꾸면 양쪽을 바꾼다.
 4. **클래스 이름이 `LocalizationManager` 가 아니다.** `HCUP.HcupLocalization` 에 같은 이름의
@@ -153,3 +153,12 @@ Import 는 `SmartFormatTag` 메타데이터를 심지 않으므로 **생성된 �
 | 저장 키 변경 | `UnityLocalizationManager` 의 `PREFS_LANGUAGE_KEY` |
 | 기기 언어를 다시 따르게 | 저장 키(`UnityLocalizationManager.Language`) 삭제 |
 | 토큰 조회 실패 정책 변경 | `_TryGetEntryValue` (현재는 에러 로그 + 토큰 반환) |
+
+---
+
+## 히스토리
+
+### 2026-09-17 :: `LocaleCodeMap` 을 Editor 에서 Runtime 으로 이동
+
+- 이전: `LocaleCodeMap` 은 `HCUP.HUnityLocalization.Editor` 소속이었다.
+- 현재: 이 어셈블리로 옮기고 역방향 조회(`TryGetLanguage(LocaleIdentifier, out LocalizationLanguage)`)를 추가했다.
