@@ -9,14 +9,14 @@
 ## 요약
 
 `ExcelLoader<T>` 의 **데이터 추출 파이프라인만** 검증하는 EditMode 테스트 4건이다.
-`AssetDatabase` 도, 실제 프로젝트 에셋도 건드리지 않는다 — 테스트가 xlsx 를
+`AssetDatabase` 도, 실제 프로젝트 에셋도 건드리지 않는다 - 테스트가 xlsx 를
 `Application.temporaryCachePath` 에 직접 만들고 `TearDown` 에서 지운다.
 
 이 어셈블리의 asmdef 설정은 다른 HCUP 어셈블리와 다르게 **참조를 완전히 수동 통제한다.**
 
 ---
 
-## asmdef 설정 — 현행
+## asmdef 설정 - 현행
 
 ```jsonc
 {
@@ -63,32 +63,15 @@
 
 ### GUID 참조 3건
 
-`.meta` 파일이 패키지에 없어 소스만으로는 이름을 확정할 수 없다. 코드가 요구하는 것은
-`HExcel.Core`(테스트 대상 `ExcelLoader<T>`, `ExcelLoaderTests.cs:30`)와 Unity Test Framework
-런타임/에디터 어셈블리다.
+저장소와 Unity Test Framework 패키지의 `.meta` 로 확인한 대상은 아래와 같다. 코드가 요구하는 것은 `HExcel.Core`(테스트 대상 `ExcelLoader<T>`, `ExcelLoaderTests.cs:30`)와 Unity Test Framework 런타임/에디터 어셈블리다.
 
-| GUID | 코드가 요구하는 것 |
+| GUID | 대상 asmdef |
 |---|---|
-| `f28a2e8676c17864f91ad121f10398ac` | 3종 중 하나 — `HCUP.HExcel.Editor`, `UnityEngine.TestRunner`, `UnityEditor.TestRunner` |
-| `27619889b8ba8c24980f49ee34dbb44a` | 〃 |
-| `0acc523941302664db1f4e527237feb3` | 〃 |
+| `f28a2e8676c17864f91ad121f10398ac` | `HCUP.HExcel.Editor` (`HExcel/Editor/HCUP.HExcel.asmdef`) |
+| `27619889b8ba8c24980f49ee34dbb44a` | `UnityEngine.TestRunner` (`com.unity.test-framework`) |
+| `0acc523941302664db1f4e527237feb3` | `UnityEditor.TestRunner` (`com.unity.test-framework`) |
 
-### 복구 이력
-
-이 어셈블리는 오랫동안 컴파일되지 않는 상태였다. 원인은 참조 설정이 아니라 **소스의 외부
-타입 의존**이었다 — 삭제된 `HData.NPOI.Samples` 의 `SampleData` 를 참조하고 있었다.
-현재는 픽스처 전용 DTO 를 파일 안에 두어 외부 의존을 없앴다.
-
-```csharp
-// Tests/ExcelLoaderTests.cs:34-40
-// 종전 HData.NPOI.Samples 의 SampleData 를 참조했으나 해당 모듈이 삭제되어 컴파일 불가 상태였다.
-// 테스트 픽스처 전용 DTO 로 복원 — 아래 ExcelToJson 매핑(id/name/value)이 요구하는 형태 그대로.
-public class SampleData {
-    public int Id;
-    public string Name;
-    public int Value;
-}
-```
+픽스처 DTO `SampleData` 는 외부 모듈이 아니라 테스트 파일 안에 있다 (`ExcelLoaderTests.cs:36-40`).
 
 ---
 
@@ -115,7 +98,7 @@ flowchart TD
     A["SetUp"] --> B["_CreateTestExcel → temporaryCachePath/NPOI_TestTable.xlsx"]
     B --> C["ScriptableObject.CreateInstance&lt;TestLoader&gt;"]
     C --> D["테스트 본문"]
-    D --> E["TearDown — DestroyImmediate + File.Delete"]
+    D --> E["TearDown - DestroyImmediate + File.Delete"]
 
     D --> T1["LoadExcelFile_SheetsDetected"]
     D --> T2["ImportData_RowCountMatches"]
@@ -144,7 +127,7 @@ flowchart TD
 `ExcelLoaderEditor` 와 같은 우회를 쓴다.
 
 ```csharp
-// Tests/ExcelLoaderTests.cs:153-159
+// Tests/ExcelLoaderTests.cs:67-68, :153-159
 static readonly BindingFlags MEMBER_FLAGS =
     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -157,7 +140,7 @@ List<string> _GetSheets(object target) =>
     target.GetType().GetProperty("Sheets", MEMBER_FLAGS)?.GetValue(target) as List<string>;
 ```
 
-`SetDefaultExcelSettings(path)` 는 `public` 이라 리플렉션 없이 호출한다 — 이 메서드가
+`SetDefaultExcelSettings(path)` 는 `public` 이라 리플렉션 없이 호출한다 - 이 메서드가
 직렬화되지 않는 `excelFilePath` 를 채우고 `LoadExcelFile()` 을 호출하므로,
 `excelFileAsset`(Project 창 에셋) 없이 임의 절대경로로 로드할 수 있다.
 
@@ -181,10 +164,7 @@ List<string> _GetSheets(object target) =>
    **시트가 선택되지 않은 채 테스트가 진행**된다. `ImportData` 가
    `sheet` null 로 `NullReferenceException` 을 던지는 형태로 드러나므로 무음 통과는 아니지만,
    실패 메시지가 원인을 가리키지 않는다.
-3. **`ImportData_NullRowGap_Skipped` 는 `ExcelToJson` 의 null 행 처리를 검증한다.** 해당 경로는
-   `HLogger.Error` 를 발화하며(`ExcelLoader.cs:158`) 건너뛴다. Unity Test Framework 는 기본적으로
-   테스트 중 `LogError` 를 실패로 처리하므로, 이 테스트가 통과한다는 것은 `HLogger.Error` 가
-   `Debug.LogError` 로 직결되지 않는다는 뜻이다 — `HCUP.HDiagnosis` 의 로거 구현에 의존한다.
+3. **`ImportData_NullRowGap_Skipped` 는 `ExcelToJson` 의 null 행 처리를 검증하고, 그 경로는 에러 로그를 남긴다.** null 행은 `HLogger.Error` 를 발화하며 건너뛰고(`ExcelLoader.cs:158`), `HLogger.Error` 는 에디터에서 `Debug.LogError` 로 이어진다 (`HDiagnosis/Runtime/Logger/HLogger.cs:188-190`). Unity Test Framework 는 기본적으로 테스트 중 미예상 `LogError` 를 실패로 처리하는데 이 테스트에는 `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` 가 없다. 따라서 기본 설정에서는 `Assert` 가 전부 통과해도 테스트가 실패로 보고될 수 있다.
 
 ### 정리 대상
 
@@ -196,7 +176,7 @@ List<string> _GetSheets(object target) =>
 6. **`CloseWorkbook` 이 `TearDown` 에서 호출되지 않는다** (`:86-90`).
    `DestroyImmediate(loader)` 만 하므로 워크북(XSSF OPCPackage)이 명시적으로 닫히지 않고,
    테스트가 만든 xlsx 파일을 `File.Delete` 할 때 파일 잠금 문제가 생길 여지가 있다.
-   현재 `LoadExcelFile` 이 `FileStream` 을 `using` 으로 닫으므로 실피해는 관측되지 않는다.
+   다만 `LoadExcelFile` 이 `FileStream` 을 `using` 으로 닫으므로 파일 핸들은 남지 않는다.
 7. **테스트 파일명이 고정이다** (`NPOI_TestTable.xlsx` / `NPOI_Gap.xlsx`). 테스트를 병렬
    실행하거나 이전 실행이 비정상 종료해 파일이 남으면 충돌한다.
 
@@ -209,4 +189,13 @@ List<string> _GetSheets(object target) =>
 | 새 테스트 추가 | `ExcelLoaderTests` 에 `[Test]` 메서드 + 필요 시 `_CreateTestExcel*` 헬퍼 복제 |
 | 다중 시트 경로 검증 | `_CreateTestExcel` 에 시트 추가 후 `ExcelToJsonAllSheets` 를 부르는 `TestLoader` 변형 |
 | Export 경로 테스트 | `ExcelLoader.JsonToExcel` 에서 다이얼로그·저장 패널을 주입 가능한 형태로 분리해야 가능 |
-| DLL 참조 추가 | `precompiledReferences` 에 명시 — `overrideReferences: true` 라 자동 참조가 없다 |
+| DLL 참조 추가 | `precompiledReferences` 에 명시 - `overrideReferences: true` 라 자동 참조가 없다 |
+
+---
+
+## 히스토리
+
+### 2026-08-05 :: 테스트 어셈블리 복구
+
+- 이전: 모듈 분리 전 `HCUP.HData.NPOI.Tests` 는 `excludePlatforms` 에 `Editor` 가 들어 있어 EditMode 러너에 잡히지 않았고, 삭제된 `HData.NPOI.Samples` 의 `SampleData` 를 참조해 컴파일되지 않았다. 원인은 참조 설정이 아니라 소스의 외부 타입 의존이었다.
+- 현재: HExcel 로 분리하면서 `includePlatforms: ["Editor"]` 로 바꾸고, `precompiledReferences` 에 NPOI 4종과 Newtonsoft.Json 을 추가하고, 픽스처 전용 DTO `SampleData` 를 테스트 파일 안에 두었다.
