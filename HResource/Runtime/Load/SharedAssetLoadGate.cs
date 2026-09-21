@@ -36,9 +36,6 @@ using HDiagnosis.Logger;
 namespace HResource.Load {
     public sealed class SharedAssetLoadGate<TKey, TAsset> : IAssetLoadGate<TKey, TAsset> {
         #region Private - Fields
-        // 진행 중인 key -> 합류자용 완료 소스. null 은 "진행 중이지만 합류자가 아직 없음" 이다.
-        // UniTaskCompletionSource<T> 는 클래스 쪽이라 진행 중 동시 await 를 여럿 받는다.
-        // 구조체 Core 나 Preserve 의 MemoizeSource 는 진행 중 continuation 슬롯이 하나라 두 번째 합류자가 던진다.
         readonly Dictionary<TKey, UniTaskCompletionSource<TAsset>> loadingTable = new();
         #endregion
 
@@ -49,7 +46,6 @@ namespace HResource.Load {
             }
 
             if (loadingTable.TryGetValue(key, out var joined)) {
-                // 완료 소스는 첫 합류자가 만든다. 합류가 없으면 할당도, 아무도 읽지 않는 예외도 생기지 않는다.
                 if (joined == null) {
                     joined = new UniTaskCompletionSource<TAsset>();
                     loadingTable[key] = joined;
@@ -65,16 +61,14 @@ namespace HResource.Load {
                 result = await factory.Invoke();
             }
             catch (Exception exception) {
-                // 삼키지 않는다. 합류자에게 같은 예외를 넘긴 뒤 최초 호출자에게 그대로 다시 던진다.
                 loadingTable.Remove(key, out var failed);
                 failed?.TrySetException(exception);
                 throw;
             }
 
-            // 먼저 뺀다. 재개된 합류자가 같은 key 를 다시 요청하면 새 로드로 가야 한다.
             loadingTable.Remove(key, out var source);
-            // 합류자들이 이 호출 스택 안에서 차례로 재개된다. 최초 호출자는 그 뒤에 반환한다.
             source?.TrySetResult(result);
+
             return result;
         }
         #endregion
