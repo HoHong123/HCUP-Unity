@@ -1,13 +1,13 @@
 # Load - 소스 로더와 동시성 게이트
 
-> 대상: `Runtime/Load/*.cs` (`IAssetLoader` / `IAssetReleasableLoader` / `ResourcesAssetLoader` / `AddressableAssetLoader` / `IAddressableLabelLoader` / `AddressableLabelLoader` / `IAssetLoadGate` / `SharedAssetLoadGate`)
+> 대상: `Runtime/Load/*.cs` (`IAssetLoader` / `IAssetReleasableLoader` / `ResourcesAssetLoader` / `AddressableAssetLoader` / `IAddressableLabelLoader` / `AddressableLabelLoader` / `IAssetLoadGate` / `SharedAssetLoadGate` / `IAssetKeyNormalizer` / `ResourcesKeyNormalizer` / `TrimKeyNormalizer`)
 > 상위 문서: [Runtime/README.md](../Runtime/README.md)
 
 ---
 
 ## 요약
 
-로더는 **`TKey` 를 실제 소스 API 호출로 번역하는 유일한 지점**이다. 캐시·소유권·fetch 순서는 전부 위층의 일이고, 로더는 "이 key 로 이 소스에서 하나 가져와라"와 "그 핸들을 돌려줘라" 둘만 안다. 게이트는 그 호출이 같은 key 로 겹칠 때 하나로 합친다.
+로더는 **이미 정규화된 `TKey` 를 실제 소스 API 호출로 번역**한다. key 의 여러 표기를 하나로 맞추는 일은 provider 입구의 `IAssetKeyNormalizer` 가 한 번 하고, 캐시·소유권·fetch 순서도 전부 위층의 일이다. 로더는 "이 key 로 이 소스에서 하나 가져와라"와 "그 핸들을 돌려줘라" 둘만 안다. 게이트는 그 호출이 같은 key 로 겹칠 때 하나로 합친다.
 
 ---
 
@@ -41,11 +41,18 @@ flowchart TD
 
 ---
 
-## ResourcesAssetLoader - 정규화, 비동기 로드, 해제
+## key 정규화 - provider 입구에서 한 번
+
+로더는 key 를 해석하지 않는다. `AssetProvider` 가 생성자로 받은 `IAssetKeyNormalizer` 로 획득 · 조회 · 반납 입구에서 key 를 한 번 맞추고, 게이트 · 캐시 · 로더 · 반납 추적표는 그 결과만 본다. 팩토리가 로더 종류에 맞는 규칙을 넣는다.
+
+| 규칙 | 넣는 곳 | 동작 |
+|---|---|---|
+| `ResourcesKeyNormalizer(rootPath)` | `CreateResources` | 확장자 제거 + 선행 슬래시 제거 + 역슬래시 → `/` + rootPath 결합 (`Load/ResourcesKeyNormalizer.cs:37-62`) |
+| `TrimKeyNormalizer` | `CreateAddressable`, 규칙을 생략한 `Create` | 앞뒤 공백만 제거 (`Load/TrimKeyNormalizer.cs:22-25`). Addressables 기본 주소는 확장자가 붙은 에셋 경로라 지우면 안 된다 |
 
 ```csharp
-// Load/ResourcesAssetLoader.cs:108-133 - 요약
-private string _NormalizeKey(string key) {
+// Load/ResourcesKeyNormalizer.cs:37-62 - 요약
+public string Normalize(string key) {
     var normalizedKey = _TrimExtension(key).TrimStart('/');          // 확장자 제거 + 선행 슬래시
     if (string.IsNullOrEmpty(resourcesRootPath)) return normalizedKey;
     bool isUnderRootPath = normalizedKey.Equals(resourcesRootPath, OrdinalIgnoreCase)
@@ -57,11 +64,15 @@ private string _NormalizeKey(string key) {
 
 "이미 rootPath 하위" 판정은 경로 경계까지 본다. rootPath 가 `Icon` 일 때 key `IconSet/A` 는 `Icon` 으로 시작하지만 뒤에 `/` 가 오지 않으므로 하위로 보지 않고 `Icon/IconSet/A` 로 결합한다.
 
-`LoadAsync` 는 `Resources.LoadAsync<TAsset>` 가 돌려준 `ResourceRequest` 를 `ToUniTask()` 로 await 한다 (`Load/ResourcesAssetLoader.cs:55-67`). 메인 스레드 부담을 여러 프레임으로 나눌 뿐 없애지는 않는다. 로드 후 오브젝트 통합과 텍스처 업로드는 모든 플랫폼에서 메인 스레드에서 일어나고, WebGL 은 기본 설정에 로딩 스레드가 없어 로드 자체도 메인 스레드에서 진행된다. 완료는 다음 프레임 이후에 온다. 자산이 없으면 예외 없이 `null` 을 반환한다.
+**Resources 규칙은 멱등이 아니다.** `Path.ChangeExtension` 이 마지막 점 뒤를 지우므로 `Icon/foo.v2.png` 는 한 번 거치면 `Icon/foo.v2`, 두 번 거치면 `Icon/foo` 가 된다. 그래서 정규화는 입구에서 한 번만 하고 로더는 다시 하지 않는다 (`Tests/Editor/KeyNormalizerTests.cs` 가 고정).
 
-로드에 성공한 에셋은 정규화된 key 로 `loadedTable` 에 기록한다. `Release(key)` 는 그 에셋을 표에서 빼고 `Resources.UnloadAsset` 으로 내린다 (`:71-83`). `ReleaseAll()` 은 전부 내린다 (`:85-91`). provider 가 이 로더를 releasable 로 인식하므로 캐시 제거(`OnAssetRemoved`) 때 자동으로 불린다.
+## ResourcesAssetLoader - 비동기 로드, 해제
 
-`Resources.UnloadAsset` 은 개별 에셋 전용이라 `GameObject` / `Component` 에 부르면 Unity 가 에러를 낸다. 그 둘은 추적만 풀고 메모리 회수는 `Resources.UnloadUnusedAssets` 에 맡긴다 (`:95-104`). 내린 에셋을 씬이나 다른 provider 가 계속 참조하면 Unity 가 디스크에서 다시 읽으므로 참조가 깨지지는 않는다.
+`LoadAsync` 는 `Resources.LoadAsync<TAsset>` 가 돌려준 `ResourceRequest` 를 `ToUniTask()` 로 await 한다 (`Load/ResourcesAssetLoader.cs:42-53`). 메인 스레드 부담을 여러 프레임으로 나눌 뿐 없애지는 않는다. 로드 후 오브젝트 통합과 텍스처 업로드는 모든 플랫폼에서 메인 스레드에서 일어나고, WebGL 은 기본 설정에 로딩 스레드가 없어 로드 자체도 메인 스레드에서 진행된다. 완료는 다음 프레임 이후에 온다. 자산이 없으면 예외 없이 `null` 을 반환한다.
+
+로드에 성공한 에셋은 받은 key(provider 가 정규화한 것) 그대로 `loadedTable` 에 기록한다. `Release(key)` 는 그 에셋을 표에서 빼고 `Resources.UnloadAsset` 으로 내린다 (`:57-68`). `ReleaseAll()` 은 전부 내린다 (`:70-76`). provider 가 이 로더를 releasable 로 인식하므로 캐시 제거(`OnAssetRemoved`) 때 자동으로 불린다.
+
+`Resources.UnloadAsset` 은 개별 에셋 전용이라 `GameObject` / `Component` 에 부르면 Unity 가 에러를 낸다. 그 둘은 추적만 풀고 메모리 회수는 `Resources.UnloadUnusedAssets` 에 맡긴다 (`:80-89`). 내린 에셋을 씬이나 다른 provider 가 계속 참조하면 Unity 가 디스크에서 다시 읽으므로 참조가 깨지지는 않는다.
 
 ---
 
@@ -73,8 +84,8 @@ sequenceDiagram
     participant L as AddressableAssetLoader
     participant AD as Addressables
 
+    Note over P: 입구에서 TrimKeyNormalizer 로 key 정규화 (로더는 해석하지 않음)
     P->>L: LoadAsync(key)
-    L->>L: _NormalizeKey - Trim 만
     alt handleTable 에 유효한 핸들이 있음
         L-->>P: cachedHandle.Result - 새 핸들 없음
     else 새 핸들 발급
@@ -89,11 +100,11 @@ sequenceDiagram
     end
 ```
 
-**실패 판정은 `try/catch` 로만 한다.** UniTask 에서 실패한 핸들의 `await` 는 예외를 던지므로 사후 `Status` 검사는 도달할 수 없다 - 코드 주석이 그 근거를 남겨 두었다 (`Load/AddressableAssetLoader.cs:47-56`).
+**실패 판정은 `try/catch` 로만 한다.** UniTask 에서 실패한 핸들의 `await` 는 예외를 던지므로 사후 `Status` 검사는 도달할 수 없다 - 코드 주석이 그 근거를 남겨 두었다 (`Load/AddressableAssetLoader.cs:46-55`).
 
-핸들 테이블은 **key 당 1개**다 (`:30`). 같은 key 를 두 번 로드해도 Addressables 참조 카운트는 1 이고, `Release(key)` 한 번이면 사라진다 (`:64-80`). 다중 점유 계산은 전적으로 캐시의 몫이라는 전제 위에 서 있는 구조다 - provider 가 캐시 미스일 때만 로더를 부르고, 캐시 항목이 실제로 제거될 때만 `Release` 를 부르기 때문에 1:1 이 유지된다.
+핸들 테이블은 **key 당 1개**다 (`:30`). 같은 key 를 두 번 로드해도 Addressables 참조 카운트는 1 이고, `Release(key)` 한 번이면 사라진다 (`:63-78`). 다중 점유 계산은 전적으로 캐시의 몫이라는 전제 위에 서 있는 구조다 - provider 가 캐시 미스일 때만 로더를 부르고, 캐시 항목이 실제로 제거될 때만 `Release` 를 부르기 때문에 1:1 이 유지된다.
 
-`ReleaseAll()` (`:82-88`)은 캐시와 무관하게 전 핸들을 지운다. **캐시에는 항목이 남아 있는데 핸들만 사라진 상태**를 만들 수 있으므로, 셧다운 경로에서만 써야 한다.
+`ReleaseAll()` (`:80-86`)은 캐시와 무관하게 전 핸들을 지운다. **캐시에는 항목이 남아 있는데 핸들만 사라진 상태**를 만들 수 있으므로, 셧다운 경로에서만 써야 한다.
 
 ---
 
@@ -183,22 +194,26 @@ sequenceDiagram
 - **`Remove` 가 합류자 재개보다 먼저다.** 재개된 합류자(또는 그 호출자)가 같은 key 를 다시 요청하면 끝난 항목에 합류하지 않고 새 로드로 간다.
 - **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 합류자도 같은 예외를 받는다. 취소(`OperationCanceledException`)는 `TrySetException` 이 `TrySetCanceled` 로 넘겨 합류자에게 취소로 전달된다.
 - **factory 안에서 같은 key 로 게이트를 다시 부르면 교착한다.** 등록이 factory 호출 앞이라 자기 자신에게 합류한다. 등록을 뒤로 미루면 교착 대신 이중 로드가 되어 Addressables 참조 카운트 잔존이 생기므로, 교착을 택하고 `IAssetLoadGate` 계약으로 금지한다.
-- **동기 재개는 "획득 직후 동기 반납" 경합을 닫지 않는다.** 합류자 쪽 호출자가 받자마자 `Release` 하면 점유가 0 이 되어 핸들이 반납되고, 뒤이어 재개되는 최초 호출자는 반납된 에셋을 받는다 (`Provider/AssetProvider.cs:256-311`). 이전 구현에서도 프레임을 사이에 두고 같은 일이 생길 수 있었고, 닫으려면 결과를 나눠 주는 동안 임시 점유를 잡는 별도 설계가 필요하다.
+- **동기 재개는 "획득 직후 동기 반납" 경합을 닫지 않는다.** 합류자 쪽 호출자가 받자마자 `Release` 하면 점유가 0 이 되어 핸들이 반납되고, 뒤이어 재개되는 최초 호출자는 반납된 에셋을 받는다 (`Provider/AssetProvider.cs:260-315`). 이전 구현에서도 프레임을 사이에 두고 같은 일이 생길 수 있었고, 닫으려면 결과를 나눠 주는 동안 임시 점유를 잡는 별도 설계가 필요하다.
 - 동작은 `HResource/Tests/Editor/SharedAssetLoadGateTests.cs` 가 EditMode 로 검증한다.
 
 ---
 
 ## 주의할 점
 
-1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다. 또 `loadedTable` 은 정규화 key 를 쓰는데 캐시와 게이트는 원본 key 를 써서, 확장자만 다른 두 key 는 캐시 항목 2개가 로더 항목 1개를 나눠 쓴다. 한쪽 반납이 에셋을 내리고(참조되면 디스크에서 다시 읽힌다) 다른 쪽 반납 때는 언로드가 빠진다 (`Tests/Editor/ResourcesKeyNormalizationTests.cs` 가 재현, 수정 방향 미정).
-2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:42-45`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
-3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:82-88`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
-4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:95-101`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
+1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다.2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:41-44`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
+3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:80-86`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
+4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:99-105`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
 5. **같은 Resources 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내린다.** Resources 는 참조 카운트가 없어 한 provider 의 캐시에서 빠지는 순간 `UnloadAsset` 이 불린다. 다른 쪽 참조는 Unity 가 디스크에서 다시 읽어 살아나지만 그 재로드 비용이 든다.
 
 ---
 
 ## 히스토리
+
+### 2026-09-21 :: key 정규화를 로더에서 provider 입구로 이동
+
+- 이전: `ResourcesAssetLoader` / `AddressableAssetLoader` 가 각자 `_NormalizeKey` 로 key 를 정규화했다. 정규화 key 는 로더 표에만 쓰였고 게이트 · 캐시 · 반납 추적표는 원본 key 를 썼다. 확장자만 다른 두 key 가 캐시 항목 2개와 로더 항목 1개를 만들어, 한쪽 반납이 에셋을 내리고 다른 쪽 반납 때는 언로드가 빠졌다.
+- 현재: `AssetProvider` 가 `IAssetKeyNormalizer` 를 받아 획득 · 조회 · 반납 입구에서 한 번 정규화한다. 로더는 key 를 해석하지 않는다. `ResourcesAssetLoader(rootPath)` 생성자는 없어지고 rootPath 는 `ResourcesKeyNormalizer(rootPath)` 가 받는다. `IAssetSource` 공개 API 와 팩토리 편의 메서드 호출처는 바뀌지 않았다.
 
 ### 2026-09-21 :: `ResourcesAssetLoader` 에 해제 경로 추가
 
