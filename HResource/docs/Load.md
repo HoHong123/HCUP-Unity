@@ -57,7 +57,7 @@ private string _NormalizeKey(string key) {
 
 "이미 rootPath 하위" 판정은 경로 경계까지 본다. rootPath 가 `Icon` 일 때 key `IconSet/A` 는 `Icon` 으로 시작하지만 뒤에 `/` 가 오지 않으므로 하위로 보지 않고 `Icon/IconSet/A` 로 결합한다.
 
-`LoadAsync` 는 `Resources.LoadAsync<TAsset>` 가 돌려준 `ResourceRequest` 를 `ToUniTask()` 로 await 한다 (`Load/ResourcesAssetLoader.cs:50-58`). 로드는 백그라운드 로딩 스레드에서 진행되고 완료는 다음 프레임 이후에 온다. 자산이 없으면 예외 없이 `null` 을 반환한다.
+`LoadAsync` 는 `Resources.LoadAsync<TAsset>` 가 돌려준 `ResourceRequest` 를 `ToUniTask()` 로 await 한다 (`Load/ResourcesAssetLoader.cs:50-58`). 메인 스레드 부담을 여러 프레임으로 나눌 뿐 없애지는 않는다. 로드 후 오브젝트 통합과 텍스처 업로드는 모든 플랫폼에서 메인 스레드에서 일어나고, WebGL 은 기본 설정에 로딩 스레드가 없어 로드 자체도 메인 스레드에서 진행된다. 완료는 다음 프레임 이후에 온다. 자산이 없으면 예외 없이 `null` 을 반환한다.
 
 ---
 
@@ -122,19 +122,33 @@ readonly struct LabelHandleKey : IEquatable<LabelHandleKey> {
 ## SharedAssetLoadGate - 진행 중 작업 합류
 
 ```csharp
-// Load/SharedAssetLoadGate.cs:38-56
+// Load/SharedAssetLoadGate.cs:44-77 - 요약
 public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
     if (factory == null) HLogger.Throw(new ArgumentNullException(...));
-    if (loadingTable.TryGetValue(key, out var runningTask)) return await runningTask;
 
-    var newTask = factory.Invoke().AsTask();   // UniTask → Task : multi-continuation 허용
-    loadingTable[key] = newTask;
-    try { return await newTask; }
-    finally { loadingTable.Remove(key); }
+    if (loadingTable.TryGetValue(key, out var joined)) {
+        if (joined == null) loadingTable[key] = joined = new UniTaskCompletionSource<TAsset>();   // 첫 합류자가 생성
+        return await joined.Task;
+    }
+
+    loadingTable.Add(key, null);                      // null = 진행 중, 합류자 없음
+    TAsset result;
+    try { result = await factory.Invoke(); }
+    catch (Exception exception) {                     // 삼키지 않고 전파
+        loadingTable.Remove(key, out var failed);
+        failed?.TrySetException(exception);
+        throw;
+    }
+
+    loadingTable.Remove(key, out var source);         // 먼저 뺀다
+    source?.TrySetResult(result);                     // 합류자가 이 스택 안에서 동기로 재개
+    return result;
 }
 ```
 
-`AsTask()` 변환이 이 클래스의 핵심이다. `UniTask` 는 single-continuation 제약이 있어 여러 호출자가 같은 인스턴스를 `await` 할 수 없다 - Dev Log 가 `Preserve` 시도 후 `Task` 전환으로 정정한 경위를 남겨 두었다.
+**완료 소스는 첫 합류자가 만든다.** `UniTaskCompletionSource` 는 여러 곳에서 await 할 수 있지만, 항상 만들면 결함이 둘 생긴다. 합류자 없이 실패하면 아무도 읽지 않은 `ExceptionHolder` 가 GC 시점에 소멸자에서 `PublishUnobservedTaskException` 으로 한 번 더 보고되고, 생성자가 `TaskTracker` 에 등록한 항목이 결과를 읽는 `MarkHandled` 없이 남는다. 지연 생성은 둘 다 없애고, 합류가 없는 흔한 경우의 할당을 0 으로 만든다.
+
+**합류자는 동기로 재개된다.** `TrySetResult` 가 lock 안에서 continuation 을 차례로 호출하므로 합류자는 최초 호출자와 같은 프레임, 같은 호출 스택에서 깨어나고 최초 호출자는 그 뒤에 반환한다. 이전 구현(`AsTask()` 로 만든 `Task` 공유)은 합류자의 await 가 `SynchronizationContext` 를 거쳐 늦게 재개될 수 있었다.
 
 게이트는 **정합성 장치**다. `AddressableAssetLoader` 는 `handleTable` 조회가 await 앞, 등록이 await 뒤라서 게이트가 없으면 동시 요청 2건이 모두 `LoadAssetAsync` 를 불러 Addressables 참조 카운트가 2 가 되고, `handleTable` 은 뒤엣것으로 덮여 `Release` 1회로는 0 에 도달하지 못한다. `ResourcesAssetLoader` 도 `LoadAsync` 가 진행 중 구간을 가지므로 같은 key 동시 요청은 합쳐진다. Resources 는 핸들 참조 카운트가 없어 게이트가 없어도 잔존은 생기지 않는다.
 
@@ -148,20 +162,22 @@ sequenceDiagram
     C1->>G: RunAsync(key, factory)
     G->>L: factory 실행 - 소스 호출 1회
     C2->>G: RunAsync(key, factory)
-    Note over G,C2: loadingTable 히트 - factory 실행하지 않고 같은 Task 에 합류
+    Note over G,C2: loadingTable 히트 - factory 실행하지 않고 완료 소스 생성 후 합류
     L-->>G: asset
-    G-->>C1: asset
-    G-->>C2: asset (같은 인스턴스)
-    Note over G: finally - loadingTable.Remove(key)
+    Note over G: loadingTable.Remove(key) - 합류자를 깨우기 전에 뺀다
+    G-->>C2: asset (TrySetResult 안에서 동기 재개)
+    G-->>C1: asset (같은 인스턴스, 합류자 다음)
 ```
 
 **게이트는 결과 캐시가 아니다.** 완료 즉시 테이블에서 빠지므로 다음 요청은 다시 factory 를 실행한다 (캐시 히트 여부는 factory 안, 즉 provider 의 fetch mode 가 결정한다).
 
 주의 지점:
 
-- `finally` 의 `Remove(key)` 는 **키 존재만 보고 지운다**. 첫 호출이 완료된 뒤 새 호출이 같은 key 를 등록했다면 이론상 남의 항목을 지울 수 있으나, `await` 완료와 `finally` 사이에 다른 코드가 끼어들 지점이 메인 스레드 단일 루프에서는 없다.
-- **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 `await runningTask` 를 하던 후속 호출자도 같은 예외를 받는다.
-- 최초 호출자마다 `AsTask()` 로 `Task` 를 할당한다 - 게이트를 통과하는 `GetAsync` 에 붙는 비용이다.
+- **`Remove` 가 합류자 재개보다 먼저다.** 재개된 합류자(또는 그 호출자)가 같은 key 를 다시 요청하면 끝난 항목에 합류하지 않고 새 로드로 간다.
+- **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 합류자도 같은 예외를 받는다. 취소(`OperationCanceledException`)는 `TrySetException` 이 `TrySetCanceled` 로 넘겨 합류자에게 취소로 전달된다.
+- **factory 안에서 같은 key 로 게이트를 다시 부르면 교착한다.** 등록이 factory 호출 앞이라 자기 자신에게 합류한다. 등록을 뒤로 미루면 교착 대신 이중 로드가 되어 Addressables 참조 카운트 잔존이 생기므로, 교착을 택하고 `IAssetLoadGate` 계약으로 금지한다.
+- **동기 재개는 "획득 직후 동기 반납" 경합을 닫지 않는다.** 합류자 쪽 호출자가 받자마자 `Release` 하면 점유가 0 이 되어 핸들이 반납되고, 뒤이어 재개되는 최초 호출자는 반납된 에셋을 받는다 (`Provider/AssetProvider.cs:256-311`). 이전 구현에서도 프레임을 사이에 두고 같은 일이 생길 수 있었고, 닫으려면 결과를 나눠 주는 동안 임시 점유를 잡는 별도 설계가 필요하다.
+- 동작은 `HResource/Tests/Editor/SharedAssetLoadGateTests.cs` 가 EditMode 로 검증한다.
 
 ---
 
@@ -175,6 +191,11 @@ sequenceDiagram
 ---
 
 ## 히스토리
+
+### 2026-09-21 :: `SharedAssetLoadGate` 를 지연 생성 완료 소스로 교체
+
+- 이전: 최초 호출자가 `factory.Invoke().AsTask()` 로 만든 `Task` 를 표에 두고 합류자가 그것을 await 했다. `finally` 에서 표를 정리했다. 합류 여부와 관계없이 호출마다 `Task` 를 할당했고, 합류자는 `SynchronizationContext` 를 거쳐 늦게 재개될 수 있었다. factory 를 먼저 불러 같은 key 재진입은 이중 로드였다.
+- 현재: 첫 합류자가 `UniTaskCompletionSource` 를 만들고 합류자는 `TrySetResult` 안에서 동기로 재개된다. 같은 key 재진입은 교착이며 계약으로 금지한다.
 
 ### 2026-09-21 :: `ResourcesAssetLoader` 를 비동기 로드로 전환
 
