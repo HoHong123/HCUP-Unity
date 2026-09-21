@@ -13,13 +13,13 @@ using UnityEngine;
 #if UNITY_EDITOR
 /* =========================================================
  * @Jason - PKH
- * AssetHandler 의 중심 진입점 provider 구현. 5 컴포넌트 (Cache / Store / Loader[] / Validator
- * / LoadGate) 의 단일 오케스트레이터.
+ * AssetHandler 의 중심 진입점 provider 구현. 6 컴포넌트 (Cache / Store / Loader[] / Validator
+ * / LoadGate / KeyNormalizer) 의 단일 오케스트레이터.
  *
  * 주요 기능 ::
  * 5 가지 fetch mode (CacheFirst / LocalStoreFirst / LocalStoreOnly / SourceFirst / SourceOnly)
  * 를 _GetByFetchModeAsync switch 한 곳에 모아 cache/store/source 호출 순서 조율.
- * SharedAssetLoadGate 로 동일 key 동시 요청 dedupe.
+ * key 는 입구(획득 · 조회 · 반납)에서 keyNormalizer 로 한 번 맞추고, SharedAssetLoadGate 로 동일 key 동시 요청 dedupe.
  * cache 제거 시 OnAssetRemoved → releasable loader 자동 release 연쇄.
  * owner 별 점유의 실제 보유자. 지문 발급은 AssetLeashManager 가 맡는다.
  *
@@ -52,6 +52,7 @@ namespace HResource.Provider {
         readonly IAssetStore<TKey, TAsset> assetStore;
         readonly IAssetValidator<TKey, TAsset> assetValidator;
         readonly IAssetLoadGate<TKey, TAsset> assetLoadGate;
+        readonly IAssetKeyNormalizer<TKey> keyNormalizer;
         readonly AssetLeashManager<TKey, TAsset> leashManager;
 
         readonly Dictionary<AssetLoadMode, IAssetLoader<TKey, TAsset>> loaderTable = new();
@@ -72,16 +73,19 @@ namespace HResource.Provider {
             IAssetCache<TKey, TAsset> assetCache,
             IAssetValidator<TKey, TAsset> assetValidator,
             IAssetLoadGate<TKey, TAsset> assetLoadGate,
+            IAssetKeyNormalizer<TKey> keyNormalizer,
             IAssetStore<TKey, TAsset> assetStore = null) {
 
             if (assetLoaders == null) HLogger.Throw(new ArgumentNullException(nameof(assetLoaders)));
             if (assetCache == null) HLogger.Throw(new ArgumentNullException(nameof(assetCache)));
             if (assetValidator == null) HLogger.Throw(new ArgumentNullException(nameof(assetValidator)));
             if (assetLoadGate == null) HLogger.Throw(new ArgumentNullException(nameof(assetLoadGate)));
+            if (keyNormalizer == null) HLogger.Throw(new ArgumentNullException(nameof(keyNormalizer)));
 
             this.assetCache = assetCache;
             this.assetValidator = assetValidator;
             this.assetLoadGate = assetLoadGate;
+            this.keyNormalizer = keyNormalizer;
             this.assetStore = assetStore;
             this.assetCache.OnAssetRemoved += _OnAssetRemoved;
 
@@ -148,7 +152,7 @@ namespace HResource.Provider {
 
             // 신원은 토큰에서만 꺼낸다. 따로 받으면 어긋난 조합이 표현 가능해진다.
             var request = new AssetRequest<TKey>(
-                key: key,
+                key: keyNormalizer.Normalize(key),
                 loadMode: loadMode,
                 fetchMode: fetchMode,
                 ownerId: liveToken.IssuedId);
@@ -162,7 +166,7 @@ namespace HResource.Provider {
                 return false;
             }
 
-            return assetCache.TryGet(key, out asset);
+            return assetCache.TryGet(keyNormalizer.Normalize(key), out asset);
         }
         #endregion
 
@@ -173,7 +177,7 @@ namespace HResource.Provider {
 
             // 점유한 적이 없는 소유자면 발급하지 않는다. 빈 지문을 늘리지 않기 위해서다.
             if (!leashManager.TryFingerprint(owner, out var ownerId)) return false;
-            return assetCache.Release(key, ownerId);
+            return assetCache.Release(keyNormalizer.Normalize(key), ownerId);
         }
 
         /// <summary> 이 소유자의 점유를 일괄 반납한다. 파괴를 기다리지 않고 지금 놓는다. </summary>
@@ -186,7 +190,7 @@ namespace HResource.Provider {
         // 지문이 확정된 뒤의 실제 해제 경로. leash 계층만 호출.
         internal bool ReleaseForOwner(TKey key, AssetOwnerId ownerId) {
             if (_RejectIfDisposed(nameof(ReleaseForOwner))) return false;
-            return assetCache.Release(key, ownerId);
+            return assetCache.Release(keyNormalizer.Normalize(key), ownerId);
         }
 
         internal int ReleaseOwnerId(AssetOwnerId ownerId) {
@@ -509,6 +513,25 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정 2) :: key 를 입구에서 한 번 정규화
+ *
+ * 변경 ::
+ * 생성자에 IAssetKeyNormalizer<TKey> keyNormalizer 를 받는다 (null 이면 HLogger.Throw). 획득 요청 생성 ·
+ * TryGet · Release · ReleaseForOwner 네 입구에서 keyNormalizer.Normalize(key) 를 거친다. leash 창구도 이 넷을 지난다.
+ *
+ * 이유 ::
+ * 로더만 key 를 정규화해 게이트 · 캐시 · 반납 추적표(원본 key)와 로더 표(정규화 key)가 어긋났다. 확장자만 다른
+ * 두 key 가 캐시 2칸 · 로더 1칸을 만들어 한쪽 반납이 다른 쪽 몫을 가져갔다. Release / TryGet 은 loadMode 를 받지
+ * 않아 로더별 규칙을 고를 수 없으므로 provider 에 규칙 하나를 주입한다 (사용자 결정 (a1)).
+ *
+ * 결과 ::
+ * 네 입구의 변경은 같은 줄 안에서 했다. 늘어난 줄은 필드 · 인자 · null 검사 · 대입 4 줄뿐이라 docs 의 행 참조는
+ * 해당 4 줄 이후를 +4 로 옮겼다. IAssetSource 공개 API 는 바뀌지 않았다.
+ *
+ * 주의 ::
+ * 입구 말고 다른 곳에서 key 를 다시 정규화하지 않는다. ResourcesKeyNormalizer 는 멱등이 아니다.
+ *
  * =========================================================
  * 2026-09-21 (수정) :: ClearCache 를 에디터 · 개발 빌드 전용으로 제한
  *

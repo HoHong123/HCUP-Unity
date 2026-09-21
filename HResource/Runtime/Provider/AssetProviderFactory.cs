@@ -4,9 +4,9 @@
  * 기본 AssetProvider 조합을 만드는 정적 팩토리. 편의 생성 계층.
  *
  * 주요 기능 ::
- * CreateResources<TAsset>(rootPath) - Resources 기본 조합.
- * CreateAddressable<TAsset>() - Addressable 기본 조합.
- * Create<TAsset>(loaders, store) - 사용자 정의 loader 조합.
+ * CreateResources<TAsset>(rootPath) - Resources 기본 조합. key 규칙은 ResourcesKeyNormalizer(rootPath).
+ * CreateAddressable<TAsset>() - Addressable 기본 조합. key 규칙은 TrimKeyNormalizer.
+ * Create<TAsset>(loaders, store, keyNormalizer) - 사용자 정의 loader 조합. 규칙 생략 시 TrimKeyNormalizer.
  *
  * 사용법 ::
  * 도메인 코드가 빠르게 provider 를 조립할 때 사용. 기본 store 가 필요하면 인자로 전달.
@@ -35,8 +35,8 @@ namespace HResource.Provider {
             IAssetStore<string, TAsset> assetStore = null)
             where TAsset : Object {
 
-            var assetLoader = new ResourcesAssetLoader<TAsset>(resourcesRootPath);
-            return Create(new[] { assetLoader }, assetStore);
+            var assetLoader = new ResourcesAssetLoader<TAsset>();
+            return Create(new[] { assetLoader }, assetStore, new ResourcesKeyNormalizer(resourcesRootPath));
         }
 
         public static IAssetSource<string, TAsset> CreateAddressable<TAsset>(
@@ -44,12 +44,17 @@ namespace HResource.Provider {
             where TAsset : Object {
 
             var assetLoader = new AddressableAssetLoader<TAsset>();
-            return Create(new[] { assetLoader }, assetStore);
+            return Create(new[] { assetLoader }, assetStore, new TrimKeyNormalizer());
         }
 
+        /// <summary>
+        /// 로더를 직접 고르는 조합. keyNormalizer 를 넘기지 않으면 앞뒤 공백만 지우는 규칙을 쓴다.
+        /// Resources 로더만 넘길 때는 ResourcesKeyNormalizer 를 넘겨야 확장자 변형이 한 항목으로 합쳐진다.
+        /// </summary>
         public static IAssetSource<string, TAsset> Create<TAsset>(
             IEnumerable<IAssetLoader<string, TAsset>> assetLoaders,
-            IAssetStore<string, TAsset> assetStore = null)
+            IAssetStore<string, TAsset> assetStore = null,
+            IAssetKeyNormalizer<string> keyNormalizer = null)
             where TAsset : Object {
 
             if (assetLoaders == null) {
@@ -61,6 +66,7 @@ namespace HResource.Provider {
                 assetCache: new MemoryAssetCache<string, TAsset>(),
                 assetValidator: new DefaultAssetValidator<string, TAsset>(),
                 assetLoadGate: new SharedAssetLoadGate<string, TAsset>(),
+                keyNormalizer: keyNormalizer ?? new TrimKeyNormalizer(),
                 assetStore: assetStore);
         }
         #endregion
@@ -70,6 +76,22 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: provider 에 key 정규화 규칙을 넣는다
+ *
+ * 변경 ::
+ * CreateResources 는 ResourcesKeyNormalizer(rootPath) 를, CreateAddressable 은 TrimKeyNormalizer 를 넣는다.
+ * rootPath 는 로더가 아니라 규칙이 받는다. Create 에 선택 인자 keyNormalizer 를 맨 뒤에 추가했다.
+ *
+ * 이유 ::
+ * key 해석을 로더 안에서 provider 입구로 옮겼다 (IAssetKeyNormalizer Dev Log). 조립 지점이 이 팩토리라 규칙 선택도 여기서 한다.
+ *
+ * 결과 ::
+ * CreateResources / CreateAddressable 호출처(HAudio · HDialogue · HLocalization · HUI)는 바뀌지 않는다.
+ *
+ * 주의 ::
+ * Create 의 기본 규칙은 Trim 이다. Resources 로더만 직접 넘기면서 규칙을 생략하면 확장자 변형이 합쳐지지 않는다.
+ *
  * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
  *
