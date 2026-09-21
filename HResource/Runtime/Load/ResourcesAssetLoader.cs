@@ -4,27 +4,23 @@
  * Resources 단일 asset 로더 구현. string key → Resources.LoadAsync<TAsset> 를 UniTask 로 await.
  *
  * 주요 기능 ::
- * 문자열 key 정규화 (확장자 제거 + 슬래시 trim + rootPath 결합).
+ * key 를 해석하지 않는다. provider 가 ResourcesKeyNormalizer 로 맞춘 key 를 그대로 Resources 경로로 쓴다.
  * Resources.LoadAsync 로 메인 스레드 부담을 여러 프레임으로 나눈다 (통합은 메인, WebGL 은 로드도 메인). 없으면 null.
  * Release(key) / ReleaseAll() - 로드한 에셋을 Resources.UnloadAsset 으로 내린다. 캐시 제거 시 provider 가 부른다.
  *
  * 사용법 ::
- * AssetProviderFactory.CreateResources(rootPath) 가 자동 등록. 또는 사용자 정의 조합으로
- * AssetProvider 생성자에 직접 주입. catalog 가 만든 path/token 이 그대로 key 로 들어옴.
+ * AssetProviderFactory.CreateResources(rootPath) 가 규칙과 함께 등록. 로더를 직접 넘길 때는
+ * AssetProviderFactory.Create(loaders, store, new ResourcesKeyNormalizer(rootPath)) 로 규칙도 넘긴다.
  *
  * 주의 ::
- * resourcesRootPath 와 token path 조합 규칙이 프로젝트 규칙과 맞아야 함.
+ * 여기서 다시 정규화하지 않는다. Resources 규칙은 멱등이 아니라 두 번 거치면 "foo.v2.png" 가 "foo" 가 된다.
  * GameObject / Component(프리팹)는 UnloadAsset 대상이 아니다. 추적만 풀고 회수는 Resources.UnloadUnusedAssets 몫이다.
  * UnloadAsset 이후에도 씬이 그 에셋을 참조하면 Unity 가 디스크에서 다시 읽는다. 다른 provider 의 참조가 깨지지는 않는다.
- * "이미 rootPath 하위" 판정은 경로 경계(뒤따르는 '/' 또는 완전 일치)까지 검사한다 - 단순
- * StartsWith 는 rootPath="Icon"·key="IconSet/A" 같은 접두 오탐으로 이중 결합을 만든다.
  * =========================================================
  */
 #endif
 
-using System;
 using System.Collections.Generic;
-using System.IO;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using HResource.Data;
@@ -34,8 +30,7 @@ namespace HResource.Load {
     public sealed class ResourcesAssetLoader<TAsset> : IAssetReleasableLoader<string, TAsset>
         where TAsset : Object {
         #region Fields
-        readonly string resourcesRootPath;
-        // 정규화된 key -> 로드한 에셋. Release 가 되돌릴 대상을 찾는 표다.
+        // provider 가 정규화한 key -> 로드한 에셋. Release 가 되돌릴 대상을 찾는 표다.
         readonly Dictionary<string, TAsset> loadedTable = new();
         #endregion
 
@@ -43,25 +38,16 @@ namespace HResource.Load {
         public AssetLoadMode LoadMode => AssetLoadMode.Resources;
         #endregion
 
-        #region Public - Constructors
-        public ResourcesAssetLoader() : this(string.Empty) {}
-
-        public ResourcesAssetLoader(string resourcesRootPath) {
-            this.resourcesRootPath = _NormalizeRootPath(resourcesRootPath);
-        }
-        #endregion
-
         #region Public - Load
         public async UniTask<TAsset> LoadAsync(string key) {
-            var normalizedKey = _NormalizeKey(key);
-            if (string.IsNullOrWhiteSpace(normalizedKey)) {
+            if (string.IsNullOrWhiteSpace(key)) {
                 return null;
             }
 
-            Object asset = await Resources.LoadAsync<TAsset>(normalizedKey).ToUniTask();
+            Object asset = await Resources.LoadAsync<TAsset>(key).ToUniTask();
             TAsset loadedAsset = asset as TAsset;
             if (loadedAsset != null) {
-                loadedTable[normalizedKey] = loadedAsset;
+                loadedTable[key] = loadedAsset;
             }
             return loadedAsset;
         }
@@ -69,12 +55,11 @@ namespace HResource.Load {
 
         #region Public - Release
         public bool Release(string key) {
-            var normalizedKey = _NormalizeKey(key);
-            if (string.IsNullOrWhiteSpace(normalizedKey)) {
+            if (string.IsNullOrWhiteSpace(key)) {
                 return false;
             }
 
-            if (!loadedTable.Remove(normalizedKey, out var asset)) {
+            if (!loadedTable.Remove(key, out var asset)) {
                 return false;
             }
 
@@ -103,57 +88,32 @@ namespace HResource.Load {
             Resources.UnloadAsset(asset);
         }
         #endregion
-
-        #region Private - Normalize
-        private string _NormalizeKey(string key) {
-            if (string.IsNullOrWhiteSpace(key)) {
-                return string.Empty;
-            }
-
-            var normalizedKey = _TrimExtension(key).TrimStart('/');
-            if (string.IsNullOrWhiteSpace(normalizedKey)) {
-                return string.Empty;
-            }
-
-            if (string.IsNullOrEmpty(resourcesRootPath)) {
-                return normalizedKey;
-            }
-
-            // StartsWith 만으로는 경로 경계를 검사하지 않는다.
-            // rootPath="Icon" 일 때 key="IconSet/A" 가 "Icon" 으로 시작한다는 이유로
-            // 오탐되어 "Icon/IconSet/A" 로 잘못 중복 결합되지 않도록,
-            // 정확히 rootPath 뒤에 '/' 가 오거나 rootPath 자체와 같은 경우만 "이미 rootPath 하위" 로 인정한다.
-            bool isUnderRootPath = normalizedKey.Equals(resourcesRootPath, StringComparison.OrdinalIgnoreCase)
-                || normalizedKey.StartsWith(resourcesRootPath + "/", StringComparison.OrdinalIgnoreCase);
-            if (isUnderRootPath) {
-                return normalizedKey;
-            }
-
-            return $"{resourcesRootPath}/{normalizedKey}";
-        }
-
-        private string _NormalizeRootPath(string path) {
-            if (string.IsNullOrWhiteSpace(path)) {
-                return string.Empty;
-            }
-
-            return _TrimExtension(path).Trim('/').Trim();
-        }
-
-        private string _TrimExtension(string path) {
-            if (string.IsNullOrWhiteSpace(path)) {
-                return string.Empty;
-            }
-
-            return Path.ChangeExtension(path, null)?.Replace("\\", "/") ?? string.Empty;
-        }
-        #endregion
     }
 }
 
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정 3) :: key 정규화를 provider 입구로 넘기고 로더는 key 를 해석하지 않는다
+ *
+ * 변경 ::
+ * _NormalizeKey / _NormalizeRootPath / _TrimExtension 과 resourcesRootPath 필드 · 생성자를 ResourcesKeyNormalizer 로 옮겼다.
+ * LoadAsync / Release 는 받은 key 를 그대로 Resources 경로와 loadedTable 의 key 로 쓴다. 빈 key 방어만 남겼다.
+ *
+ * 이유 ::
+ * 정규화가 로더 안에만 있어 게이트 · 캐시 · 반납 추적표는 원본 key 를, loadedTable 은 정규화 key 를 썼다.
+ * 확장자만 다른 두 key 가 캐시 2칸 · 로더 1칸을 만들어 한쪽 반납이 다른 쪽 몫을 가져갔다
+ * (HResource/Tests/Editor/ResourcesKeyNormalizationTests 가 재현). provider 입구에서 한 번 맞추면 모든 표가 같은 key 를 쓴다.
+ *
+ * 결과 ::
+ * 생성자 ResourcesAssetLoader(rootPath) 가 없어졌다. rootPath 는 ResourcesKeyNormalizer(rootPath) 가 받는다.
+ * 2026-09-21 기준 호출처는 AssetProviderFactory.CreateResources 와 테스트뿐이다.
+ *
+ * 주의 ::
+ * 로더에서 다시 정규화하면 안 된다. 규칙이 멱등이 아니라 "foo.v2.png" 가 두 번째에 "foo" 가 된다.
+ * 아래 항목들의 "정규화 key" · _NormalizeKey 서술은 그 시점의 기록이다.
+ *
  * =========================================================
  * 2026-09-21 (수정 2) :: IAssetReleasableLoader 구현. Resources.UnloadAsset 으로 해제
  *
