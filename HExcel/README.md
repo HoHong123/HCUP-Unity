@@ -1,8 +1,8 @@
 # HExcel - 패키지 카드
 
-> 모듈: `HExcel/` · 소스 11파일 · `package.json` 없음 (저장소 통째 사용)
-> 구성 어셈블리 2개. **전부 에디터 전용**
-> 코드 문서: **[Editor README](Editor/README.md)** · [Tests README](Editor/Tests/README.md)
+> 모듈: `HExcel/` · 소스 10파일 · `package.json` 없음 (저장소 통째 사용)
+> 구성 어셈블리 1개. **에디터 전용**
+> 코드 문서: **[Editor README](Editor/README.md)**
 
 ---
 
@@ -14,7 +14,6 @@ NPOI 로 엑셀(`.xlsx`)을 읽어 Unity 에셋으로 임포트하는 에디터 
 |---|---|---|
 | `Core` | 5 (+2 Editor) | 워크북 로더, 시트 파서, 에셋 기록 래퍼, 에디터 창 |
 | `Localization` | 3 | 로컬라이제이션 시트 → `HcupLocalization` 테이블 변환. 이 모듈 안의 Core 구현 예제 |
-| `Tests` | 1 | EditMode 테스트 |
 
 메뉴: `HCUP/Windows/Data Editor Window` (`DataEditorWindow.cs:43`).
 
@@ -25,11 +24,6 @@ NPOI 로 엑셀(`.xlsx`)을 읽어 Unity 에셋으로 임포트하는 에디터 
 | asmdef | 범위 | 소스 | 참조 |
 |---|---|---|---|
 | `HCUP.HExcel.Editor` (파일명 `HCUP.HExcel.asmdef`) | Editor | 10 | GUID 4건 (`HCUP.HDiagnosis`, `HCUP.HCollection`, `HCUP.HData`, `HCUP.HInspector`) + `HCUP.HcupLocalization`, `HCUP.HInspector.Editor` |
-| `HCUP.HExcel.Tests` | Editor (`UNITY_INCLUDE_TESTS`) | 1 | GUID 3건 (`HCUP.HExcel.Editor`, `UnityEngine.TestRunner`, `UnityEditor.TestRunner`) + `overrideReferences: true` |
-
-`HCUP.HExcel.Tests` 는 `overrideReferences` 가 켜져 있어 precompiled DLL 을 명시 지정한다:
-`nunit.framework`, `NPOI.Core`, `NPOI.OOXML`, `NPOI.OpenXml4Net`, `NPOI.OpenXmlFormats`,
-`Newtonsoft.Json`. 이 목록에서 빠진 DLL 은 테스트 어셈블리에서 보이지 않는다.
 
 ---
 
@@ -41,7 +35,7 @@ NPOI 로 엑셀(`.xlsx`)을 읽어 Unity 에셋으로 임포트하는 에디터 
 |---|---|
 | Unity | 6000.3 에서 개발·검증 |
 | NPOI (4개 DLL) | 엑셀 파싱. HCUP 에 포함되어 있지 않으므로 프로젝트가 DLL 을 넣어야 한다. `HCUP.HExcel.Editor` 는 `overrideReferences: false` 라 자동 참조로 해결한다 |
-| Newtonsoft.Json | `ExcelLoader` 의 `JArray` 변환과 테스트 어셈블리 |
+| Newtonsoft.Json | `ExcelLoader` 의 `JArray` 변환 |
 
 에디터 전용이므로 플레이어 빌드에는 포함되지 않는다.
 
@@ -50,13 +44,18 @@ NPOI 로 엑셀(`.xlsx`)을 읽어 Unity 에셋으로 임포트하는 에디터 
 ## 주의할 점
 
 1. **헤더 주석의 메뉴 경로가 실제와 다르다.** `DataEditorWindow.cs:6` 은 "HData/NPOI 에서 오픈"이라 적었지만 실제 `[MenuItem]` 은 `HCUP/Windows/Data Editor Window` 다.
-2. **`ImportData_NullRowGap_Skipped` 테스트의 통과 여부가 로거 동작과 충돌한다.** 이 테스트가 지나가는 `ExcelToJson` 의 null 행 경로는 `HLogger.Error` 를 발화하고, `HLogger.Error` 는 에디터에서 `Debug.LogError` 로 이어진다. 테스트에 `LogAssert.Expect` 가 없어 Unity Test Framework 기본 설정에서는 미예상 에러 로그로 실패할 수 있다. 상세는 [Tests README](Editor/Tests/README.md).
+2. **자동 테스트가 없다.** 2026-09-22 에 테스트 어셈블리를 제거했다. 엑셀 임포트 동작은 에디터 창에서 직접 확인한다.
 
-코드 결함 목록과 근거 라인은 [Editor README](Editor/README.md) 의 "정리 대상" · "코드 주석과의 불일치" 절과 [Tests README](Editor/Tests/README.md) 의 "주의할 점" 절에 있다.
+코드 결함 목록과 근거 라인은 [Editor README](Editor/README.md) 의 "정리 대상" · "코드 주석과의 불일치" 절에 있다.
 
 ---
 
 ## 히스토리
+
+### 2026-09-22 :: 테스트 어셈블리 제거
+
+- 이전: `Editor/Tests` 에 EditMode 테스트 어셈블리 `HCUP.HExcel.Tests` (`ExcelLoaderTests.cs` 1파일 + 전용 README)가 있었다.
+- 현재: 사용자 지시로 HCUP 테스트 코드를 모두 제거하면서 함께 지웠다. 구성 어셈블리는 `HCUP.HExcel.Editor` 하나다.
 
 ### 2026-08-07 :: `AssetDatabaseInstance.CreateAsset`/`CreateAssetAt` 기록 대상 수정
 
