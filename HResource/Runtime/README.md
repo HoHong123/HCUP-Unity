@@ -235,7 +235,7 @@ return new AssetProvider<string, TAsset>(
     assetStore:   assetStore);   // 기본 null
 ```
 
-**한 provider = 한 key 규칙 = 한 소스.** `CreateResources` / `CreateAddressable` 는 로더를 하나만 등록하고 그 로더에 맞는 key 규칙을 함께 넣는다 (`:34-49`). 두 소스가 필요하면 provider 를 둘 만든다. provider 는 규칙을 하나만 쓰고 `Release` / `TryGet` 은 `loadMode` 를 받지 않아, 한 provider 에 두 소스를 담으면 어떤 규칙으로도 한쪽이 틀린다. 그래서 `Create` 가 규칙 없이 Resources 와 Addressable 로더를 함께 받으면 `ArgumentException` 을 던진다. 규칙을 직접 넘기면 그 선택은 호출자 책임이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 던진다.
+**규칙을 직접 넘기지 않는 한, 한 provider = 한 key 규칙 = 한 소스.** `CreateResources` / `CreateAddressable` 는 로더를 하나만 등록하고 그 로더에 맞는 key 규칙을 함께 넣는다 (`:34-49`). 두 소스가 필요하면 provider 를 둘 만든다. provider 는 규칙을 하나만 쓰고 `Release` / `TryGet` 은 `loadMode` 를 받지 않아, 한 provider 에 두 소스를 담으면 어떤 규칙으로도 한쪽이 틀린다. 그래서 `Create` 가 규칙 없이 Resources 와 Addressable 로더를 함께 받으면 `ArgumentException` 을 던진다. 규칙을 직접 넘기면 그 선택은 호출자 책임이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 던진다.
 
 패키지 내 다른 모듈의 조립:
 
