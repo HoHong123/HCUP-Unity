@@ -28,7 +28,7 @@ HResource 는 **`TKey` 하나로 에셋을 지목하고, 그 에셋을 누가 �
 | `Data/AssetRequest.cs` | key + loadMode + fetchMode + ownerId 를 묶은 `readonly struct` | [Provider](../docs/Provider.md) |
 | `Load/IAssetLoader.cs` | `LoadMode` + `LoadAsync(key)` 최소 계약 | [Load](../docs/Load.md) |
 | `Load/IAssetReleasableLoader.cs` | 소스 해제가 필요한 로더 (`Release` / `ReleaseAll`) | [Load](../docs/Load.md) |
-| `Load/ResourcesAssetLoader.cs` | `Resources.LoadAsync` await + 경로 정규화. **해제 없음** | [Load](../docs/Load.md) |
+| `Load/ResourcesAssetLoader.cs` | `Resources.LoadAsync` await + 경로 정규화 + `Resources.UnloadAsset` 해제 | [Load](../docs/Load.md) |
 | `Load/AddressableAssetLoader.cs` | 주소 단위 `AsyncOperationHandle` 보관 + 해제 | [Load](../docs/Load.md) |
 | `Load/AddressableLabelLoader.cs` | label 질의 전용(all/first/single/index). **provider 축과 분리** | [Load](../docs/Load.md) |
 | `Load/IAddressableLabelLoader.cs` | 위의 계약 | [Load](../docs/Load.md) |
@@ -70,7 +70,7 @@ flowchart TD
     E["IAssetLoadGate - SharedAssetLoadGate"]
     F["IAssetCache - MemoryAssetCache"]
     G["IAssetStore (기본 구현 없음)"]
-    H["IAssetLoader - ResourcesAssetLoader"]
+    H["IAssetReleasableLoader - ResourcesAssetLoader"]
     I["IAssetReleasableLoader - AddressableAssetLoader"]
     end
     subgraph 별도축["provider 와 연결되지 않은 축"]
@@ -91,6 +91,7 @@ flowchart TD
     C -->|"loadMode 로 선택"| H
     C -->|"loadMode 로 선택"| I
     F -->|"OnAssetRemoved"| C
+    C -->|"Release(key)"| H
     C -->|"Release(key)"| I
     H --> L
     I --> M
@@ -212,7 +213,7 @@ flowchart LR
     end
 ```
 
-`TKey` 의 의미를 아는 유일한 지점은 **로더**다. `ResourcesAssetLoader._NormalizeKey` 가 확장자 제거·슬래시 정리·rootPath 결합을 하고 (`Load/ResourcesAssetLoader.cs:62-87`), `AddressableAssetLoader._NormalizeKey` 는 `Trim()` 만 한다 (`Load/AddressableAssetLoader.cs:92-95`). 그 외 어디에서도 key 를 해석하지 않는다.
+`TKey` 의 의미를 아는 유일한 지점은 **로더**다. `ResourcesAssetLoader._NormalizeKey` 가 확장자 제거·슬래시 정리·rootPath 결합을 하고 (`Load/ResourcesAssetLoader.cs:108-133`), `AddressableAssetLoader._NormalizeKey` 는 `Trim()` 만 한다 (`Load/AddressableAssetLoader.cs:92-95`). 그 외 어디에서도 key 를 해석하지 않는다.
 
 `AssetOwnerId` 는 `Value > 0` 일 때만 유효하다 (`Subscription/AssetOwnerId.cs:33`). 무효 id 로 들어온 `Save` 는 거부되고 에러가 남으며 (`Cache/MemoryAssetCache.cs:87-92`), 무효 id 의 `Release` 는 경고와 함께 `false` 를 돌려준다 (`:117-120`). 소유자 없는 점유는 만들어지지 않는다.
 
@@ -285,7 +286,7 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 ### 계약
 
 1. **`TryGet` 은 점유를 만들지 않는다.** `AssetProvider.TryGet` 은 `assetCache.TryGet` 직행이라 조회만 한다 (`Provider/AssetProvider.cs:159-166`). 반대로 `GetAsync` 는 **캐시 히트여도** `Save` 를 거쳐 호출자를 소유자로 등록한다. 같은 소유자가 여러 번 요청해도 점유는 하나이므로 반납도 한 번이면 된다.
-2. **`ResourcesAssetLoader` 는 해제 경로가 없다.** `IAssetReleasableLoader` 를 구현하지 않으므로 캐시에서 지워져도 `Resources.UnloadAsset` 은 호출되지 않는다. Unity 의 씬 전환 정리에 맡긴다 (`Load/ResourcesAssetLoader.cs:31`, 헤더 `:15-16`).
+2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:95-104`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다.
 3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:352-356`, `:371-375`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
 4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:456-464`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
 5. **같은 `LoadMode` 로더를 두 번 넘기면 뒤엣것이 이긴다.** 생성자는 막지 않고 경고만 남긴다 (`Provider/AssetProvider.cs:95-101`).
@@ -315,6 +316,11 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 ---
 
 ## 히스토리
+
+### 2026-09-21 :: `ResourcesAssetLoader` 에 해제 경로 추가
+
+- 이전: `IAssetLoader` 만 구현해 해제 수단이 없었다. 캐시에서 빠져도 에셋은 씬 전환이나 `Resources.UnloadUnusedAssets` 까지 메모리에 남았다.
+- 현재: `IAssetReleasableLoader` 를 구현한다. 캐시 제거 시 provider 가 `Release(key)` 를 부르고, 로더가 `Resources.UnloadAsset` 으로 내린다.
 
 ### 2026-09-05 :: 점유를 횟수에서 유무로
 
