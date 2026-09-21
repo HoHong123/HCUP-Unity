@@ -122,19 +122,29 @@ readonly struct LabelHandleKey : IEquatable<LabelHandleKey> {
 ## SharedAssetLoadGate - 진행 중 작업 합류
 
 ```csharp
-// Load/SharedAssetLoadGate.cs:38-56
-public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
+// Load/SharedAssetLoadGate.cs:41-79 - 요약
+public UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
     if (factory == null) HLogger.Throw(new ArgumentNullException(...));
-    if (loadingTable.TryGetValue(key, out var runningTask)) return await runningTask;
+    if (loadingTable.TryGetValue(key, out var runningSource)) return runningSource.Task;   // 합류
 
-    var newTask = factory.Invoke().AsTask();   // UniTask → Task : multi-continuation 허용
-    loadingTable[key] = newTask;
-    try { return await newTask; }
-    finally { loadingTable.Remove(key); }
+    var newSource = new UniTaskCompletionSource<TAsset>();
+    loadingTable[key] = newSource;
+    _RunFactoryAsync(key, factory, newSource).Forget();
+    return newSource.Task;
+}
+
+private async UniTaskVoid _RunFactoryAsync(TKey key, Func<UniTask<TAsset>> factory, UniTaskCompletionSource<TAsset> source) {
+    TAsset asset;
+    try { asset = await factory.Invoke(); }
+    catch (Exception e) { loadingTable.Remove(key); source.TrySetException(e); return; }   // 대기자 전원에게 전달
+    loadingTable.Remove(key);     // 완료 통지보다 먼저 뺀다
+    source.TrySetResult(asset);
 }
 ```
 
-`AsTask()` 변환이 이 클래스의 핵심이다. `UniTask` 는 single-continuation 제약이 있어 여러 호출자가 같은 인스턴스를 `await` 할 수 없다 - Dev Log 가 `Preserve` 시도 후 `Task` 전환으로 정정한 경위를 남겨 두었다.
+`UniTaskCompletionSource<T>` **클래스**가 이 게이트의 핵심이다. 진행 중에 들어온 continuation 을 `singleContinuation` 과 `secondaryContinuationList` 에 모아 두었다가 완료 시 전부 호출하므로, 여러 호출자가 같은 `.Task` 를 동시에 await 할 수 있다. `async UniTask` 메서드의 결과(`UniTaskCompletionSourceCore` 기반)와 `Preserve()` 의 `MemoizeSource` 는 진행 중 continuation 슬롯이 하나라서, 두 번째 합류자가 `"Already continuation registered"` 로 던진다.
+
+완료 통지(`TrySetResult`)는 대기자를 `SynchronizationContext` 를 거치지 않고 그 자리에서 동기로 재개한다. 그래서 표에서 먼저 빼고 통지한다. 재개된 대기자가 같은 key 를 다시 요청하면 끝난 source 가 아니라 새 로드를 탄다.
 
 게이트는 **정합성 장치**다. `AddressableAssetLoader` 는 `handleTable` 조회가 await 앞, 등록이 await 뒤라서 게이트가 없으면 동시 요청 2건이 모두 `LoadAssetAsync` 를 불러 Addressables 참조 카운트가 2 가 되고, `handleTable` 은 뒤엣것으로 덮여 `Release` 1회로는 0 에 도달하지 못한다. `ResourcesAssetLoader` 도 `LoadAsync` 가 진행 중 구간을 가지므로 같은 key 동시 요청은 합쳐진다. Resources 는 핸들 참조 카운트가 없어 게이트가 없어도 잔존은 생기지 않는다.
 
@@ -146,22 +156,23 @@ sequenceDiagram
     participant L as IAssetLoader
 
     C1->>G: RunAsync(key, factory)
+    G->>G: UniTaskCompletionSource 생성 + 표 등록
     G->>L: factory 실행 - 소스 호출 1회
     C2->>G: RunAsync(key, factory)
-    Note over G,C2: loadingTable 히트 - factory 실행하지 않고 같은 Task 에 합류
+    Note over G,C2: loadingTable 히트 - factory 실행하지 않고 같은 source.Task 에 합류
     L-->>G: asset
-    G-->>C1: asset
-    G-->>C2: asset (같은 인스턴스)
-    Note over G: finally - loadingTable.Remove(key)
+    G->>G: loadingTable.Remove(key)
+    G-->>C1: TrySetResult - 동기 재개
+    G-->>C2: 같은 asset - 동기 재개
 ```
 
 **게이트는 결과 캐시가 아니다.** 완료 즉시 테이블에서 빠지므로 다음 요청은 다시 factory 를 실행한다 (캐시 히트 여부는 factory 안, 즉 provider 의 fetch mode 가 결정한다).
 
 주의 지점:
 
-- `finally` 의 `Remove(key)` 는 **키 존재만 보고 지운다**. 첫 호출이 완료된 뒤 새 호출이 같은 key 를 등록했다면 이론상 남의 항목을 지울 수 있으나, `await` 완료와 `finally` 사이에 다른 코드가 끼어들 지점이 메인 스레드 단일 루프에서는 없다.
-- **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 `await runningTask` 를 하던 후속 호출자도 같은 예외를 받는다.
-- 최초 호출자마다 `AsTask()` 로 `Task` 를 할당한다 - 게이트를 통과하는 `GetAsync` 에 붙는 비용이다.
+- **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 `TrySetException` 으로 후속 호출자도 같은 예외를 받는다. `OperationCanceledException` 은 취소로 변환된다.
+- **재개가 동기다.** 대기자 코드가 `TrySetResult` 호출 안에서 연달아 실행된다. 대기자 하나가 던지면 UniTask 가 미관측 예외로 보고하고 나머지 대기자는 계속 재개된다.
+- 새 로드마다 `UniTaskCompletionSource` 1개를 할당하고, 대기자가 2명 이상이면 continuation 목록 1개가 더 생긴다. `Task` 할당은 없다.
 
 ---
 
@@ -175,6 +186,11 @@ sequenceDiagram
 ---
 
 ## 히스토리
+
+### 2026-09-21 :: 게이트를 `UniTaskCompletionSource` 로 전환
+
+- 이전: `factory.Invoke().AsTask()` 로 만든 `Task` 를 표에 두고 합류자가 그것을 await 했다. 로드마다 `Task` 를 할당했고, `await Task` 의 재개가 `UnitySynchronizationContext` 의 `Post` 를 거쳐 대기자 전원이 컨텍스트 큐 처리 시점까지 밀렸다.
+- 현재: `UniTaskCompletionSource<TAsset>` 를 표에 두고 합류자는 그 `.Task` 를 await 한다. 대기자는 완료 즉시 동기로 재개된다. 2026-05-01 에 시도했다 되돌린 `Preserve` 는 진행 중 동시 합류를 지원하지 않아 쓰지 않았다.
 
 ### 2026-09-21 :: `ResourcesAssetLoader` 를 비동기 로드로 전환
 
