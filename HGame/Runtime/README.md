@@ -2,7 +2,7 @@
 
 > 어셈블리: `HCUP.HGame` (`Runtime/HCUP.HGame.asmdef`, rootNamespace `HGame`)
 > 의존: `UniTask`, `HCUP.HUtil`, `HCUP.HUI`, `HCUP.HDiagnosis`, `HCUP.HInspector`, `HCUP.HCollection`, `HCUP.HCore`
-> 동반 어셈블리: 없음 (1.0.3 에서 `HCUP.HGame.Editor` / `HCUP.HGame.Odin` 삭제)
+> 동반 어셈블리: 없음
 
 ---
 
@@ -47,7 +47,7 @@ HGame 은 **게임 진행 계층의 조립 부품 모음**이다. 하나의 프�
 
 | 경로 | 역할 | 시스템 |
 |---|---|---|
-| `HGame/InitModule/InitManager.cs` | 페이즈 상태머신 싱글톤 베이스 | InitModule |
+| `HGame/InitModule/InitManager.cs` | 페이즈 상태머신 싱글톤 베이스. 재진입 깊이 상한 8, 전환 완료 이벤트 `PhaseEntered` | InitModule |
 | `HGame/InitModule/BaseInitModule.cs` | 페이즈 훅 7종 베이스 (`MonoBehaviour`) | InitModule |
 | `HGame/InitModule/IInitModule.cs` | 훅 계약 5종 (**전역 네임스페이스**) | InitModule |
 | `HGame/InitModule/InitContext.cs` | 훅 공유 컨텍스트 (`TimeScale` 1개) | InitModule |
@@ -67,23 +67,23 @@ HGame 은 **게임 진행 계층의 조립 부품 모음**이다. 하나의 프�
 | `HGame/Skill/SkillStats.cs` | 곱연산 스탯 보유 `MonoBehaviour` | Skill |
 | `HGame/Skill/SkillConst.cs` | 희귀도 가중치 + 스택당 계수 | Skill |
 | `HGame/Skill/SkillOffer.cs` | (스킬, 희귀도) 제안 구조체 | Skill |
-| `HGame/Skill/SkillRarityStack.cs` | 희귀도별 부여 스택 수 (`RarityStackGrant`) | Skill |
-| `HGame/Skill/SkillRarityType.cs` | `SkillRarity` 4종 | Skill |
+| `HGame/Skill/RarityStackGrant.cs` | 희귀도별 부여 스택 수 | Skill |
+| `HGame/Skill/SkillRarity.cs` | `SkillRarity` 4종 | Skill |
 | `HGame/Camera/BaseCameraBoundry.cs` | 추종 대상·스무딩·Unity 수명주기 골격 | Camera |
 | `HGame/Camera/CameraBoundry.cs` | **Legacy.** `BaseCameraBoundry` 미상속 3D 클램프 | Camera |
 | `HGame/Camera/CameraManager.cs` | 추종 컴포넌트 1개를 감싸는 싱글톤 파사드 | Camera |
-| `HGame/H2D/Camera/CameraBoundry2D.cs` | 직교 2D — 뷰포트 인셋 클램프 | Camera |
-| `HGame/H3D/Camera/CameraBoundryTopDown3D.cs` | 직교 XZ 탑다운 — 뷰포트 인셋 클램프 | Camera |
-| `HGame/H3D/Camera/CameraBoundryPerspective.cs` | 원근 TPS — 오프셋 추종 + LookAt | Camera |
+| `HGame/H2D/Camera/CameraBoundry2D.cs` | 직교 2D - 뷰포트 인셋 클램프 | Camera |
+| `HGame/H3D/Camera/CameraBoundryTopDown3D.cs` | 직교 XZ 탑다운 - 뷰포트 인셋 클램프 | Camera |
+| `HGame/H3D/Camera/CameraBoundryPerspective.cs` | 원근 TPS - 오프셋 추종 + LookAt | Camera |
 | `HGame/H2D/Layer/ParallexLayer.cs` | 카메라 델타 기반 배경 스크롤 + 타일 순환 | Camera |
 | `HGame/Map/IWorldBoundSource.cs` | `TryGetWorldRect(out Rect)` 단일 계약 | Map |
 | `HGame/Map/MapBoundType.cs` | WorldBox / BoundSource / Absolute | Map |
 | `HGame/H2D/Map/Box2DBoundSource.cs` | `BoxCollider2D.bounds` → Rect | Map |
 | `HGame/H2D/Map/CompositeBoundSource.cs` | `CompositeCollider2D.bounds` → Rect | Map |
-| `HGame/H2D/Map/SpriteRendererBoundSource.cs` | `SpriteRenderer.bounds` → Rect (타입명 `SpriteRendererBoundsSource`) | Map |
+| `HGame/H2D/Map/SpriteRendererBoundsSource.cs` | `SpriteRenderer.bounds` → Rect | Map |
 | `HGame/H2D/Map/TilemapBoundSource.cs` | `Tilemap.cellBounds` → 월드 Rect | Map |
-| `HGame/H2D/Map/MinimapTracker.cs` | 미니맵 추적 대상 마커 설정 (타입명 `MinimapTrackable`) | Map |
-| `HGame/H2D/Map/MapManager.cs` | 미니맵 본체 — 마커 풀·뷰포트 표시·클릭 내비 | Map |
+| `HGame/H2D/Map/MinimapTrackable.cs` | 미니맵 추적 대상 마커 설정 | Map |
+| `HGame/H2D/Map/MapManager.cs` | 미니맵 본체 - 마커 풀·뷰포트 표시·클릭 내비 | Map |
 | `HGame/World/EventPoint/BaseEventPoint.cs` | 태그/레이어 필터 트리거 (namespace `HGame.H2D.Map`) | World |
 | `HGame/World/EventAction/BaseEventAction.cs` | 액션 베이스 (`IConfigEventAction` 구현) | World |
 | `HGame/World/EventAction/IConfigEventAction.cs` | `Handle(point, config)` 계약 | World |
@@ -103,11 +103,11 @@ flowchart TD
     HU["HUtil.Pooling.ComponentPool&lt;T&gt;"]
     HUI["HUI.Panel.ProxyPanel"]
     HCOL["HCollection.CircularList&lt;T&gt;"]
-    HD["HDiagnosis — HLogger / HDebug"]
-    HI["HInspector — HTitle / HShowIf / HRequired"]
+    HD["HDiagnosis - HLogger / HDebug"]
+    HI["HInspector - HTitle / HShowIf / HRequired"]
     end
 
-    subgraph Flow["InitModule — HGame.Flow"]
+    subgraph Flow["InitModule - HGame.Flow"]
     IM["InitManager&lt;TSelf&gt;"]
     BIM["BaseInitModule"]
     IC["InitContext"]
@@ -115,7 +115,7 @@ flowchart TD
     IM --> IC
     end
 
-    subgraph Play["Player — HGame.Player / HGame.Character"]
+    subgraph Play["Player - HGame.Player / HGame.Character"]
     PS["PlayerStatus"]
     PR["PlayerRefSO"]
     PC["PlayerConfig"]
@@ -127,7 +127,7 @@ flowchart TD
     PV --> PC
     end
 
-    subgraph Sk["Skill — HGame.Skill"]
+    subgraph Sk["Skill - HGame.Skill"]
     SM["SkillManager"]
     SC["SkillCatalogSO"]
     BS["BaseSkillSO"]
@@ -137,7 +137,7 @@ flowchart TD
     SM --> SS
     end
 
-    subgraph Cam["Camera — HGame.Cam / H2D.Cam / H3D.Cam"]
+    subgraph Cam["Camera - HGame.Cam / H2D.Cam / H3D.Cam"]
     CM["CameraManager"]
     BCB["BaseCameraBoundry"]
     C2D["CameraBoundry2D"]
@@ -149,7 +149,7 @@ flowchart TD
     BCB --> C3P
     end
 
-    subgraph Mp["Map — HGame.Map / H2D.Map"]
+    subgraph Mp["Map - HGame.Map / H2D.Map"]
     MM["MapManager"]
     MT["MinimapTrackable"]
     IWB["IWorldBoundSource"]
@@ -157,7 +157,7 @@ flowchart TD
     MM --> IWB
     end
 
-    subgraph Wd["World — HGame.World.EventAction"]
+    subgraph Wd["World - HGame.World.EventAction"]
     WEM["WorldEventManager"]
     BEP["BaseEventPoint&lt;T&gt;"]
     BEA["BaseEventAction"]
@@ -183,7 +183,7 @@ flowchart TD
 ```
 
 **`InitModule` 박스에서 다른 박스로 향하는 간선이 없다는 점이 중요하다.** 페이즈 전환이
-`SkillManager.OnPrepareGame()` 이나 `PlayerStatus.Init()` 을 부르지 않는다 — 그 배선은
+`SkillManager.OnPrepareGame()` 이나 `PlayerStatus.Init()` 을 부르지 않는다 - 그 배선은
 프로젝트가 `BaseInitModule` 파생 클래스를 직접 작성해서 만들어야 한다.
 
 ---
@@ -201,13 +201,13 @@ flowchart TD
 나머지는 전부 설정(SO) 이거나 파생 계산(`PlayerStatView`)이다.
 
 ```csharp
-// Player/PlayerRefSO.cs:11-23 — SO 가 런타임 인스턴스를 중계하는 유일한 지점
+// Player/PlayerRefSO.cs:11-23 - SO 가 런타임 인스턴스를 중계하는 유일한 지점
 public sealed class PlayerRefSO : ScriptableObject {
     PlayerStatus reference = null;
     public IPlayerReadOnly ReadOnly { get; private set; }   // 조회
     public IPlayerCommand  Command  { get; private set; }   // 명령
     public void Set(PlayerStatus status) {
-        if (status == null || reference != null) return;    // 선점식 — 먼저 등록한 쪽이 이긴다
+        if (status == null || reference != null) return;    // 선점식 - 먼저 등록한 쪽이 이긴다
         ...
     }
 }
@@ -218,7 +218,7 @@ public sealed class PlayerRefSO : ScriptableObject {
 
 ---
 
-## 흐름 — 시스템 사이에서 실제로 일어나는 유일한 연쇄
+## 흐름 - 시스템 사이에서 실제로 일어나는 유일한 연쇄
 
 ```mermaid
 sequenceDiagram
@@ -235,10 +235,10 @@ sequenceDiagram
     G->>SM: OnPrepareGame()
     SM->>PR: ReadOnly.OnLevelUp += _OnLevelUp
     G->>PS: GainExp(amount)
-    PS->>PS: while (Exp >= ExpToNext) Level++
+    PS->>PS: while (ExpToNext > 0 && Exp >= ExpToNext) Level++
     PS-->>SM: OnLevelUp(level)
     SM->>SM: pendingLevelUps++ → _ProcessLevelUpQueueAsync
-    SM->>SM: _GenerateOffers — 최대 3개 후보
+    SM->>SM: _GenerateOffers - 최대 3개 후보
     SM->>UI: ChoiceSelector(offers)
     UI-->>SM: picked index
     SM->>SS: skill.ApplyWithRarity(stats, rarity, ref stack)
@@ -266,7 +266,7 @@ playerRef.Set(status);
 SkillManager.Instance.ChoiceSelector = offers => myChoicePopup.ShowAsync(offers);
 SkillManager.Instance.OnPrepareGame();
 
-// 3) 페이즈 전환 — 모듈 배선은 프로젝트가 BaseInitModule 파생으로 작성한다
+// 3) 페이즈 전환 - 모듈 배선은 프로젝트가 BaseInitModule 파생으로 작성한다
 await MyGameManager.Instance.GamePrepareAsync();
 await MyGameManager.Instance.GameStartAsync();
 await MyGameManager.Instance.GameRunAsync();
@@ -289,33 +289,19 @@ playerRef.Clear(status);
 2. **시스템 사이 배선은 자동이 아니다.** `InitModule` 은 다른 5개 시스템을 전혀 모른다.
    `Samples~/InitModule/Scripts/DemoPhaseModule.cs` 처럼 프로젝트가 훅을 구현해서 이어야 한다.
 3. **`PlayerRefSO` 는 선점식이다** (`PlayerRefSO.cs:18`). 이미 참조가 있으면 새 `Set` 은
-   **조용히 무시된다.** 씬을 다시 열기 전에 반드시 `Clear(status)` 를 호출해야 한다 — SO 는
+   **조용히 무시된다.** 씬을 다시 열기 전에 반드시 `Clear(status)` 를 호출해야 한다 - SO 는
    플레이 모드 사이에도 값이 남기 때문이다.
 4. **`IInitModule` 계약에 Resume / Exit 훅이 없다** (`IInitModule.cs:16-23`). `InitManager` 는
-   `BaseInitModule` 타입으로 리스트를 들고 있어 (`InitManager.cs:34`) 실제로는 두 훅을 호출하지만
-   (`InitManager.cs:113, 115`), 인터페이스만 구현한 타입은 이 두 페이즈에서 호출되지 않는다.
+   `BaseInitModule` 타입으로 리스트를 들고 있어 (`InitManager.cs:35`) 실제로는 두 훅을 호출하지만
+   (`InitManager.cs:130, 132`), 인터페이스만 구현한 타입은 이 두 페이즈에서 호출되지 않는다.
 5. **`BaseCameraBoundry.SetPosition(Vector3)` 은 카메라가 아니라 추적 대상을 옮긴다**
    (`BaseCameraBoundry.cs:37-41`). 이름과 달리 카메라 좌표를 직접 지정하는 API 가 아니다.
-6. **경계 클램프는 맵이 뷰포트보다 클 때만 성립한다.** 2D/TopDown3D/미니맵 세 곳 모두
-   `min + half` / `max - half` 인셋을 쓰므로 맵이 화면보다 작으면 `min > max` 로 뒤집힌다
-   (아래 정리 대상 항목 참조).
 
 ### 정리 대상
 
-7. **상위 폴더 `HGame/README.md` 는 낡았다.** 존재하지 않는 `World(7): 월드/스폰/웨이브 관리`,
-   `Character(3): 캐릭터 입력·상태 제어`, `2D(9)` 같은 분류를 제시하고, 실제 폴더인 `H2D`/`H3D`/
-   `Map` 을 언급하지 않는다. 스폰/웨이브 코드는 이 어셈블리에 존재하지 않는다. **이 문서와
-   `../docs/*.md` 가 현행이다.**
-8. **`IInitModule` 과 `InitPhaseType` 만 전역 네임스페이스에 있다**
+6. **`IInitModule` 과 `InitPhaseType` 만 전역 네임스페이스에 있다**
    (`IInitModule.cs:16`, `InitPhaseType.cs:9`). 같은 폴더의 나머지 3개는 `HGame.Flow` 안이다.
-9. **파일명과 타입명이 어긋난 파일이 2개 있다.**
-   `H2D/Map/MinimapTracker.cs:8` → `MinimapTrackable`,
-   `H2D/Map/SpriteRendererBoundSource.cs:7` → `SpriteRendererBoundsSource`.
-10. **`BaseEventPoint<T>` 는 `World/EventPoint/` 에 있으면서 `namespace HGame.H2D.Map` 을 쓴다**
-    (`BaseEventPoint.cs:8`). 그래서 `World/EventAction/*.cs` 전부가 `using HGame.H2D.Map` 을
-    걸고 있다.
-11. **`SkillConst.cs` 와 `PlayerStatView.cs` 의 한글 주석이 인코딩 깨짐 상태다**
-    (`SkillConst.cs:12, 15, 19, 20`, `PlayerStatView.cs:5`). BOM 없는 CP949 저장분으로 보인다(추론).
+7. **`BaseEventPoint<T>` 는 `World/EventPoint/` 에 있으면서 `namespace HGame.H2D.Map` 을 쓴다** (`BaseEventPoint.cs:8`). 그래서 `World/EventAction/` 6개 파일 중 `EventTargetType.cs` 를 뺀 5개가 `using HGame.H2D.Map` 을 걸고 있다.
 
 시스템별 정리 대상은 각 시스템 문서의 "정리 대상" 절에 파일:라인과 함께 정리되어 있다.
 
@@ -330,6 +316,40 @@ playerRef.Clear(status);
 | 새 스킬 | `BaseSkillSO` 상속 → `ApplyWithRarity` 구현 → `SkillCatalogSO.skills` 등록 |
 | 스킬 선택 UI | `SkillManager.ChoiceSelector` 에 `Func<List<SkillOffer>, UniTask<int>>` 주입 |
 | 새 스탯 축 | `SkillStats` 필드 + `SkillConst` 계수 + `PlayerStatView` 합성식 |
-| 새 경계 소스 | `IWorldBoundSource` 구현 → `MapManager.worldBoundSources` 에 등록 (`BoundSource` 모드) |
+| 새 경계 소스 | `IWorldBoundSource` 구현 → `MapManager.worldBoundSources` 에 등록 (`BoundSource` 모드. 등록된 소스 전체의 합집합을 쓴다) |
 | 새 카메라 투영 | `BaseCameraBoundry` 상속 → `_UpdateCamera(ref Vector3)` 구현 |
 | 새 월드 이벤트 | `BaseEventAction` 상속 + `WorldEventManager` 에 이벤트 추가 |
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: 파일명·타입명 불일치 4건 해소
+
+- 이전: `H2D/Map/MinimapTracker.cs` 가 `MinimapTrackable`, `H2D/Map/SpriteRendererBoundSource.cs` 가 `SpriteRendererBoundsSource` 를 선언해 파일명과 타입명이 어긋났다. `Skill/SkillRarityStack.cs` (`RarityStackGrant`) 와 `Skill/SkillRarityType.cs` (`SkillRarity`) 도 같은 상태였다.
+- 현재: 네 파일 모두 타입명과 같은 이름(`MinimapTrackable.cs` / `SpriteRendererBoundsSource.cs` / `RarityStackGrant.cs` / `SkillRarity.cs`)으로 바꿨다.
+
+### 2026-08-07 :: 경계 클램프 역전과 월드 Rect 갱신 규약 수정
+
+- 이전: 2D / TopDown3D / 미니맵 세 곳이 `min + half` / `max - half` 인셋을 그대로 써서 맵이 뷰포트보다 작으면 `min > max` 로 Clamp 범위가 뒤집혔다. `MapManager._RefreshWorldRect` 는 실패해도 `hasWorldRect = true` 였고, `BoundSource` 모드는 마지막으로 성공한 소스 하나만 남겼다.
+- 현재: `min > max` 이면 중앙에 고정한다 (`CameraBoundry2D.cs:53-55`, `CameraBoundryTopDown3D.cs:64-66`, `MapManager.cs:239-241`). `hasWorldRect` 는 성공한 분기에서만 `true` 이고, `BoundSource` 모드는 전체 소스의 합집합을 쓴다.
+
+### 2026-08-07 :: 한글 주석 인코딩 복구
+
+- 이전: `SkillConst.cs` 와 `PlayerStatView.cs` 의 한글 주석이 깨져 있었다 (BOM 없는 CP949 저장분으로 추정).
+- 현재: 두 파일 모두 UTF-8 로 다시 저장돼 주석이 정상 표시된다.
+
+### 2026-08-06 :: 상위 `HGame/README.md` 정정
+
+- 이전: 상위 README 가 `World(7): 월드/스폰/웨이브 관리`, `Character(3): 캐릭터 입력·상태 제어`, `2D(9)` 같은 분류를 제시하고 실제 폴더 `H2D` / `H3D` / `Map` 을 언급하지 않아, 이 문서의 "정리 대상" 에 올라 있었다.
+- 현재: 상위 README 를 실제 폴더 구성 기준으로 다시 썼다.
+
+### 2026-08-04 :: `GameModule/` 을 `InitModule/` 로 개칭
+
+- 이전: `GameManager<TSelf>` / `BaseGameModule` / `GameContext` / `GamePhaseType` 이었다.
+- 현재: `InitManager<TSelf>` / `BaseInitModule` / `InitContext` / `InitPhaseType` 이다. 페이즈 전환 API 이름(`GamePrepareAsync` 등)은 유지했다.
+
+### 2026-05-05 :: 동반 어셈블리 삭제 (v1.0.3)
+
+- 이전: `HCUP.HGame.Editor` / `HCUP.HGame.Odin` 어셈블리가 함께 있었다.
+- 현재: 오디오 도메인을 `HAudio` 로 옮기면서 두 asmdef 를 삭제했다.
