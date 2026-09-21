@@ -18,8 +18,9 @@ HCollection 은 **Unity 직렬화가 다루지 못하는 자료구조를 다루�
 | `CircularList<T>` | 런타임 컨테이너 | pivot 을 중심으로 순환 이동하는 리스트 |
 | `CollectionUtil` | 확장 메서드 모음 | 셔플·랜덤·조건부 제거·컬렉션 변환 |
 
-**`HDictionary` 만 별도 문서로 분리했다** — 563 행 단일 파일에 직렬화 콜백 계약이 몰려 있고,
-이 어셈블리에서 실제 데이터 유실이 발생했던 유일한 지점이기 때문이다.
+`IHDictionary` 와 `HAllowDefaultKeyAttribute` 는 `HDictionary` 조각에 딸린 보조 타입이다.
+
+**`HDictionary` 만 별도 문서로 분리했다** - 653 행 단일 파일에 직렬화 콜백 계약이 몰려 있고, 이 어셈블리에서 실제 데이터 유실이 발생했던 유일한 지점이기 때문이다.
 
 → **[../docs/HDictionary.md](../docs/HDictionary.md)**
 
@@ -29,11 +30,12 @@ HCollection 은 **Unity 직렬화가 다루지 못하는 자료구조를 다루�
 
 | 경로 | 행수 | 역할 |
 |---|---|---|
-| `Collection/HDictionary.cs` | 563 | 직렬화 가능 `Dictionary`. `Dictionary<K,V>` 상속 + `ISerializationCallbackReceiver` |
-| `Collection/IHDictionary.cs` | 75 | 비제네릭 마커 인터페이스. 에디터 검증의 reflection 진입점 |
-| `Collection/CircularList.cs` | 219 | pivot 순환 리스트. `IEnumerable<T>` + `IDisposable` |
-| `Collection/EnumArray.cs` | 81 | enum 인덱스 배열 래퍼 |
-| `Collection/CollectionUtil.cs` | 330 | 컬렉션 확장 메서드 정적 클래스 |
+| `Collection/HDictionary.cs` | 653 | 직렬화 가능 `Dictionary`. `Dictionary<K,V>` 상속 + `ISerializationCallbackReceiver` |
+| `Collection/IHDictionary.cs` | 73 | 비제네릭 마커 인터페이스. 에디터 검증의 reflection 진입점 |
+| `Collection/HAllowDefaultKeyAttribute.cs` | 56 | 키 타입의 `default` 가 정당한 키라고 선언하는 표시. `HDictionary` 의 미배정 행 경고에서 뺀다 |
+| `Collection/CircularList.cs` | 231 | pivot 순환 리스트. `IEnumerable<T>` + `IDisposable` |
+| `Collection/EnumArray.cs` | 82 | enum 인덱스 배열 래퍼 |
+| `Collection/CollectionUtil.cs` | 331 | 컬렉션 확장 메서드 정적 클래스 |
 
 ---
 
@@ -44,6 +46,7 @@ flowchart TD
     subgraph Runtime["HCUP.HCollection (Runtime)"]
     HD["HDictionary&lt;TKey, TValue&gt;"]
     IHD["IHDictionary"]
+    ADK["HAllowDefaultKeyAttribute"]
     CL["CircularList&lt;T&gt;"]
     EA["EnumArray&lt;TEnum, TValue&gt;"]
     CU["CollectionUtil"]
@@ -63,18 +66,38 @@ flowchart TD
     BRG["HDictionaryToOdinBridge"]
     end
 
+    LOG["HCUP.HDiagnosis"]
+
     HD --> DICT
     HD --> ISCR
     HD --> IHD
+    HD -->|"typeof(TKey).IsDefined (에디터 전용)"| ADK
     DRW -->|"entries 필드를 SerializedProperty 로 직접 참조"| HD
     VAL -->|"IsAssignableFrom"| IHD
     BRG -->|"DrawWithUnity 주입"| DRW
-    CL -->|"HLogger.Exception"| LOG["HCUP.HDiagnosis"]
+    CL -->|"HLogger.Exception"| LOG
     CU -->|"HLogger.Throw"| LOG
 ```
 
 `CircularList` / `EnumArray` / `CollectionUtil` 은 `HDictionary` 와 아무 관계가 없다.
 같은 어셈블리에 있을 뿐이다.
+
+---
+
+## HAllowDefaultKeyAttribute
+
+값 타입 `TKey` 에서는 "비어 있음" 이 `null` 이 아니라 `default` 다. 그래서 `HDictionary.OnAfterDeserialize` 는 에디터에서 `default` 키 행을 만나면 미배정 행으로 의심해 `Default-valued key` 경고를 남긴다 (`HDictionary.cs:146-153`). 0 번 멤버가 진짜 값인 열거형이면 이 경고가 오탐이 되므로, 그 **타입**에 표시를 붙여 경고에서 뺀다.
+
+```csharp
+// HAllowDefaultKeyAttribute.cs:29-30
+[AttributeUsage(AttributeTargets.Enum | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+public sealed class HAllowDefaultKeyAttribute : Attribute { }
+```
+
+- 판정은 닫힌 제네릭 타입마다 한 번만 계산해 `static readonly bool AllowsDefaultKey` 에 캐시한다 (`HDictionary.cs:47-51`, `#if UNITY_EDITOR`). 인스펙터 리페인트마다 `IsDefined` 가 돌지 않는다.
+- 필드가 아니라 타입에 붙는다. 경고가 나는 `OnAfterDeserialize` 시점의 사전은 자기가 어느 필드에 담겼는지 모르고, 읽을 수 있는 것은 `TKey` 뿐이다.
+- 표시가 없으면 종전대로 경고한다 (옵트아웃). 0 번이 `None` 같은 센티넬이면 붙이지 않는다.
+- 붙이면 그 타입을 키로 쓰는 모든 `HDictionary` 에서 경고가 꺼진다.
 
 ---
 
@@ -90,13 +113,13 @@ flowchart TD
 flowchart TD
     R["RemoveAt(i) / Remove(item)"] --> A["_AdjustPivotAfterRemove(removedIndex)"]
     A --> Z{"list.Count == 0"}
-    Z -->|예| Z0["index = 0 — 종료"]
+    Z -->|예| Z0["index = 0 - 종료"]
     Z -->|아니오| B{"removedIndex &lt; index"}
-    B -->|예| C["index-- — 앞이 지워졌으니 한 칸 당긴다"]
+    B -->|예| C["index-- - 앞이 지워졌으니 한 칸 당긴다"]
     B -->|아니오| D["index 유지"]
     C --> E{"index &gt;= list.Count"}
     D --> E
-    E -->|예| F["index = 0 — 마지막 요소 제거 등"]
+    E -->|예| F["index = 0 - 마지막 요소 제거 등"]
     E -->|아니오| G["보정 완료"]
 ```
 
@@ -106,9 +129,7 @@ flowchart TD
 
 ### deferred 채움 패턴
 
-`CircularList(int pivot, int size)` 는 **size 를 capacity 로만 쓰고 요소를 만들지 않는다**
-(`:68-71`). pivot 을 먼저 정해 두고 나중에 `Add` 로 채우는 사용처(`HGame` 의
-`ParallexLayer.cs:44`)를 위한 생성자다.
+`CircularList(int pivot, int size)` 는 **size 를 capacity 로만 쓰고 요소를 만들지 않는다** (`:68-71`). pivot 을 먼저 정해 두고 나중에 `Add` 로 채우는 사용 패턴을 위한 생성자다. 같은 저장소의 `HGame` 모듈 `ParallexLayer.cs:74` 가 이 형태로 쓴다.
 
 - 이 상태에서는 `Count <= index` 가 정상 상태이므로, `CurrentItem` 이
   `((uint)index < (uint)list.Count)` 범위 가드로 `default` 를 반환한다 (`:37`).
@@ -118,10 +139,10 @@ flowchart TD
 
 | 멤버 | 빈 리스트에서의 동작 |
 |---|---|
-| `NextPivot` / `PrevPivot` | `0` — 가드 없이는 `% 0` 으로 DivideByZero (`:31-32`) |
+| `NextPivot` / `PrevPivot` | `0` - 가드 없이는 `% 0` 으로 DivideByZero (`:31-32`) |
 | `CurrentItem` | `default` (`:37`) |
-| `IsAtLast` | `false` — `list.Count > 0` 조건 포함 (`:34`) |
-| `IsAtFirst` | `false` — `list.Count > 0` 조건 포함 (`:34`, 2026-08-07 반영) |
+| `IsAtLast` | `false` - `list.Count > 0` 조건 포함 (`:34`) |
+| `IsAtFirst` | `false` - `list.Count > 0` 조건 포함 (`:33`) |
 | `MoveNext` / `MovePrev` / `MoveToLast` / `MoveBy` | 무동작 |
 | `MoveTo(int)` | `HLogger.Exception` 로그 후 무동작 (`:150-153`) |
 
@@ -133,7 +154,7 @@ flowchart TD
 전제는 **enum 값이 `0..N-1` 연속**이라는 것이며, 이를 검사하는 코드는 없다.
 
 ```csharp
-// EnumArray.cs:43-52 — TryGetValue 만 범위를 검사한다. 인덱서는 검사하지 않는다.
+// EnumArray.cs:43-52 - TryGetValue 만 범위를 검사한다. 인덱서는 검사하지 않는다.
 public bool TryGetValue(TEnum key, out TValue value) {
     var index = Convert.ToInt32(key);
     if ((uint)index >= (uint)values.Length) { value = default; return false; }
@@ -156,16 +177,16 @@ public bool TryGetValue(TEnum key, out TValue value) {
 | Shuffle | `Shuffle` | `System.Random` (UnityEngine.Random 아님) Fisher-Yates |
 | AddRange | `AddRange` (Dictionary / Queue / Stack) | Dictionary 판은 **기존 키를 덮지 않는다** (`:47-48`) |
 | Random | `RandomElement` / `RandomEntry` / `RandomKey` / `RandomValue` + `Try*` 3종 | 인덱스는 `UnityEngine.Random.Range` (`:109`) |
-| Nullify / Search | `NullifyTarget` / `IndexOfReference` / `TryGetIndexOf` | `where T : class` — **참조 비교(`==`)** 이지 `Equals` 가 아니다 |
+| Nullify / Search | `NullifyTarget` / `IndexOfReference` / `TryGetIndexOf` | `where T : class` - **참조 비교(`==`)** 이지 `Equals` 가 아니다 |
 | Remove | `RemoveIf` (IList / T[] / IDictionary) | IList 판은 `List<T>` 면 `RemoveAll` 로 위임 (`:157`) |
 | 변환 | `ToListFast` / `CloneList` / `ToHashSetFast` / `ToStack` / `ToQueue` / `ToIndexDictionary` | `ToListFast` 는 입력이 `List<T>` 면 **복사하지 않고 그대로 반환** (`:211`) |
 
 `ToListFast` 와 `CloneList` 의 차이가 이 파일에서 가장 오해하기 쉬운 지점이다.
 
 ```csharp
-// CollectionUtil.cs:209-218 — ToListFast: 입력이 List<T> 면 같은 인스턴스를 돌려준다.
+// CollectionUtil.cs:209-218 - ToListFast: 입력이 List<T> 면 같은 인스턴스를 돌려준다.
 if (source is List<T> list) return list;   // ← 호출자가 수정하면 원본이 바뀐다
-// CollectionUtil.cs:220-228 — CloneList: 항상 새 List 를 만든다.
+// CollectionUtil.cs:220-228 - CloneList: 항상 새 List 를 만든다.
 ```
 
 null 처리도 두 갈래다. `RandomElement` / `RemoveIf` 계열은 `HLogger.Throw` 를 거치고
@@ -177,11 +198,11 @@ null 처리도 두 갈래다. `RandomElement` / `RemoveIf` 계열은 `HLogger.Th
 ## 사용 예
 
 ```csharp
-// 1) 직렬화 딕셔너리 — 인스펙터에서 편집한다
+// 1) 직렬화 딕셔너리 - 인스펙터에서 편집한다
 [SerializeField] HDictionary<string, int> stats = new();
 int hp = stats["HP"];                     // 런타임 조회는 O(1)
 
-// 2) 순환 리스트 — pivot 을 먼저 정하고 나중에 채운다
+// 2) 순환 리스트 - pivot 을 먼저 정하고 나중에 채운다
 CircularList<Transform> tiles = new CircularList<Transform>(pivot: 1, size: 3);
 tiles.Add(a); tiles.Add(b); tiles.Add(c);
 tiles.MoveNext();
@@ -194,6 +215,11 @@ if (colors.TryGetValue(RarityType.Rare, out Color c)) { /* ... */ }
 // 4) 확장 메서드
 list.Shuffle();
 int removed = dict.RemoveIf(v => v.expired);
+
+// 5) 0 번 멤버가 진짜 값인 열거형을 키로 쓴다
+[HAllowDefaultKey]
+public enum GrowthStage { Seed = 0, Sprout = 1, Bloom = 2 }
+[SerializeField] HDictionary<GrowthStage, Sprite> stageSprites = new();
 ```
 
 ---
@@ -213,23 +239,15 @@ int removed = dict.RemoveIf(v => v.expired);
 4. **`CollectionUtil` 의 참조 비교 API 는 값 타입에 쓸 수 없다.** `NullifyTarget` /
    `IndexOfReference` / `TryGetIndexOf` 는 `where T : class` 제약 + `==` 비교라,
    `Equals` 를 오버라이드한 타입이어도 참조가 다르면 못 찾는다 (`:122, :134, :141`).
+5. **`[HAllowDefaultKey]` 는 타입 단위로만 동작한다.** `AttributeTargets.Enum | AttributeTargets.Struct` 라 필드에 붙일 수 없고, 붙이면 그 타입을 키로 쓰는 모든 사전에서 `Default-valued key` 경고가 꺼진다 (`HAllowDefaultKeyAttribute.cs:29`).
 
 ### 정리 대상
 
-5. **`EnumArray._GetEnumCount` 는 호출처가 0건이다** (`EnumArray.cs:54-57`, 패키지 전역
-   grep 0건). `private static` 이라 외부에서 쓸 수도 없는 완전한 죽은 코드다.
-6. **`EnumArray` 자체의 사용처가 패키지 안에 0건이다** (전역 grep — 선언 파일 외 0건).
-   외부 게임 코드 전용이거나, 도입만 되고 쓰이지 않은 상태다.
-7. **`CircularList.Clear()` 는 `[Obsolete("Change it to 'Dispose'")]` 상태로 남아 있다**
-   (`CircularList.cs:174-175`). 패키지 내 호출처 0건이므로 제거 가능하다.
-8. ~~`CircularList.IsAtFirst` 만 빈 리스트 가드가 없다~~ — `IsAtLast` 와 동일하게
-   `list.Count > 0` 조건을 추가해 대칭을 맞췄다 (`:34`, 2026-08-07 반영).
-9. **`CircularList.MoveTo(int)` 만 실패를 로그한다** (`:150-153`). 같은 클래스의 다른
+6. **`EnumArray._GetEnumCount` 는 호출처가 없다** (`EnumArray.cs:54-57`). `private static` 이라 선언 파일 밖에서 쓸 수 없고 파일 안에서도 부르지 않는 죽은 코드다.
+7. **`CircularList.Clear()` 는 `[Obsolete("Change it to 'Dispose'")]` 상태로 남아 있다** (`CircularList.cs:174-175`). 본문은 `Dispose()` 위임 한 줄이다.
+8. **`CircularList.MoveTo(int)` 만 실패를 로그한다** (`:150-153`). 같은 클래스의 다른
    이동/제거 API 는 전부 조용히 무동작이라 실패 처리 정책이 일관되지 않다.
-10. **로거가 두 갈래다.** `CircularList` / `CollectionUtil` 은 `HDiagnosis.Logger.HLogger`
-    를 쓰지만 `HDictionary` 는 `UnityEngine.Debug` 를 직접 쓴다
-    (`HDictionary.cs:94, :130, :142, :150, :273`). asmdef 는 `HCUP.HDiagnosis` 를 참조하고
-    있으므로 기술적 제약이 아니라 미정리다.
+9. **로거가 두 갈래다.** `CircularList` / `CollectionUtil` 은 `HDiagnosis.Logger.HLogger` 를 쓰지만 `HDictionary` 는 `UnityEngine.Debug` 를 직접 쓴다 (`HDictionary.cs:100, :136, :149, :158, :281, :400`). asmdef 는 `HCUP.HDiagnosis` 를 참조하고 있으므로 기술적 제약이 아니라 미정리다.
 
 ---
 
@@ -237,8 +255,23 @@ int removed = dict.RemoveIf(v => v.expired);
 
 | 하고 싶은 것 | 손댈 곳 |
 |---|---|
-| `HDictionary` 의 키 비교자 교체 | 현재 불가 — `Comparer` 는 base `Dictionary` 기본값 고정. 생성자 오버로드 추가 필요 |
-| 중복 키 정책을 "last-wins" 로 변경 | `HDictionary.OnAfterDeserialize` 의 `rebuilt.ContainsKey` 분기 (`:148-155`) |
-| 순환 이동에 이벤트 훅 추가 | `CircularList` 의 `index` 대입 지점 5곳을 private setter 로 모을 것 |
+| `HDictionary` 의 키 비교자 교체 | 현재 불가 - `Comparer` 는 base `Dictionary` 기본값 고정. 생성자 오버로드 추가 필요 |
+| 중복 키 정책을 "last-wins" 로 변경 | `HDictionary.OnAfterDeserialize` 의 `rebuilt.ContainsKey` 분기 (`:156-163`) |
+| `default` 키 경고의 판정 기준 변경 | `HDictionary.OnAfterDeserialize` 의 `AllowsDefaultKey` 분기 (`:146-153`) |
+| 순환 이동에 이벤트 훅 추가 | `CircularList` 의 `index` 대입 지점(이동 메서드 7개, 제거 보정 2곳, `Dispose`)을 private setter 로 모을 것 |
 | `EnumArray` 의 비연속 enum 지원 | `Convert.ToInt32` 대신 `Array.IndexOf(Enum.GetValues(...))` 매핑 테이블 |
-| 새 컬렉션 확장 메서드 | `CollectionUtil` 에 region 추가 — 상태가 없으므로 부작용 없음 |
+| 새 컬렉션 확장 메서드 | `CollectionUtil` 에 region 추가 - 상태가 없으므로 부작용 없음 |
+
+---
+
+## 히스토리
+
+### 2026-09-13 :: HAllowDefaultKeyAttribute 추가
+
+- 이전: 값 타입 키의 `default` 행은 예외 없이 `Default-valued key` 경고를 남겼다. 0 번 멤버가 진짜 값인 열거형에서는 인스펙터 리페인트마다 오탐 경고가 쌓였다.
+- 현재: 키 타입에 `[HAllowDefaultKey]` 를 붙이면 그 경고에서 빠진다. 판정은 `HDictionary.AllowsDefaultKey` 에 캐시한다.
+
+### 2026-08-07 :: CircularList.IsAtFirst 빈 리스트 가드 추가
+
+- 이전: `IsAtFirst` 가 `index == 0` 만 봐서 빈 리스트에서 `true` 를 반환했다. `IsAtLast` 는 `list.Count > 0` 가드로 `false` 를 반환해 비대칭이었다.
+- 현재: `IsAtFirst` 에도 `list.Count > 0` 조건을 추가해 빈 리스트에서 둘 다 `false` 다 (`CircularList.cs:33`).
