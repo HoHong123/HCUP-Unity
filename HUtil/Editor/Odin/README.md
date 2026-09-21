@@ -1,6 +1,6 @@
 # HCUP.HUtil.Odin.Editor
 
-> 어셈블리: `HCUP.HUtil.Odin.Editor` (파일명은 `Editor/Odin/HCUP.Util.Odin.Editor.asmdef` — **파일명과 어셈블리명 불일치**, rootNamespace `HUtil.Odin.Editor`, `includePlatforms: ["Editor"]`)
+> 어셈블리: `HCUP.HUtil.Odin.Editor` (파일명은 `Editor/Odin/HCUP.Util.Odin.Editor.asmdef`, **파일명과 어셈블리명 불일치**, rootNamespace `HUtil.Odin.Editor`, `includePlatforms: ["Editor"]`)
 > 의존: `HCUP.HDiagnosis`
 > 컴파일 조건: `defineConstraints: ["ODIN_INSPECTOR"]`
 > 동반 어셈블리: `HCUP.HUtil`(런타임), `HCUP.HUtil.Editor`
@@ -49,7 +49,7 @@ flowchart TD
 
 | 멤버 | 성격 | 행 |
 |---|---|---|
-| `folder` | `[FolderPath(ParentFolder = "Assets")]` — 기본값 `"Assets"` | `:31-32` |
+| `folder` | `[FolderPath(ParentFolder = "Assets")]`, 기본값 `"Assets"` | `:31-32` |
 | `scriptableType` | `[ValueDropdown(nameof(GetScriptableTypes))]` | `:37-38` |
 | `includeSubfolders` | `[ToggleLeft]` 기본 `true` | `:40-41` |
 | `Refresh()` | `[Button(ButtonSizes.Large)]` → `_LoadAssets()` | `:43-44` |
@@ -61,7 +61,7 @@ flowchart TD
 ### 타입 드롭다운
 
 ```csharp
-// FileBrowser.cs:76-83 — 어셈블리별 GetTypes() 실패를 개별로 흡수한다
+// FileBrowser.cs:77-85 - 어셈블리별 GetTypes() 실패를 개별로 흡수한다
 var types = AppDomain.CurrentDomain.GetAssemblies()
     .SelectMany(a => {
         Type[] ts;
@@ -102,7 +102,7 @@ var types = AppDomain.CurrentDomain.GetAssemblies()
 2. **`folder` 값에 `"Assets/"` 를 붙이면 경로가 중복된다.** 코드가 항상
    `"Assets/" + folder` 를 만들고(`:50`, `:102`), `[FolderPath(ParentFolder = "Assets")]`
    가 이미 `Assets` 를 기준으로 잡는다. 기본값이 `"Assets"` 이므로 초기 상태의 경로는
-   `"Assets/Assets"` 가 된다 — 첫 `Refresh` 는 대개 아무것도 찾지 못한다.
+   `"Assets/Assets"` 가 된다. 첫 `Refresh` 는 대개 아무것도 찾지 못한다.
 3. **`includeSubfolders = false` 는 정확히 그 폴더만 본다** (`:109-115`). 디렉터리 문자열
    완전 일치 비교이므로 경로 구분자 정규화(`\\` → `/`)에 의존한다.
 4. **결과는 매번 이름순으로 재정렬된다** (`:129`). `[ListDrawerSettings]` 의
@@ -112,20 +112,14 @@ var types = AppDomain.CurrentDomain.GetAssemblies()
 
 5. **하단 주석의 메뉴 경로가 실제와 다르다.** `HCUP → View → File Browser` 라고 적었으나
    (`:152`), 실제 `[MenuItem]` 은 `HCUP/Windows/File Browser` 다 (`:22`).
-6. **asmdef 파일명과 어셈블리명이 불일치한다.** 파일은 `HCUP.Util.Odin.Editor.asmdef`,
-   내부 `name` 은 `HCUP.HUtil.Odin.Editor` 다. 같은 문제가 `HUtil/Runtime/Odin`
-   (`HCUP.Util.Odin`)에도 있다.
-7. ~~`HCUP.HUtil` 참조가 쓰이지 않는다.~~ `FileBrowser` 의 `using` 은 `System`,
-   `System.Linq`, `System.Collections.Generic`, `UnityEditor`, `UnityEngine`,
-   `Sirenix.*`, `HDiagnosis.Logger` 뿐이라 asmdef 에서 제거, `HCUP.HDiagnosis` 만
-   남김 (2026-08-07 반영).
-8. **네임스페이스가 rootNamespace 와 다르다.** 파일은 `namespace HUtil.Editor` (`:20`)
+6. **asmdef 파일명과 어셈블리명이 불일치한다.** 파일은 `HCUP.Util.Odin.Editor.asmdef`, 내부 `name` 은 `HCUP.HUtil.Odin.Editor` 다.
+7. **네임스페이스가 rootNamespace 와 다르다.** 파일은 `namespace HUtil.Editor` (`:20`)
    인데 asmdef `rootNamespace` 는 `HUtil.Odin.Editor` 다. 결과적으로
    `HCUP.HUtil.Editor` 어셈블리의 `HUtil.Editor` 네임스페이스와 같은 이름 공간을
    공유한다.
-9. **로그 태그가 클래스명과 다르다.** `HLogger.Warning("[SO Browser] ...")` (`:98`)
+8. **로그 태그가 클래스명과 다르다.** `HLogger.Warning("[SO Browser] ...")` (`:98`)
    인데 클래스는 `FileBrowser` 다.
-10. **`OpenFolder` 는 존재하지 않는 경로에서 실패한다** (`:49-53`).
+9. **`OpenFolder` 는 존재하지 않는 경로에서 실패한다** (`:49-53`).
     `Path.GetFullPath` 는 예외를 던지지 않지만 `RevealInFinder` 가 조용히 무동작한다.
     경로 존재 검사가 없다.
 
@@ -139,4 +133,13 @@ var types = AppDomain.CurrentDomain.GetAssemblies()
 | 페이지 크기 / 검색 UI 변경 | `assets` 의 `[ListDrawerSettings]` (`:70`, 현재 `NumberOfItemsPerPage = 20`) |
 | 드롭다운 후보 축소 (특정 어셈블리만) | `GetScriptableTypes` (`:76-93`)의 `Where` 절 |
 | 정렬 기준 변경 | `_LoadAssets` 말미의 `OrderBy` (`:129`) |
-| 폴더 경로 중복 버그 수정 | `"Assets/" + folder` 조합 지점 2곳 (`:50`, `:102`) — `[FolderPath]` 규약과 일치시킬 것 |
+| 폴더 경로 중복 버그 수정 | `"Assets/" + folder` 조합 지점 2곳 (`:50`, `:102`). `[FolderPath]` 규약과 일치시킬 것 |
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: 미사용 `HCUP.HUtil` 참조 제거와 `HUtil/Runtime/Odin` 삭제
+
+- 이전: asmdef 가 `HCUP.HUtil` 을 참조했으나 `FileBrowser` 의 `using` 은 `System`, `System.Linq`, `System.Collections.Generic`, `UnityEditor`, `UnityEngine`, `Sirenix.*`, `HDiagnosis.Logger` 뿐이었다. 파일명·어셈블리명 불일치는 런타임 쪽 `HUtil/Runtime/Odin`(`HCUP.Util.Odin`)에도 있었다.
+- 현재: 참조는 `HCUP.HDiagnosis` 하나만 남았다. `HUtil/Runtime/Odin` 은 빈 어셈블리로 삭제돼 불일치는 이 어셈블리에만 남았다.
