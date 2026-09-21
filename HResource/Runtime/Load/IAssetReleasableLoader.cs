@@ -8,13 +8,13 @@
  * ReleaseAll() - 전체 source 핸들 정리.
  *
  * 사용법 ::
- * Addressable 같이 명시 release 가 필요한 loader 만 본 인터페이스 구현. AssetProvider 는 key 를
+ * 로드한 에셋을 되돌릴 수단이 있는 loader 가 구현한다 (AddressableAssetLoader, ResourcesAssetLoader). AssetProvider 는 key 를
  * 실제로 로드한 loader 가 본 인터페이스 구현체면 key 단위로 기록해두었다가, cache 제거 시
  * (OnAssetRemoved) 그 loader 하나만 release (2026-08-06, 감사 5차 HResource 항목 5 참조).
  *
  * 주의 ::
- * cache release 와 source release 는 다른 책임. Resources 같이 release 가 불필요한 loader 는
- * 본 인터페이스 미구현 (IAssetLoader 만 구현). provider 는 이 key 를 로드한 loader 하나만
+ * cache release 와 source release 는 다른 책임. 되돌릴 것이 없는 loader 는 본 인터페이스를
+ * 구현하지 않고 IAssetLoader 만 구현한다. provider 는 이 key 를 로드한 loader 하나만
  * 골라 release - 등록된 releasable loader 전체를 도매금으로 건드리지 않는다.
  * =========================================================
  */
@@ -30,6 +30,18 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-21 (수정) :: ResourcesAssetLoader 를 구현체 목록에 추가
+ *
+ * 변경 ::
+ * 헤더의 "Resources 같이 release 가 불필요한 loader 는 본 인터페이스 미구현" 을 교체하고 구현체 두 개를 적었다.
+ *
+ * 이유 ::
+ * 같은 날 ResourcesAssetLoader 가 Resources.UnloadAsset 으로 해제하도록 이 계약을 구현했다.
+ *
+ * 결과 ::
+ * 시그니처 변경 없음. 아래 2026-04-25 항목의 Resources 서술은 그 시점의 사실이다.
+ *
  * =========================================================
  * 2026-04-26 (수정) :: 헤더 형틀 통합 + Dev Log 형식 도입
  *
