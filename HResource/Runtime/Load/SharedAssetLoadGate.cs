@@ -79,6 +79,25 @@ namespace HResource.Load {
 /* =========================================================
  * Dev Log
  * =========================================================
+ * 2026-09-21 (검증) :: EditMode 테스트 실행 결과와 돌연변이 확인 기록
+ *
+ * 변경 ::
+ * 코드 변경 없음. 아래 (병합) 항목의 "테스트 실행은 병합 시점에 확인하지 못했다" 에 대한 실행 기록이다.
+ *
+ * 결과 ::
+ * 1) 병합 전, 브랜치 dev/hong/fix/hresource-load-gate (기준 master d9528ef) 에서 HCUP.HResource.Tests 7/7 통과.
+ * 2) 같은 브랜치에서 돌연변이 확인. 최초 호출자가 항상 완료 소스를 만들도록 한 줄을 바꾸자
+ *    FailureWithoutJoinersIsReportedOnlyToTheCaller 가 "Expected: 0 But was: 1" 로 실패. 되돌린 뒤 7/7.
+ * 3) 병합 후 master 566eca6 을 고치지 않은 채 실행해 7/7 통과 (2026-09-21 13:53 UTC, batchmode -runTests).
+ * 4) 리뷰 후속 브랜치 dev/hong/fix/hresource-review-followup 에서 회귀 테스트를 8 회 반복 구조로 바꾸고
+ *    케이스 4 개를 더해 11/11 통과 (13:58 UTC). 같은 돌연변이에서 "Expected: 0 But was: 8" 로 실패.
+ *    반복한 8 회가 전부 잡혔다. 되돌린 뒤 게이트 파일은 master 와 차이 0.
+ *
+ * 주의 ::
+ * 실행 환경은 Unity 6000.3.18f1 batchmode, UniTask 2.5.11 (DesktopForest Library 의 설치본). 게이트 테스트는 GC 소멸자에 기대는 항목이 있어
+ * 대조 테스트 AbandonedFaultedSourceIsReported 가 실패하면 0 회 단정 테스트의 통과를 믿지 않는다.
+ *
+ * =========================================================
  * 2026-09-21 (병합) :: master 의 게이트 구현과 dev/hong/fix/hresource-load-gate 의 구현을 병합
  *
  * 변경 ::
