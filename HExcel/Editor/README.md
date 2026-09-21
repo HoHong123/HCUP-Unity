@@ -1,6 +1,6 @@
 # HCUP.HExcel.Editor
 
-> 어셈블리: `HCUP.HExcel.Editor` (`Editor/HCUP.HExcel.asmdef` — **파일명과 어셈블리명이 다름**, rootNamespace `HExcel`)
+> 어셈블리: `HCUP.HExcel.Editor` (`Editor/HCUP.HExcel.asmdef` - **파일명과 어셈블리명이 다름**, rootNamespace `HExcel`)
 > 의존: `HCUP.HcupLocalization`, `HCUP.HInspector.Editor`, GUID 참조 4건(아래 표) / `includePlatforms: ["Editor"]`
 > 동반 어셈블리: `HCUP.HExcel.Tests`([`Tests/README.md`](Tests/README.md))
 
@@ -9,7 +9,7 @@
 ## 요약
 
 NPOI 로 Excel 파일을 읽어 **ScriptableObject 데이터 에셋을 생성하는 에디터 전용 파이프라인**이다.
-런타임 코드는 없다 — 모든 클래스가 Editor 어셈블리에 있고, 그중 다수가 클래스 본체까지
+런타임 코드는 없다 - 모든 클래스가 Editor 어셈블리에 있고, 그중 다수가 클래스 본체까지
 `#if UNITY_EDITOR` 로 한 번 더 감싸여 있다.
 
 두 갈래로 나뉜다.
@@ -19,20 +19,18 @@ NPOI 로 Excel 파일을 읽어 **ScriptableObject 데이터 에셋을 생성하
 | **Core** | `Core/` (7파일) | 재사용 인프라. `ExcelLoader<T>` 베이스 + 싱글톤 접근 + IMGUI 에디터 + 로더 목록 창 |
 | **Localization** | `Localization/` (3파일) | Core 위에 얹은 **구체 구현 1종**. 로컬라이제이션 Excel → 언어별 SO |
 
-Localization 갈래는 Core 의 확장 방식을 보여주는 **유일한 실사용 예제**이기도 하다. 새 도메인
-로더를 만들 때 이 3파일 구성을 그대로 복제하면 된다.
+Localization 갈래는 Core 의 확장 방식을 보여주는 이 모듈 안의 구현 예제다. 저장소 안에서는 `HLocalization/HUnityLocalization` 의 `HUnityLocalizationTableLoader` 도 같은 구성(`ExcelLoader<T>` 상속 + `[DataEditorEntry]` + `LocalizationExcelParser`)으로 로더를 붙인다. 새 도메인 로더를 만들 때 이 3파일 구성을 그대로 복제하면 된다.
 
 ### GUID 참조
 
-asmdef 의 `references` 중 4건이 이름이 아닌 GUID 로 걸려 있다. 패키지에 `.meta` 파일이 없어
-소스만으로는 이름을 확정할 수 없으므로 원문 그대로 기록한다.
+asmdef 의 `references` 중 4건이 이름이 아닌 GUID 로 걸려 있다. 저장소의 `.meta` 로 확인한 대상은 아래와 같다.
 
-| GUID | 코드가 요구하는 것 |
-|---|---|
-| `8713a21b18988d64a80416a73699dc20` | 아래 4종 중 하나 — NPOI, Newtonsoft.Json, `HCUP.HDiagnosis`(`HDiagnosis.Logger`), 기타 |
-| `2687c067fc80bbd448e188188cdbe214` | 〃 |
-| `7912ec58de9231c47aa15fe05be8f6e4` | 〃 |
-| `e36d0f774dc645c4d87e8e20a72bcdde` | 〃 |
+| GUID | 대상 asmdef | 이 모듈 소스의 사용 |
+|---|---|---|
+| `8713a21b18988d64a80416a73699dc20` | `HCUP.HDiagnosis` | `HDiagnosis.Logger` (`HLogger`) |
+| `2687c067fc80bbd448e188188cdbe214` | `HCUP.HCollection` | `using` 없음 |
+| `7912ec58de9231c47aa15fe05be8f6e4` | `HCUP.HData` | `using` 없음 |
+| `e36d0f774dc645c4d87e8e20a72bcdde` | `HCUP.HInspector` | `using` 없음 (에디터 쪽 `HInspector.Editor` 는 이름 참조로 따로 건다) |
 
 이름 참조는 `HCUP.HcupLocalization`(`LocalizationSO` / `LocalizationLanguage`)과
 `HCUP.HInspector.Editor`(`HTitleDrawer`) 2건이다. `overrideReferences` 는 `false` 이므로
@@ -45,7 +43,7 @@ NPOI·Newtonsoft DLL 은 자동 참조 경로로 해결된다.
 | 경로 | 행수 | 역할 |
 |---|---|---|
 | `Core/ExcelLoader.cs` | 485 | `ExcelLoader<T>` 추상 베이스. 워크북 로드 / 시트 선택 / Excel↔JSON / 미리보기 |
-| `Core/AssetDatabaseInstance.cs` | 151 | `AssetDatabaseInstance<T>` — `AssetDatabase` 기반 SO 싱글톤 + 에셋 생성 |
+| `Core/AssetDatabaseInstance.cs` | 164 | `AssetDatabaseInstance<T>` - `AssetDatabase` 기반 SO 싱글톤 + 에셋 생성 |
 | `Core/AssetFolderUtility.cs` | 52 | `Assets/` 하위 폴더 재귀 생성 |
 | `Core/DataEditorEntryAttribute.cs` | 41 | `DataEditorWindow` 사이드바 자동 등록 마커 |
 | `Core/DataEditorWindow.cs` | 324 | `EditorWindow`. 사이드바(검색+목록) + 우측 인스펙터 임베딩 |
@@ -53,7 +51,7 @@ NPOI·Newtonsoft DLL 은 자동 참조 경로로 해결된다.
 | `Core/Editor/AssetDatabaseInstanceEditor.cs` | 49 | `AssetDatabaseInstance<>` open generic `CustomEditor`. 에셋 생성 버튼 |
 | `Localization/HcupLocalizationTableLoader.cs` | 182 | 로컬라이제이션 Import/Export 구현 |
 | `Localization/LocalizationExcelParser.cs` | 89 | 헤더 규격 상수 + UID 검증 파서 (양 로더 공용) |
-| `Localization/LocalizationData.cs` | 73 | 행 1개 DTO + 언어→필드 매핑 |
+| `Localization/LocalizationData.cs` | 85 | 행 1개 DTO + 언어→필드 매핑 |
 
 ---
 
@@ -61,7 +59,7 @@ NPOI·Newtonsoft DLL 은 자동 참조 경로로 해결된다.
 
 ```mermaid
 flowchart TD
-    subgraph Runtime["런타임 계층 — 타 어셈블리"]
+    subgraph Runtime["런타임 계층 - 타 어셈블리"]
     SO["LocalizationSO<br/>HCUP.HcupLocalization"]
     end
 
@@ -85,7 +83,7 @@ flowchart TD
     end
 
     subgraph Ext["외부"]
-    NPOI["NPOI — HSSF / XSSF"]
+    NPOI["NPOI - HSSF / XSSF"]
     NJ["Newtonsoft.Json.Linq"]
     HT["HInspector.Editor.HTitleDrawer"]
     end
@@ -106,7 +104,7 @@ flowchart TD
     HLTL --> SO
 ```
 
-`ADI --> EL` 은 상속이다 — `ExcelLoader<Loader> : AssetDatabaseInstance<Loader>`
+`ADI --> EL` 은 상속이다 - `ExcelLoader<Loader> : AssetDatabaseInstance<Loader>`
 (`ExcelLoader.cs:68-70`). `AssetDatabaseInstance<T> : ScriptableObject` 이므로
 모든 로더는 ScriptableObject 다.
 
@@ -117,7 +115,7 @@ flowchart TD
 
 ---
 
-## 데이터 모델 — `ExcelLoader<Loader>`
+## 데이터 모델 - `ExcelLoader<Loader>`
 
 ```csharp
 // Core/ExcelLoader.cs:68-90
@@ -125,7 +123,7 @@ public abstract class ExcelLoader<Loader> : AssetDatabaseInstance<Loader>
     where Loader : ExcelLoader<Loader>, new() {
 
     [SerializeField] UnityEngine.Object excelFileAsset;  // Project 창 드래그드롭 대상
-    string excelFilePath;                                // 직렬화 없음 — 테스트/코드 경로 전용
+    string excelFilePath;                                // 직렬화 없음 - 테스트/코드 경로 전용
     [SerializeField] string sheetName;
     [SerializeField] string dataOutputPath;              // "Assets/..." 상대경로
 
@@ -158,15 +156,15 @@ flowchart TD
     A["LoadExcelFile()"] --> B{"excelFilePath 가 있나"}
     B -->|있음| C["그 경로 사용"]
     B -->|없음| D["excelFileAsset → GetAssetPath → 절대경로 변환"]
-    C --> E["CloseWorkbook — 이전 워크북 해제"]
+    C --> E["CloseWorkbook - 이전 워크북 해제"]
     D --> E
     E --> F{"확장자"}
     F -->|".xls"| G["HSSFWorkbook"]
     F -->|".xlsx"| H["XSSFWorkbook"]
     F -->|그 외| I["NotSupportedException"]
-    G --> J["GetSheet — sheetName 으로 시트 선택"]
+    G --> J["GetSheet - sheetName 으로 시트 선택"]
     H --> J
-    I --> K["catch — workBook=null, sheet=null, 에러 로그"]
+    I --> K["catch - workBook=null, sheet=null, 에러 로그"]
 ```
 
 **로드 실패는 상태를 비운다.** 예외를 삼키고 이전 워크북을 남기면 사용자는 새 파일을 보고
@@ -177,7 +175,7 @@ flowchart TD
 
 ---
 
-## 흐름 — Import (로컬라이제이션 예)
+## 흐름 - Import (로컬라이제이션 예)
 
 ```mermaid
 sequenceDiagram
@@ -189,20 +187,20 @@ sequenceDiagram
     participant AD as AssetDatabase
 
     U->>W: HCUP/Windows/Data Editor Window
-    W->>W: _BuildEntries — TypeCache 로 [DataEditorEntry] 스캔
+    W->>W: _BuildEntries - TypeCache 로 [DataEditorEntry] 스캔
     Note over W: static Instance 프로퍼티를 리플렉션으로 호출<br/>Label Ordinal 정렬
     U->>W: 사이드바 항목 클릭
     W->>E: CreateEditor(loader, typeof(ExcelLoaderEditor))
     E->>L: LoadExcelFile (리플렉션)
 
-    U->>E: "Import Data" 버튼 — IsAvailable 일 때만 활성
+    U->>E: "Import Data" 버튼 - IsAvailable 일 때만 활성
     E->>L: ImportData (리플렉션)
     L->>L: workBook / DataOutputPath null 검사
-    L->>L: ExcelToJsonAllSheets — 유효 시트 전부 병합
+    L->>L: ExcelToJsonAllSheets - 유효 시트 전부 병합
     L->>P: Parse(merged)
     P->>P: 빈 UID / 중복 UID 검사
     alt 검증 실패
-        P-->>L: null — 에러 로그는 파서가 이미 발화
+        P-->>L: null - 에러 로그는 파서가 이미 발화
         L-->>E: 즉시 중단
     else 통과
         P-->>L: List<LocalizationData>
@@ -227,16 +225,17 @@ sequenceDiagram
 | UID | Korean | English | Japanese | Chinese | Russian |
 |---|---|---|---|---|---|
 
-검증 규칙은 두 가지이고 **둘 다 즉시 중단(`null` 반환)**이다 (`LocalizationExcelParser.cs:45-54`).
+검증 규칙은 세 가지이고 **모두 즉시 중단(`null` 반환)**이다 (`LocalizationExcelParser.cs:37-54`).
 
-1. 빈 UID (`IsNullOrWhiteSpace`)
-2. 중복 UID (`HashSet<string>`, `StringComparer.Ordinal`)
+1. 유효 시트 데이터 없음 (병합 결과가 `null` 이거나 0행)
+2. 빈 UID (`IsNullOrWhiteSpace`)
+3. 중복 UID (`HashSet<string>`, `StringComparer.Ordinal`)
 
-언어 셀은 누락 시 `""` 로 채운다 (`LocalizationExcelParser.cs:57-61`) — 번역 누락은 허용, 식별자 문제는 불허다.
+언어 셀은 누락 시 `""` 로 채운다 (`LocalizationExcelParser.cs:57-61`) - 번역 누락은 허용, 식별자 문제는 불허다.
 
 ---
 
-## 에디터 도구 — 메뉴 경로
+## 에디터 도구 - 메뉴 경로
 
 | 창 | 메뉴 경로 | 용도 |
 |---|---|---|
@@ -256,7 +255,7 @@ sequenceDiagram
 ### `DataEditorWindow` 의 로더 발견
 
 하드코딩 목록이 아니라 `TypeCache.GetTypesWithAttribute<DataEditorEntryAttribute>()` 스캔이다
-(`:183`). 이유는 순환 참조 회피다 — `HUnityLocalization.Editor` 가 `HCUP.HExcel.Editor` 를
+(`:183`). 이유는 순환 참조 회피다 - `HUnityLocalization.Editor` 가 `HCUP.HExcel.Editor` 를
 참조하므로 반대 방향 참조를 만들 수 없다 (`DataEditorEntryAttribute.cs:35-38`).
 
 ```csharp
@@ -297,7 +296,7 @@ private void _CallMethod(string methodName) {
 | `"Instance"` (static, `FlattenHierarchy`) | `AssetDatabaseInstance<T>.Instance` | `DataEditorWindow._BuildEntries` |
 | `"sheetName"` / `"GetSheet"` | 〃 | `HCUP.HExcel.Tests` 도 같은 우회를 쓴다 |
 
-**이 문자열들은 컴파일러가 검증하지 않는다.** 필드·메서드 리네임이 무음 실패로 이어진다 —
+**이 문자열들은 컴파일러가 검증하지 않는다.** 필드·메서드 리네임이 무음 실패로 이어진다 -
 `?.Invoke` 가 null 을 흘려보내 버튼이 아무 일도 하지 않는 형태로 나타난다.
 
 미리보기는 `previewDirty` 플래그로 보호된다 (`:195-202`). 파일·시트 변경 시에만 재파싱하므로
@@ -305,7 +304,7 @@ private void _CallMethod(string methodName) {
 
 ---
 
-## 사용 예 — 새 로더 추가
+## 사용 예 - 새 로더 추가
 
 ```csharp
 using HExcel.Core;
@@ -340,10 +339,7 @@ public class EquipmentTableLoader : ExcelLoader<EquipmentTableLoader> {
 
 ### 계약
 
-1. **헤더는 Row 0 이고 `keys` 와 정확히 일치해야 한다.** `ExcelToJson` 은
-   `keys.Length` 만큼 헤더 셀을 읽으며, 빈 헤더 셀을 만나면 `Assert.IsNotNull` 로 중단한다
-   (`ExcelLoader.cs:148-153`). 다만 **헤더 순서가 `keys` 순서와 다르면 컬럼 매핑이 어긋난다** —
-   `cols.Add(headerCell.ToString(), k)` 가 인덱스 `k` 를 그대로 쓰기 때문이다.
+1. **헤더는 Row 0 이고 `keys` 와 정확히 일치해야 한다.** `ExcelToJson` 은 `keys.Length` 만큼 헤더 셀을 읽으며, 빈 헤더 셀을 만나면 `Assert.IsNotNull` 로 중단한다 (`ExcelLoader.cs:148-153`). 다만 **헤더 순서가 `keys` 순서와 다르면 컬럼 매핑이 어긋난다.** `cols.Add(headerCell.ToString(), k)` 가 인덱스 `k` 를 그대로 쓰기 때문이다.
 2. **`ExcelToJson` 은 빈 셀을 JSON 에서 생략한다** (`:167-168`). 소비 측은 항상
    `row["key"]?.Value<T>() ?? 기본값` 형태로 읽어야 한다.
 3. **`cell.ToString()` 결과가 값이다.** NPOI 수치 셀의 `ToString()` 은 서식에 따라 편차가
@@ -355,58 +351,54 @@ public class EquipmentTableLoader : ExcelLoader<EquipmentTableLoader> {
 5. **에셋이 없으면 메모리 인스턴스만 생성된다.** `IsLoadedFromAsset == false` 상태이며,
    "파일 저장하기" / "Loader 저장하기" 버튼을 눌러야 영구 저장된다. 저장 전 설정한
    엑셀 파일·시트·출력 경로는 세션 종료 시 사라진다.
-6. **`LocalizationData.GetText` 에 기본 arm 이 없다** (`LocalizationData.cs:32-38`).
-   `LocalizationLanguage` 에 값을 추가하고 이 switch 를 갱신하지 않으면
-   `SwitchExpressionException` 이 발생한다 — 조용한 빈 문자열 기록을 막으려는 의도적 설계다.
-7. **`ExportData` 는 Import 를 먼저 요구한다.** 5개 언어 SO 중 하나라도 없으면 에러 후 중단한다
-   (`HcupLocalizationTableLoader.cs:84-87`). Export 순서는 Korean SO 의 UID 를
-   `StringComparer.Ordinal` 로 정렬한 결과다.
+6. **`LocalizationData.GetText` 는 매핑되지 않은 언어를 `english` 로 채운다** (`LocalizationData.cs:33-40`). switch 식의 기본 arm 이 `_ => english` 다. `LocalizationLanguage` 에 값을 추가하고 이 switch 와 필드를 갱신하지 않으면 예외 없이 새 언어 SO 에 영어 문자열이 기록된다.
+7. **`ExportData` 는 Import 를 먼저 요구한다.** `LocalizationLanguage` 의 모든 값에 대해 `Localization_{lang}.asset` 을 찾고, 하나라도 없으면 에러 후 중단한다 (`HcupLocalizationTableLoader.cs:78-89`). Export 순서는 Korean SO 의 UID 를 `StringComparer.Ordinal` 로 정렬한 결과다.
 
 ### 정리 대상
 
 8. **asmdef 파일명과 어셈블리명이 다르다.** 파일은 `HCUP.HExcel.asmdef`, `name` 필드는
    `HCUP.HExcel.Editor`. 동작에는 문제가 없으나 검색·추적을 방해한다.
-9. **`AssetDatabaseInstanceEditor` 는 사실상 죽은 경로다.** `DataEditorWindow` 가
-   `ExcelLoaderEditor` 를 타입 명시로 강제하고(`DataEditorWindow.cs:212`),
-   `ExcelLoaderEditor._DrawLoaderSaveSection` 이 같은 "저장" 기능을 자체 구현한다
-   (`ExcelLoaderEditor.cs:61-72`, 근거는 `:273`). Project 창에서 `AssetDatabaseInstance` 파생
-   에셋을 직접 선택했을 때만 이 에디터가 보인다.
-10. **`AssetDatabaseInstance.CreateAsset` / `CreateAssetAt` 이 `instance`(static) 에 쓴다**
-    (`:86`, `:101`). `target` 이 아니라 static 싱글톤 필드다. 인스펙터에서 보고 있는 객체와
-    `Instance` 가 다른 객체일 때 잘못된 대상이 저장된다. 또 `CreateAsset` 은
-    `instance` 가 아직 초기화되지 않은 상태(프로퍼티 미접근)에서 호출되면
-    `NullReferenceException` 이다 — `Instance` 게터를 거치지 않고 필드를 직접 쓴다.
-11. **`HLogger.Log(guid)` / `HLogger.Log(path)` 가 정보 없는 로그를 남긴다**
+9. **`ExcelLoader<>` 파생 로더에서는 `AssetDatabaseInstanceEditor` 가 쓰이지 않는다.** `DataEditorWindow` 가 `ExcelLoaderEditor` 를 타입 명시로 강제하고(`DataEditorWindow.cs:212`), `ExcelLoaderEditor._DrawLoaderSaveSection` 이 같은 "저장" 기능을 자체 구현한다 (`ExcelLoaderEditor.cs:61-72`, 근거는 `:273`). 이 에디터가 보이는 것은 `ExcelLoader` 를 거치지 않고 `AssetDatabaseInstance<T>` 를 직접 상속한 타입이거나, Project 창에서 open generic 우선순위가 이 에디터로 결정된 경우다.
+10. **`HLogger.Log(guid)` / `HLogger.Log(path)` 가 정보 없는 로그를 남긴다**
     (`AssetDatabaseInstance.cs:64`, `:70`, `:84`; `ExcelLoader.cs:314`, `:342`). 접두사도
     맥락도 없는 원시 문자열이라 콘솔에서 출처를 알기 어렵다.
-12. **`ExcelToJsonAllSheets` 와 `ExcelToJsonBySheet` 가 같은 로직을 두 번 구현한다**
+11. **`ExcelToJsonAllSheets` 와 `ExcelToJsonBySheet` 가 같은 로직을 두 번 구현한다**
     (`ExcelLoader.cs:184-226` vs `:228-272`). 헤더 검사·키 포함 검사·시트 스왑이 동일하고
     결과 수집만 다르다.
-13. **`CloseWorkbook` 을 부르는 곳이 `LoadExcelFile` 하나뿐이다** (`:339`). 로더 인스턴스가
-    파괴될 때 워크북을 닫는 경로가 없어, XSSF 의 OPCPackage 와 인메모리 시트 트리가
-    도메인 리로드까지 남는다.
+12. **`CloseWorkbook` 은 `LoadExcelFile` 안에서만 호출된다** (`:339`). 로더에 `OnDisable` / `OnDestroy` 가 없어 인스턴스가 파괴될 때 워크북을 닫는 경로가 없고, XSSF 의 OPCPackage 와 인메모리 시트 트리가 도메인 리로드까지 남는다.
 
-### 기존 문서와의 불일치
+### 코드 주석과의 불일치
 
-14. **이 파일의 종전 내용은 코드와 맞지 않아 대체됐다.** 종전 문서는 "NPOI — Odin Inspector →
-    Unity 네이티브 IMGUI 전환 문서 패키지" 인덱스였고, 아래 문제가 있었다.
-    - `00_OVERVIEW.md` ~ `05_TEST_CASES.md` 6개 문서를 링크했으나 **전부 존재하지 않는다.**
-    - 코드 위치를 `Assets/01_Scripts/02_Data/NPOI/...` 로 적었으나 현재는 `HExcel/Editor/Core/...` 다.
-    - `SpriteCatalogSO.cs` 를 "가장 Odin 의존이 강한 SO" 로 가리키나 이 패키지에 없다.
-    - 진행 상태를 `M2`~`M8` 미완료로 표시하나, **현재 코드에는 Odin 참조가 한 줄도 없다**
-      (`HExcel` 전체 `Sirenix` grep 0건). M2·M3·M4 는 완료 상태다.
-15. **`DataEditorWindow` 헤더 주석이 `Unity Menu → HData/NPOI 에서 오픈` 이라 적고 있다**
+13. **`DataEditorWindow` 헤더 주석이 `Unity Menu → HData/NPOI 에서 오픈` 이라 적고 있다**
     (`DataEditorWindow.cs:6`). 실제 경로는 `HCUP/Windows/Data Editor Window` 다.
 
 ---
-
 ## 확장 지점
 
 | 하고 싶은 것 | 손댈 곳 |
 |---|---|
 | 새 데이터 로더 추가 | `ExcelLoader<T>` 상속 + `keys` + `ImportData`/`ExportData` + `[DataEditorEntry]` |
 | 다중 시트 병합 정책 변경 | `ExcelToJsonAllSheets` / `ExcelToJsonBySheet` 의 헤더 필터 |
-| 로더별 커스텀 인스펙터 | `ExcelLoaderEditor` 상속 후 구체 타입에 `[CustomEditor]` — open generic 보다 우선 |
+| 로더별 커스텀 인스펙터 | `ExcelLoaderEditor` 상속 후 구체 타입에 `[CustomEditor]` - open generic 보다 우선 |
 | 미리보기 행 수 조정 | `ExcelLoaderEditor._RefreshPreviewIfNeeded` 의 `new object[] { 200 }` |
 | 로컬라이제이션 언어 추가 | `HCUP.HcupLocalization` 의 `LocalizationLanguage` enum + `LocalizationData` 필드·switch + `HcupLocalizationTableLoader._WriteLanguageSO` 호출 |
-| 사이드바 정렬 규칙 | `DataEditorWindow._BuildEntries` 의 `string.CompareOrdinal` — 현재 Label 접두 번호가 정렬 키 |
+| 사이드바 정렬 규칙 | `DataEditorWindow._BuildEntries` 의 `string.CompareOrdinal` - 현재 Label 접두 번호가 정렬 키 |
+
+---
+
+## 히스토리
+
+### 2026-09-17 :: `LocalizationData.GetText` 에 english 폴백 기본 arm 추가
+
+- 이전: switch 식에 기본 arm 이 없어, `LocalizationLanguage` 에 값을 추가하고 switch 를 갱신하지 않으면 `SwitchExpressionException` 이 발생했다. 조용한 빈 문자열 기록을 막으려는 의도적 설계였다.
+- 현재: `_ => english` 기본 arm 이 있어 매핑되지 않은 언어는 예외 없이 영어 문자열로 채워진다.
+
+### 2026-08-07 :: `AssetDatabaseInstance.CreateAsset` / `CreateAssetAt` 기록 대상 수정
+
+- 이전: 두 메서드가 `target` 이 아니라 static `instance` 필드에 기록했다. 인스펙터에서 보고 있는 객체와 `Instance` 가 다르면 잘못된 대상이 저장됐고, `instance` 가 초기화되기 전에 `CreateAsset` 을 부르면 `NullReferenceException` 이었다.
+- 현재: 두 메서드 모두 `this` 에 기록한다 (`AssetDatabaseInstance.cs:86-87`, `:101-102`).
+
+### 2026-08-06 :: 이 문서의 종전 내용 대체
+
+- 이전: 종전 문서는 "NPOI - Odin Inspector → Unity 네이티브 IMGUI 전환 문서 패키지" 인덱스였다. 존재하지 않는 6개 문서(`00_OVERVIEW.md` ~ `05_TEST_CASES.md`)를 링크했고, 코드 위치를 모듈 분리 전 경로로 적었고, 이 패키지에 없는 `SpriteCatalogSO.cs` 를 가리켰고, 이미 끝난 Odin 제거 단계(M2~M4)를 미완료로 표시했다.
+- 현재: 코드 기준으로 새로 작성했다. `HExcel` 코드에는 Odin(`Sirenix`) 참조가 없다 (Dev Log 주석 제외).
