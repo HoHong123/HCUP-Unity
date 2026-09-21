@@ -36,7 +36,7 @@ flowchart TD
     W --> FIN
     SKIP2 --> FIN["전체 순회 종료"]
     FIN --> D["settings.SetDirty(EntryModified) + AssetDatabase.SaveAssets"]
-    D --> LG["_LogDuplicateAddresses — 2건 이상인 address 만 Warning"]
+    D --> LG["_LogDuplicateAddresses - 2건 이상인 address 만 Warning"]
     LG --> OK["HLogger.Log 'Rename complete. Changed=n'"]
 ```
 
@@ -46,7 +46,7 @@ flowchart TD
 | 설정 부재 가드 | `if (settings == null) { HLogger.Log(...); return; }` | `:27-31` |
 | 중복 후보 수집 | `Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)` | `:33` |
 | address 생성 | `_BuildAddressFromPath` → `Path.GetFileNameWithoutExtension` | `:72-76` |
-| 정규화 | `_NormalizeAddress` — `Trim()`, 공백·하이픈을 `_` 로 | `:78-81` |
+| 정규화 | `_NormalizeAddress`. `Trim()`, 공백·하이픈을 `_` 로 | `:78-81` |
 | 변경 없으면 스킵 | `string.Equals(entry.address, newAddress, Ordinal)` | `:55` |
 | 반영 | `entry.SetAddress(newAddress, false)` | `:57` |
 | 저장 | `settings.SetDirty(...)` + `AssetDatabase.SaveAssets()` | `:62-63` |
@@ -94,11 +94,7 @@ AddressableBatchRenameTool.RenameAllAddressesToFileName();
    `HCUP/Addressables/...` 다 (`:25`). 어셈블리 prefix 가 `HCUP.*` 로 통일되기 전의 잔재다.
 6. **주석 템플릿이 채워지지 않은 채 남아 있다.** "변수 설명 ::" 아래가 `X` / `XX` /
    `XXX` 다 (`:108-111`).
-7. ~~`Unity.TextMeshPro` / `Unity.TextMeshPro.Editor` 참조가 쓰이지 않는다.~~ 이
-   어셈블리의 유일한 파일이 TMP 를 참조하지 않아(`using` 은 `System`, `System.IO`,
-   `System.Collections.Generic`, `UnityEditor`, `UnityEditor.AddressableAssets*`,
-   `HDiagnosis.Logger`) asmdef 에서 두 참조 모두 제거 (2026-08-07 반영).
-8. **폴더 구조가 내용과 맞지 않는다.** 경로가 `Editor/Inspector/Addressables/` 인데
+7. **폴더 구조가 내용과 맞지 않는다.** 경로가 `Editor/Inspector/Addressables/` 인데
    인스펙터 코드가 아니다. `Editor/Addressables/` 가 맞다.
 
 ---
@@ -107,7 +103,16 @@ AddressableBatchRenameTool.RenameAllAddressesToFileName();
 
 | 하고 싶은 것 | 손댈 곳 |
 |---|---|
-| 폴더명 prefix 로 충돌 회피 | `_BuildAddressFromPath` (`:72-76`) — 상위 폴더명을 붙여 반환 |
+| 폴더명 prefix 로 충돌 회피 | `_BuildAddressFromPath` (`:72-76`). 상위 폴더명을 붙여 반환 |
 | 정규화 규칙 변경 (소문자화 등) | `_NormalizeAddress` (`:78-81`) |
-| 충돌 시 rename 자체를 중단 | 현재 구조로는 불가 — 1패스로 수집·적용을 동시에 한다. 수집 패스와 적용 패스를 분리해야 한다 |
+| 충돌 시 rename 자체를 중단 | 현재 구조로는 불가. 1패스로 수집·적용을 동시에 한다. 수집 패스와 적용 패스를 분리해야 한다 |
 | 특정 그룹만 대상 | `foreach (var group in settings.groups)` (`:36`)에 그룹명 필터 추가 |
+
+---
+
+## 히스토리
+
+### 2026-08-07 :: 미사용 TMP 참조 제거
+
+- 이전: asmdef 가 `Unity.TextMeshPro` / `Unity.TextMeshPro.Editor` 를 참조했으나 이 어셈블리의 유일한 파일은 TMP 를 쓰지 않았다 (`using` 은 `System`, `System.IO`, `System.Collections.Generic`, `UnityEditor`, `UnityEditor.AddressableAssets*`, `HDiagnosis.Logger`).
+- 현재: 두 참조를 asmdef 에서 제거했다. 참조는 `Unity.Addressables.Editor`, `HCUP.HUtil`, `HCUP.HDiagnosis` 셋이다.
