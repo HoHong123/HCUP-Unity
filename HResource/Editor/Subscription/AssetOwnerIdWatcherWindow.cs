@@ -8,6 +8,7 @@
  * + Owner Tracker : 소유자별로 무엇을 몇 개 잡고 있는지. 수명 정보와 점유를 한 줄에 둔다
  * + Resource Ownership : 리소스별로 누가 잡고 있는지. 모든 점유는 소유자를 갖는다
  * + Orphan Clean : 목록에 잡힌 orphan 의 점유를 툴바 버튼으로 강제 해제한다
+ * + Scan : 점유는 누를 때만 활성 탭 방향으로 캡처한다. 소유자 생사는 0.25초마다 다시 그린다
  *
  * 주의사항 ::
  * 두 축은 AssetLeashManager 가 묶습니다. 소유자를 회수하면 지문 폐기와 점유 해제가
@@ -16,6 +17,7 @@
  * Destroy(component) 단독이 그 유일한 경로입니다.
  * 점유 자료는 AssetCacheDiagnosticsRegistry 에 등록된 캐시에서만 옵니다.
  * 플레이 중이 아니면 등록된 캐시가 없어 비어 있는 것이 정상입니다.
+ * 점유 표는 마지막 Scan 시점의 사진입니다. 플레이 모드가 바뀌면 비웁니다.
  *
  * 사용 ::
  * 메뉴 HCUP / Resource / Owner Watcher
@@ -46,6 +48,7 @@ namespace HResource.Editor.Subscription {
 
         #region 상수
         const double REPAINT_INTERVAL = 0.25d;
+        const double NOT_SCANNED = -1d;
 
         const float WIDTH_OWNER_ID = 70f;
         const float WIDTH_OWNER_NAME = 200f;
@@ -60,6 +63,7 @@ namespace HResource.Editor.Subscription {
         #region Fields
         readonly List<IAssetCacheDiagnostics> caches = new();
         readonly List<CacheView> cacheViews = new();
+        readonly List<AssetHoldingSnapshot> holdingBuffer = new();
 
         /// <summary> ownerId -> 그 소유자가 잡고 있는 항목 표시 문자열 </summary>
         readonly Dictionary<int, List<string>> ownerKeyTable = new();
@@ -79,6 +83,11 @@ namespace HResource.Editor.Subscription {
         bool showOnlyUnityObjects;
         bool showOnlyAlive = true;
         double nextRepaintTime;
+        double ownerScannedAt = NOT_SCANNED;
+        double resourceScannedAt = NOT_SCANNED;
+        int scannedCacheCount;
+        bool isOwnerScanPending;
+        bool isResourceScanPending;
         #endregion
 
         #region Menu
@@ -97,14 +106,16 @@ namespace HResource.Editor.Subscription {
             // 첫 OnGUI 가 첫 update 틱보다 먼저 온다. 지금 판정하지 않으면 한 프레임 동안
             // 창이 닫혀 있던 사이에 죽은 소유자가 살아있는 행으로 그려진다.
             AssetOwnerIdWatchRegistry.ScanNow();
+            EditorApplication.playModeStateChanged += _OnPlayModeStateChanged;
         }
 
         private void OnDisable() {
             EditorApplication.update -= _OnEditorUpdate;
+            EditorApplication.playModeStateChanged -= _OnPlayModeStateChanged;
         }
 
         private void OnGUI() {
-            _RefreshOccupancy();
+            _RunPendingScans();
             _DrawToolbar();
 
             switch (tab) {
@@ -120,8 +131,8 @@ namespace HResource.Editor.Subscription {
         #endregion
 
         #region Private - 갱신
-        // 창이 열려 있는 동안만 주기적으로 다시 그린다. 종전에는 자동 갱신이 없어
-        // Refresh 를 누르기 전까지 값이 멈춰 있었고, 반영이 안 되는 것으로 오해를 샀다.
+        // 창이 열려 있는 동안 소유자 생사 표시를 위해 주기적으로 다시 그린다.
+        // 점유 캡처는 여기서 하지 않는다. Scan 을 눌렀을 때만 뜬다.
         private void _OnEditorUpdate() {
             if (EditorApplication.timeSinceStartup < nextRepaintTime) return;
 
@@ -129,44 +140,108 @@ namespace HResource.Editor.Subscription {
             Repaint();
         }
 
-        private void _RefreshOccupancy() {
-            AssetCacheDiagnosticsRegistry.Collect(caches);
+        // 지난 플레이 세션의 점유가 남아 있으면 소유자 기록이 없는 id 가 전부 ORPHAN 으로 보인다.
+        private void _OnPlayModeStateChanged(PlayModeStateChange state) {
+            if (state != PlayModeStateChange.EnteredEditMode && state != PlayModeStateChange.EnteredPlayMode) return;
 
-            while (cacheViews.Count < caches.Count) cacheViews.Add(new CacheView());
-            while (cacheViews.Count > caches.Count) cacheViews.RemoveAt(cacheViews.Count - 1);
+            _ResetScans();
+            Repaint();
+        }
+
+        private void _ResetScans() {
+            ownerKeyTable.Clear();
+            ownerTotalTable.Clear();
+            orphanOwnerIds.Clear();
+            cacheViews.Clear();
+            scannedCacheCount = 0;
+            ownerScannedAt = NOT_SCANNED;
+            resourceScannedAt = NOT_SCANNED;
+            isOwnerScanPending = false;
+            isResourceScanPending = false;
+        }
+
+        private void _RequestScan() {
+            switch (tab) {
+            case WatcherTab.OwnerTracker:
+                isOwnerScanPending = true;
+                break;
+
+            case WatcherTab.ResourceOwnership:
+                isResourceScanPending = true;
+                break;
+            }
+            Repaint();
+        }
+
+        // 행 수가 바뀌는 갱신은 Layout 패스 선두에서만 한다. 그리는 도중 바뀌면 IMGUI 레이아웃이 어긋난다.
+        private void _RunPendingScans() {
+            if (Event.current.type != EventType.Layout) return;
+
+            if (isOwnerScanPending) {
+                isOwnerScanPending = false;
+                _ScanOwners();
+            }
+            if (isResourceScanPending) {
+                isResourceScanPending = false;
+                _ScanResources();
+            }
+        }
+
+        private void _ScanOwners() {
+            AssetCacheDiagnosticsRegistry.Collect(caches);
 
             ownerKeyTable.Clear();
             ownerTotalTable.Clear();
 
             for (int k = 0; k < caches.Count; k++) {
-                CacheView view = cacheViews[k];
-                view.Label = caches[k].CacheLabel;
-                caches[k].CaptureOccupancy(view.Snapshots);
-
-                _IndexByOwner(view.Snapshots);
+                caches[k].CaptureHoldings(holdingBuffer);
+                _IndexHoldings(holdingBuffer);
             }
+
+            scannedCacheCount = caches.Count;
+            ownerScannedAt = EditorApplication.timeSinceStartup;
+            _ReleaseCacheReferences();
 
             _CollectOrphanOwners();
         }
 
-        private void _IndexByOwner(List<AssetOccupancySnapshot> snapshots) {
-            for (int s = 0; s < snapshots.Count; s++) {
-                AssetOccupancySnapshot snapshot = snapshots[s];
-                IReadOnlyList<AssetOwnerOccupancy> owners = snapshot.Owners;
+        private void _ScanResources() {
+            AssetCacheDiagnosticsRegistry.Collect(caches);
 
-                for (int o = 0; o < owners.Count; o++) {
-                    AssetOwnerOccupancy occupancy = owners[o];
+            while (cacheViews.Count < caches.Count) cacheViews.Add(new CacheView());
+            while (cacheViews.Count > caches.Count) cacheViews.RemoveAt(cacheViews.Count - 1);
 
-                    if (!ownerKeyTable.TryGetValue(occupancy.OwnerId, out List<string> keys)) {
-                        keys = new List<string>();
-                        ownerKeyTable[occupancy.OwnerId] = keys;
-                    }
-                    keys.Add(snapshot.Key);
+            for (int k = 0; k < caches.Count; k++) {
+                CacheView view = cacheViews[k];
+                view.Label = caches[k].CacheLabel;
+                caches[k].CaptureOccupancy(view.Snapshots);
+            }
 
-                    // 점유는 유무라 소유자 총계는 곧 잡고 있는 key 수다.
-                    ownerTotalTable.TryGetValue(occupancy.OwnerId, out int total);
-                    ownerTotalTable[occupancy.OwnerId] = total + 1;
+            scannedCacheCount = caches.Count;
+            resourceScannedAt = EditorApplication.timeSinceStartup;
+            _ReleaseCacheReferences();
+        }
+
+        // 레지스트리는 캐시를 약한 참조로 든다. 창이 강한 참조를 쥐고 있으면
+        // 플레이 종료 시 AssetCacheLeakReporter 가 그 캐시를 살아있는 누수로 센다.
+        private void _ReleaseCacheReferences() {
+            caches.Clear();
+            holdingBuffer.Clear();
+        }
+
+        // 한 소유자가 여러 캐시에 걸쳐 잡을 수 있으므로 key 목록과 총계를 누적한다.
+        private void _IndexHoldings(List<AssetHoldingSnapshot> holdings) {
+            for (int k = 0; k < holdings.Count; k++) {
+                AssetHoldingSnapshot holding = holdings[k];
+
+                if (!ownerKeyTable.TryGetValue(holding.OwnerId, out List<string> keys)) {
+                    keys = new List<string>();
+                    ownerKeyTable[holding.OwnerId] = keys;
                 }
+                keys.AddRange(holding.Keys);
+
+                ownerTotalTable.TryGetValue(holding.OwnerId, out int total);
+                ownerTotalTable[holding.OwnerId] = total + holding.Keys.Count;
             }
         }
 
@@ -219,6 +294,9 @@ namespace HResource.Editor.Subscription {
                     showOnlyAlive = GUILayout.Toggle(showOnlyAlive, "Alive Only", EditorStyles.toolbarButton, GUILayout.Width(90f));
                 }
 
+                if (GUILayout.Button("Scan", EditorStyles.toolbarButton, GUILayout.Width(60f)))
+                    _RequestScan();
+
                 // 순수 C# 소유자의 죽음은 GC 가 돌아야 관측된다. 이 버튼이 그것을 강제한다.
                 if (GUILayout.Button("GC Probe", EditorStyles.toolbarButton, GUILayout.Width(80f)))
                     AssetOwnerIdWatchRegistry.CollectAndPrune();
@@ -234,11 +312,20 @@ namespace HResource.Editor.Subscription {
             }
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox)) {
-                GUILayout.Label($"caches {caches.Count}", GUILayout.Width(90f));
+                GUILayout.Label($"caches {scannedCacheCount}", GUILayout.Width(90f));
                 GUILayout.Label($"owners with occupancy {ownerTotalTable.Count}", GUILayout.Width(200f));
                 GUILayout.Label($"orphan {orphanOwnerIds.Count}", GUILayout.Width(90f));
-                GUILayout.Label(caches.Count > 0 ? string.Empty : "no live cache registered. enter play mode.");
+                GUILayout.Label(_DescribeScanState());
             }
+        }
+
+        private string _DescribeScanState() {
+            double scannedAt = tab == WatcherTab.OwnerTracker ? ownerScannedAt : resourceScannedAt;
+            if (scannedAt == NOT_SCANNED) return "not scanned. press Scan.";
+            if (scannedCacheCount < 1) return "no live cache registered. enter play mode and Scan.";
+
+            double elapsed = EditorApplication.timeSinceStartup - scannedAt;
+            return $"scanned {elapsed:0}s ago";
         }
         #endregion
 
@@ -261,17 +348,22 @@ namespace HResource.Editor.Subscription {
             int ownerCount = orphanOwnerIds.Count;
             int releasedCount = 0;
 
+            // 스냅샷 뒤에 캐시가 바뀌었어도 안전하다. id 는 재사용되지 않아 이미 풀린 id 는 0 을 돌려준다.
+            AssetCacheDiagnosticsRegistry.Collect(caches);
             for (int k = 0; k < orphanOwnerIds.Count; k++) {
                 for (int c = 0; c < caches.Count; c++) {
                     releasedCount += caches[c].ForceReleaseOwner(orphanOwnerIds[k]);
                 }
             }
+            _ReleaseCacheReferences();
 
             HLogger.Log(
                 $"[AssetOwnerIdWatcher] Orphan Clean released {releasedCount} key(s) from {ownerCount} owner(s).");
 
             // 이 패스에서 목록 재수집 금지. 그리는 중 행 수가 바뀌면 IMGUI 레이아웃 어긋남
-            // 갱신은 다음 OnGUI 패스 선두의 _RefreshOccupancy 담당
+            // 갱신은 다음 Layout 패스의 _RunPendingScans 담당. 이미 Scan 한 탭만 다시 뜬다
+            isOwnerScanPending = true;
+            isResourceScanPending = resourceScannedAt != NOT_SCANNED;
             Repaint();
         }
         #endregion
@@ -440,7 +532,8 @@ namespace HResource.Editor.Subscription {
 
             for (int k = 0; k < owners.Count; k++) {
                 AssetOwnerOccupancy occupancy = owners[k];
-                bool isOrphan = orphanOwnerIds.Contains(occupancy.OwnerId);
+                // Owner Tracker 의 Scan 여부와 무관하게 판정한다. 기준은 _CollectOrphanOwners 와 같다.
+                bool isOrphan = !AssetOwnerIdWatchRegistry.Table.ContainsKey(occupancy.OwnerId);
 
                 using (new EditorGUILayout.HorizontalScope()) {
                     GUILayout.Space(INDENT);
@@ -472,6 +565,31 @@ namespace HResource.Editor.Subscription {
 
 /* =============================================================================
  *  Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: 점유 캡처를 Scan 버튼으로 전환
+ *
+ * 변경 ::
+ * - OnGUI 선두의 _RefreshOccupancy 를 없앴다. 툴바 Scan 이 활성 탭 방향만 캡처한다.
+ *   Owner Tracker 는 CaptureHoldings, Resource Ownership 은 CaptureOccupancy 를 부른다.
+ * - Scan 과 Orphan Clean 은 요청 표시만 하고, 실제 캡처는 다음 Layout 패스 선두에서 한다.
+ * - 캡처가 끝나면 캐시 참조 목록을 비운다. Orphan Clean 은 누른 순간 다시 모은다.
+ * - Resource Ownership 의 ORPHAN 표시는 레지스트리 기록 유무로 직접 판정한다.
+ * - 플레이 모드 진입과 종료 때 스냅샷을 비운다. 상태 줄에 Scan 경과 시간을 표시한다.
+ *
+ * 이유 ::
+ * OnGUI 는 리페인트 한 번에 Layout 과 Repaint 두 번, 입력마다 또 불린다. 캡처가 거기 있어 창이
+ * 열려 있으면 초당 8회 이상 전체 캡처와 할당이 돌았다. 캐시가 key 마다 소유자 목록을 들지 않게 되어
+ * (MemoryAssetCache 09-23) key 기준 캡처는 역인덱스를 뒤집는 비용까지 붙었다.
+ * 캐시 참조를 필드에 들고 있으면 플레이 종료 시 누수 보고기가 그 캐시를 누수로 센다.
+ *
+ * 결과 ::
+ * 점유 캡처는 누를 때 한 번만 돈다. 0.25초 리페인트는 소유자 생사 표시용으로 남았다.
+ *
+ * 주의 ::
+ * 09-04 항목의 "Refresh 버튼은 제거했다" 를 되돌린 것이다(사용자 지시). 그때의 문제였던
+ * "반영이 안 되는 것으로 오해" 는 상태 줄의 Scan 경과 시간 표시로 대신 막는다.
+ * 두 탭의 Scan 시점이 달라 서로 다른 순간을 보여줄 수 있다.
+ *
  * =========================================================
  * 2026-09-08 (수정) :: OnEnable 에서 즉시 스캔
  *
