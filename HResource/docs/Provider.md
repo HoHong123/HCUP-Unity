@@ -134,7 +134,7 @@ sequenceDiagram
     C->>P: Release(owner, key) / ReleaseOwner(owner) / ClearCache / ReclaimOrphans
     P->>N: 지문 조회 또는 소유자 단위 회수
     N->>M: Release(key, id) / ReleaseOwner(id)
-    M->>M: 그 owner 를 Owners 에서 제거 → 비면 항목 제거
+    M->>M: ownerTable 에서 그 owner 의 key 를 떼고 OwnerCount 감소 → 0 이면 항목 제거
     M->>P: OnAssetRemoved(key, asset)
     P->>L: Release(key)
     Note over P,L: releasableLoaderByKey 에 기록된 로더 하나만 - Addressable 은 핸들 해제, Resources 는 UnloadAsset
