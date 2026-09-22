@@ -211,14 +211,14 @@ flowchart LR
     subgraph 소유자키
     O1["AssetLeashManager.Fingerprint(owner)"] --> OT["OwnerLiveToken - 신원 + 생존 판정"]
     OT --> O2["AssetOwnerId - int, 0 이하는 invalid"]
-    O2 --> O3["MemoryAssetCache.Item.Owners"]
-    O2 --> O4["ownerTable 역인덱스 - ReleaseOwner 용"]
+    O2 --> O3["MemoryAssetCache.Item.OwnerCount - 제거 판정용 수"]
+    O2 --> O4["ownerTable - 점유의 정본. 중복 판정 · ReleaseOwner"]
     end
 ```
 
 `TKey` 의 여러 표기를 하나로 맞추는 곳은 **provider 입구 한 곳**이다. `AssetProvider` 가 생성자로 받은 `IAssetKeyNormalizer` 로 획득 · 조회 · 반납 때 key 를 한 번 정규화하고 (`Provider/AssetProvider.cs:155`, `:169`, `:180`, `:193`), 게이트 · 캐시 · 로더 · 반납 추적표는 그 결과만 본다. Resources 규칙은 확장자 제거·슬래시 정리·rootPath 결합이고 (`Load/ResourcesKeyNormalizer.cs:37-62`), Addressables 규칙은 `Trim()` 만 한다 (`Load/TrimKeyNormalizer.cs:22-25`). 로더는 key 를 해석하지 않는다. Resources 규칙은 멱등이 아니라 두 번 거치면 다른 에셋을 가리킬 수 있기 때문이다.
 
-`AssetOwnerId` 는 `Value > 0` 일 때만 유효하다 (`Subscription/AssetOwnerId.cs:33`). 무효 id 로 들어온 `Save` 는 거부되고 에러가 남으며 (`Cache/MemoryAssetCache.cs:87-92`), 무효 id 의 `Release` 는 경고와 함께 `false` 를 돌려준다 (`:117-120`). 소유자 없는 점유는 만들어지지 않는다.
+`AssetOwnerId` 는 `Value > 0` 일 때만 유효하다 (`Subscription/AssetOwnerId.cs:33`). 무효 id 로 들어온 `Save` 는 거부되고 에러가 남으며 (`Cache/MemoryAssetCache.cs:84-89`), 무효 id 의 `Release` 는 경고와 함께 `false` 를 돌려준다 (`:114-117`). 소유자 없는 점유는 만들어지지 않는다.
 
 ---
 
@@ -301,7 +301,7 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 
 8. **`IAssetStore` 는 기본 구현이 없다** (`Store/IAssetStore.cs`). `LocalStoreFirst`/`LocalStoreOnly` 두 fetch mode 와 `IAssetSource.ClearStoreAsync` (`Provider/AssetProvider.cs:232-236`) 는 사용자가 store 를 직접 구현해 넘길 때만 동작하는 확장 슬롯이다. 팩토리의 `assetStore` 인자 기본값은 `null` 이다.
 9. **`AddressableLabelLoader` / `IAddressableLabelLoader` 는 provider 와 분리된 축이다.** `IAssetLoader` 를 구현하지 않아 `AssetProvider` 에 등록할 수 없다. 캐시·소유권·게이트 어느 것도 적용되지 않으므로 핸들 해제는 호출자 책임이다. → [../docs/Load.md](../docs/Load.md)
-10. **`MemoryAssetCache.ReleaseAll()` 과 `Clear()` 는 완전히 같은 동작이다** - 둘 다 `_ClearItems()` 한 줄이다 (`Cache/MemoryAssetCache.cs:158-164`). `IAssetReleaser` 가 두 이름을 계약으로 강제하고 있어 (`Cache/IAssetReleaser.cs:29-30`) 호출자는 의미 차이를 기대하게 된다.
+10. **`MemoryAssetCache.ReleaseAll()` 과 `Clear()` 는 완전히 같은 동작이다** - 둘 다 `_ClearItems()` 한 줄이다 (`Cache/MemoryAssetCache.cs:160-166`). `IAssetReleaser` 가 두 이름을 계약으로 강제하고 있어 (`Cache/IAssetReleaser.cs:29-30`) 호출자는 의미 차이를 기대하게 된다.
 11. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나, `foo` 라는 다른 에셋이 있으면 그것을 가져온다 (`Load/ResourcesKeyNormalizer.cs:37-62`). 2026-09-21 이전 로더도 같았다.
 12. **대소문자만 다른 key 는 캐시 두 칸이 된다 (알려진 결함, 수정 미정).** 에디터에서 `Resources.LoadAsync` 는 경로 대소문자를 구분하지 않아 `Icon/A` 와 `icon/a` 가 같은 에셋을 돌려준다 (2026-09-22 에디터 실험). 그런데 규칙은 대소문자를 그대로 두므로 캐시와 로더 기록이 둘로 갈라진다. 한쪽 반납이 에셋을 `UnloadAsset` 으로 내리고 다른 쪽은 참조 시 다시 읽는다. 플레이어 빌드의 대소문자 동작은 확인하지 않았다. 한 에셋은 한 가지 표기로만 부른다.
 
