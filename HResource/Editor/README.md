@@ -44,15 +44,15 @@
 | **Owner Tracker** | 소유자 기준. 목록에 `Holds` 열과 펼침 key 목록이 붙는다. 점유는 있는데 소유자 기록이 없으면 `ORPHAN` 행으로 따로 나열한다 |
 | **Resource Ownership** | 리소스 기준. 캐시별로 묶어 key 마다 그것을 잡고 있는 소유자 수와 목록을 표시한다 |
 
-두 탭은 **같은 스냅샷 하나**에서 나온다. `Resource Ownership` 이 원본이고 `Owner Tracker` 는 그것을 소유자 기준으로 뒤집은 것이라 두 뷰가 서로 어긋날 수 없다.
+두 탭은 **각자 자기 방향의 스냅샷**을 쓴다. `Owner Tracker` 는 `CaptureHoldings`(캐시의 `ownerTable` 을 그대로 옮김), `Resource Ownership` 은 `CaptureOccupancy`(`ownerTable` 을 key 기준으로 뒤집음)다. 툴바 `Scan` 은 활성 탭의 방향만 캡처하므로 두 탭은 서로 다른 순간을 보여줄 수 있다. 상태 줄이 탭별 Scan 경과 시간을 표시한다.
 
 ## 점유 자료 경로
 
 ```mermaid
 flowchart LR
     C["MemoryAssetCache 생성자"] -->|"Register (약한 참조)"| R["AssetCacheDiagnosticsRegistry"]
-    W["AssetOwnerIdWatcherWindow.OnGUI"] -->|"Collect"| R
-    W -->|"CaptureOccupancy(buffer)"| C
+    W["AssetOwnerIdWatcherWindow Scan"] -->|"Collect"| R
+    W -->|"CaptureHoldings / CaptureOccupancy(buffer)"| C
     X["AssetCacheLeakReporter (ExitingPlayMode)"] -->|"CollectLeakSuspects / CollectLiveHolders"| R
 ```
 
@@ -97,13 +97,15 @@ flowchart TD
 
 `Orphan Clean` 버튼은 목록에 잡힌 `ORPHAN` 의 점유를 확인창 1회 뒤 `IAssetCacheDiagnostics.ForceReleaseOwner` 로 강제 해제한다. `ORPHAN` 이 0 이면 비활성이다. 내려놓는 것은 점유뿐이고 leash 엔트리는 그대로 두는데, 창에서 provider 에 닿을 수 없기 때문이다. 남은 엔트리는 앵커 파괴나 `IAssetSource.ReclaimOrphans()` 가 나중에 걷어간다.
 
-행 클릭은 `PingObject` + `Selection.activeObject` 다. 창이 열려 있는 동안 `EditorApplication.update` 로 0.25초마다 스스로 다시 그린다 (`Subscription/AssetOwnerIdWatcherWindow.cs:48`).
+행 클릭은 `PingObject` + `Selection.activeObject` 다. 창이 열려 있는 동안 `EditorApplication.update` 로 0.25초마다 스스로 다시 그린다 (`Subscription/AssetOwnerIdWatcherWindow.cs:50`). 이 리페인트는 소유자 생사 표시용이고 점유를 캡처하지 않는다.
+
+`Scan` 버튼은 요청만 표시하고, 캡처는 다음 Layout 패스 선두에서 한다 (`_RunPendingScans`, `:177-188`). 그리는 도중 행 수가 바뀌면 IMGUI 레이아웃이 어긋나기 때문이다. 캡처가 끝나면 창은 캐시 참조를 비운다 (`:227-230`). 강한 참조를 쥐고 있으면 플레이 종료 시 누수 보고기가 그 캐시를 살아있는 누수로 센다. `Orphan Clean` 뒤에는 이미 Scan 한 탭만 다시 캡처한다. 플레이 모드 진입과 종료 때 스냅샷을 비운다 (`:144-149`).
 
 ## 주의할 점
 
 1. **파괴 감지는 창이 열려 있을 때만 돈다.** 창을 닫아 두면 표의 생사 판정이 갱신되지 않는다. 창을 열 때와 `GC Probe` 는 `ScanNow` 로 주기 게이트를 건너뛴다 (`Subscription/AssetOwnerIdWatchRegistry.cs:109-112`).
-2. **점유 축은 플레이 중에만 채워진다.** 등록된 캐시가 없으면 두 탭 모두 비어 있는 것이 정상이고, 툴바가 `no live cache registered` 로 알린다.
-3. **`CaptureOccupancy` 는 key 마다 소유자 리스트를 새로 만든다.** 창이 초당 4회 다시 그리므로 그만큼 할당이 생긴다. 에디터 전용이고 항목 수가 적어 풀링은 두지 않았다.
+2. **점유 축은 플레이 중에 `Scan` 을 눌러야 채워진다.** 누르기 전에는 `not scanned` 를, 등록된 캐시가 없으면 `no live cache registered` 를 상태 줄에 표시한다.
+3. **캡처는 Scan 한 번마다 할당한다.** `CaptureOccupancy` 는 `ownerTable` 을 뒤집는 사전과 key 마다 소유자 리스트를, `CaptureHoldings` 는 소유자마다 key 리스트를 새로 만든다. 누를 때만 돌고 에디터 전용이라 풀링은 두지 않았다.
 4. **누수 보고 직전의 `GC.Collect` 는 플레이 종료마다 1회 돈다.** 에디터 전용 비용이다.
 
 ---
