@@ -367,16 +367,19 @@ namespace HResource.Subscription {
         void _AttachProbe(Component anchor, LeashEntry entry) {
             GameObject go = anchor.gameObject;
             // 없을 때 GetComponent 는 에디터에서 할당하고 TryGetComponent 는 하지 않는다.
-            if (!go.TryGetComponent(out OwnerLeashProbe probe)) probe = go.AddComponent<OwnerLeashProbe>();
+            if (!go.TryGetComponent(out OwnerLeashProbe probe)) {
+                probe = go.AddComponent<OwnerLeashProbe>();
 
-            // 파괴가 진행 중인 GameObject 에 AddComponent 는 예외가 아니라 null 반환.
-            if (probe == null) {
-                HLogger.Error(
-                    $"[AssetLeash] Could not attach a destroy probe to '{go.name}' because it is being destroyed. " +
-                    "The request is refused instead of creating an occupancy with no upper bound. " +
-                    "Acquire assets before teardown.");
-                entry.AnchorAttachFailed = true;
-                return;
+                // 파괴가 진행 중인 GameObject 에 AddComponent 는 예외가 아니라 null 반환.
+                // 찾은 프로브는 붙어 있는 것이라 이 검사는 AddComponent 경로에만 둔다.
+                if (probe == null) {
+                    HLogger.Error(
+                        $"[AssetLeash] Could not attach a destroy probe to '{go.name}' because it is being destroyed. " +
+                        "The request is refused instead of creating an occupancy with no upper bound. " +
+                        "Acquire assets before teardown.");
+                    entry.AnchorAttachFailed = true;
+                    return;
+                }
             }
 
             // entry 만 캡처. owner 를 캡처하면 앵커의 컴포넌트가 소유자를 살려두어,
@@ -401,6 +404,22 @@ namespace HResource.Subscription {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: 부착 실패 검사를 AddComponent 경로로
+ *
+ * 변경 ::
+ * probe == null 검사를 TryGetComponent 가 실패한 분기 안, AddComponent 바로 뒤로 옮겼다.
+ *
+ * 이유 ::
+ * TryGetComponent 가 찾은 프로브는 GameObject 에 붙어 있는 것이라 그 경로의 null 검사는 항상 false 였다.
+ * 이 검사가 잡는 실패는 파괴 중인 GameObject 에서 AddComponent 가 null 을 돌려주는 경우 하나다.
+ *
+ * 결과 ::
+ * 찾은 경로에서 Unity == 한 번이 빠진다. 부착은 드문 경로라 성능 차이보다 실패 원인과 검사의 위치가 맞는 것이 요점이다.
+ *
+ * 주의 ::
+ * 안쪽 검사는 ReferenceEquals 로 바꾸지 않는다. AddComponent 가 진짜 null 과 파괴된 래퍼 중 무엇을 돌려주는지 확인하지 않았다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: 프로브 조회를 TryGetComponent 로
  *
