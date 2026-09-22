@@ -34,7 +34,7 @@ public readonly struct AssetOwnerId : IEquatable<AssetOwnerId> {
 }
 ```
 
-`readonly struct` + `IEquatable` 조합이 캐시의 `HashSet<AssetOwnerId>` 원소로 쓰일 때 박싱을 피하는 근거다 (`Cache/MemoryAssetCache.cs:48`).
+`readonly struct` + `IEquatable` 조합이 캐시의 `ownerTable`(`Dictionary<AssetOwnerId, HashSet<TKey>>`) 키로 쓰일 때 박싱을 피하는 근거다 (`Cache/MemoryAssetCache.cs:51`).
 
 `Value > 0` 만 유효하다. 무효 id 로 들어온 `Save` 는 **거부되고 에러가 남는다**. `int → AssetOwnerId` 방향의 변환은 없고 생성자는 internal 이라, 어셈블리 밖에서는 신원을 만들 수 없다.
 
