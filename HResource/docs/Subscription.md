@@ -178,7 +178,7 @@ flowchart TD
 2. **정적 이벤트는 플레이 진입마다 비워진다** (`AssetOwnerIdGenerator.cs:43-48`). 런타임 구독자를 붙일 때는 재구독 경로를 스스로 설계해야 한다.
 3. **`nextId` 는 세션 내 단조 증가이고 재사용되지 않는다** (`:56`). 세션을 넘긴 id 비교는 의미가 없다.
 4. **자동 회수는 GameObject 파괴에만 걸린다.** `Destroy(component)` 단독과 순수 C# 소유자는 잡히지 않는다. 전자는 `ReclaimOrphans()` 를 부를 때 걷히고, 후자는 anchor 파괴가 상한이다. 감지는 자동이 아니다 - 부르는 시점은 호출자가 정한다.
-5. **파괴가 진행 중인 GameObject 에서는 획득이 실패한다.** 프로브를 붙일 수 없으면 `GetAsync` 는 로드 없이 `default` 를, `Leash` 는 `null` 을 돌려주고 `HLogger.Error` 를 남긴다 (`AssetLeashManager.cs:367-380`). 자산은 teardown 전에 확보한다.
+5. **파괴가 진행 중인 GameObject 에서는 획득이 실패한다.** 프로브를 붙일 수 없으면 `GetAsync` 는 로드 없이 `default` 를, `Leash` 는 `null` 을 돌려주고 `HLogger.Error` 를 남긴다 (`AssetLeashManager.cs:367-383`). 자산은 teardown 전에 확보한다.
 6. **한 소유자는 하나의 앵커만 갖는다.** 이미 앵커가 있는 순수 C# 소유자에게 다른 앵커로 `Leash` 를 다시 부르면 새 앵커는 무시되고 경고가 남는다 (`:260-266`).
 7. **명시적 반납이 정상 플로우다.** 프로브는 안전망이지 대체재가 아니다. 다 쓴 시점에 `Release(owner, key)` 를 부르는 것과 파괴될 때까지 들고 있는 것은 점유 기간이 다르다. Component 는 프로브가 자기 GameObject 에 붙어 회수 시점이 자기 수명과 같으므로 명시 반납이 선택이다. 순수 C# 소유자는 회수 시점이 anchor 수명이라 자기 수명과 어긋나므로 `ICSharpAssetLeash.Dispose` 가 의무다.
 
