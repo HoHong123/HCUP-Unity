@@ -36,7 +36,7 @@ namespace HResource.Cache {
 #if UNITY_EDITOR
         , IAssetCacheDiagnostics
 #endif
-    {
+        where TAsset : class {
         #region Nested Types
         sealed class Item {
             public TAsset Asset;
@@ -50,7 +50,7 @@ namespace HResource.Cache {
         #endregion
 
         #region Fields
-        readonly Dictionary<TKey, Item> table = new();
+        readonly Dictionary<TKey, Item> assetTable = new();
         readonly Dictionary<AssetOwnerId, HashSet<TKey>> ownerTable = new();
         #endregion
 
@@ -76,7 +76,7 @@ namespace HResource.Cache {
 
         #region Public - Get
         public bool TryGet(TKey key, out TAsset asset) {
-            asset = default;
+            asset = null;
             return _TryGetItem(key, out _, out asset);
         }
         #endregion
@@ -93,7 +93,7 @@ namespace HResource.Cache {
 
             if (ReferenceEquals(asset, null)) return false;
 
-            if (table.TryGetValue(key, out var item)) {
+            if (assetTable.TryGetValue(key, out var item)) {
                 if (ReferenceEquals(item.Asset, asset)) {
                     _AddOwnerDependency(item, ownerId, key);
                     return true;
@@ -104,7 +104,7 @@ namespace HResource.Cache {
             }
 
             var newItem = new Item { Asset = asset };
-            table[key] = newItem;
+            assetTable[key] = newItem;
             _SyncDiagnostics();
 
             _AddOwnerDependency(newItem, ownerId, key);
@@ -119,7 +119,7 @@ namespace HResource.Cache {
                 return false;
             }
 
-            if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) {
+            if (!assetTable.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) {
                 _WarnUnpairedRelease(key, $"no cache entry (ownerId={ownerId})");
                 return false;
             }
@@ -144,7 +144,7 @@ namespace HResource.Cache {
             ownerTable.Remove(ownerId);
 
             foreach (var key in releaseKeys) {
-                if (!table.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) continue;
+                if (!assetTable.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) continue;
                 // 이 owner 가 잡고 있던 key 를 전부 내려놓는다. 단건 Release 와 같은 의미다.
                 if (!item.Owners.Remove(ownerId)) continue;
 
@@ -166,10 +166,10 @@ namespace HResource.Cache {
 
         #region Private - Item
         private bool _TryGetItem(TKey key, out Item item, out TAsset asset) {
-            asset = default;
+            asset = null;
             item = null;
 
-            if (!table.TryGetValue(key, out item) || ReferenceEquals(item.Asset, null)) return false;
+            if (!assetTable.TryGetValue(key, out item) || ReferenceEquals(item.Asset, null)) return false;
 
             asset = item.Asset;
             return true;
@@ -181,7 +181,7 @@ namespace HResource.Cache {
         }
 
         private bool _RemoveItem(TKey key, Item item) {
-            if (!table.Remove(key)) return false;
+            if (!assetTable.Remove(key)) return false;
 
             _SyncDiagnostics();
             _NotifyRemoved(key, item.Asset);
@@ -216,17 +216,17 @@ namespace HResource.Cache {
 
         #region Private - Clear
         private void _ClearItems() {
-            if (table.Count < 1) return;
+            if (assetTable.Count < 1) return;
 
             // OnAssetRemoved 구독자가 알림 도중 Save 를 다시 호출하면 그 항목은 Clear 를
             // 통과해 살아남는다(구독자 입장에서는 방금 비운 캐시에 유령이 남는다).
             // 잔존 항목이 없어질 때까지 반복하고, 폭주는 상한으로 끊는다.
             const int MAX_CLEAR_PASSES = 8;
             for (int pass = 0; pass < MAX_CLEAR_PASSES; pass++) {
-                if (table.Count < 1) return;
+                if (assetTable.Count < 1) return;
 
-                var removeItems = new List<KeyValuePair<TKey, Item>>(table);
-                table.Clear();
+                var removeItems = new List<KeyValuePair<TKey, Item>>(assetTable);
+                assetTable.Clear();
                 ownerTable.Clear();
                 _SyncDiagnostics();
 
@@ -235,9 +235,9 @@ namespace HResource.Cache {
                 }
             }
 
-            if (table.Count > 0) {
+            if (assetTable.Count > 0) {
                 HLogger.Error(
-                    $"[AssetCache] Clear did not converge: {table.Count} item(s) were re-saved during removal notifications.");
+                    $"[AssetCache] Clear did not converge: {assetTable.Count} item(s) were re-saved during removal notifications.");
             }
         }
         #endregion
@@ -247,21 +247,21 @@ namespace HResource.Cache {
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         private void _SyncDiagnostics() {
 #if UNITY_EDITOR
-            diagnosticsHandle.EntryCount = table.Count;
+            diagnosticsHandle.EntryCount = assetTable.Count;
 #endif
         }
 
 #if UNITY_EDITOR
         #region Public - Editor Diagnostics
         public string CacheLabel => diagnosticsHandle.Label;
-        public int EntryCount => table.Count;
+        public int EntryCount => assetTable.Count;
 
         /// <summary> 호출자가 준 버퍼를 비우고 현재 점유 현황으로 채운다 </summary>
         public void CaptureOccupancy(List<AssetOccupancySnapshot> buffer) {
             if (buffer == null) return;
             buffer.Clear();
 
-            foreach (var pair in table) {
+            foreach (var pair in assetTable) {
                 Item item = pair.Value;
                 var owners = new List<AssetOwnerOccupancy>(item.Owners.Count);
 
