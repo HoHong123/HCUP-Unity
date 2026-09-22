@@ -135,18 +135,23 @@ namespace HResource.Cache {
             if (!ownerId.IsValid) return 0;
             if (!ownerTable.TryGetValue(ownerId, out var keys)) return 0;
 
-            var releaseKeys = new List<TKey>(keys);
+            // 떼어낼 점유가 가리키던 Item 을 함께 기억한다. 알림 도중 Clear 뒤 재저장으로 key 가
+            // 새 Item 을 가리키면 그 Item 에는 이 owner 의 몫이 없으므로 깎지 않는다.
+            var releaseItems = new List<KeyValuePair<TKey, Item>>(keys.Count);
+            foreach (var key in keys) {
+                if (assetTable.TryGetValue(key, out var item)) releaseItems.Add(new KeyValuePair<TKey, Item>(key, item));
+            }
             int releasedCount = 0;
 
             ownerTable.Remove(ownerId);
 
-            foreach (var key in releaseKeys) {
-                if (!assetTable.TryGetValue(key, out var item) || ReferenceEquals(item.Asset, null)) continue;
+            foreach (var pair in releaseItems) {
+                if (!assetTable.TryGetValue(pair.Key, out var item) || !ReferenceEquals(item, pair.Value)) continue;
+                if (ReferenceEquals(item.Asset, null)) continue;
                 // 이 owner 가 잡고 있던 key 를 전부 내려놓는다. 단건 Release 와 같은 의미다.
-                // releaseKeys 가 곧 이 owner 의 점유 집합이라 소유 여부를 다시 묻지 않는다.
                 item.OwnerCount--;
                 releasedCount++;
-                _TryRemoveItem(key, item);
+                _TryRemoveItem(pair.Key, item);
             }
 
             return releasedCount;
@@ -345,6 +350,37 @@ namespace HResource.Cache {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: ReleaseOwner 가 재생성된 Item 을 깎지 않게
+ *
+ * 변경 ::
+ * ReleaseOwner 가 떼어낼 key 마다 그때의 Item 을 기억하고, 루프에서 key 가 여전히 같은 Item 을
+ * 가리킬 때만 OwnerCount 를 내린다.
+ *
+ * 이유 ::
+ * 아래 항목 직후 검수에서 드러났다. 제거 알림 도중 구독자가 Clear 후 같은 key 를 다른 owner 로
+ * 다시 Save 하면, 루프가 새 Item 의 수를 깎아 key 를 지우고 살아있는 owner 의 자산에 가짜
+ * OnAssetRemoved 를 쐈다 (Provider 라면 그 로더 핸들 반납). 옛 Owners.Remove 검사가 막던 경로다.
+ *
+ * 결과 ::
+ * 재진입 시나리오 16건에서 불변식 위반 0. 재진입 없는 호출 60000회에서 이전 구현과 결과가 같다.
+ * Clear 후 같은 owner 가 다시 잡는 경우(옛 구현에서도 깨지던 경로)도 이제 일관된다.
+ *
+ * 주의 ::
+ * ReleaseOwner 도중 같은 owner 가 단건 Release 를 불러도 이미 떼어낸 몫은 그 호출로 놓이지 않는다.
+ * owner 의 집합을 먼저 떼기 때문이다. 경우별 결과는 셋이다.
+ * - 다시 Save 하지 않은 key : false + "Unpaired release" 경고.
+ * - 같은 Item 에 다시 Save 한 key : 다시 잡은 몫만 놓인다. 떼어낸 몫이 남아 있어 false, 경고 없음.
+ * - Clear 뒤 새 Item 에 다시 잡은 key : 정상 해제라 true.
+ * 앞의 두 경우 최종 상태는 옛 구현과 같지만 바깥 ReleaseOwner 의 반환값은 다르다(옛 1, 지금 2).
+ * 세 번째 경우는 반환값도 같다.
+ * key 별로 떼면 이 경고는 사라지지만, 알림 도중 같은 owner 의 재 Save 가 true 를 받고도 자산을
+ * 잃는 옛 결함이 돌아온다. 떼어낸 몫을 owner 별 pending 스택에 두고 단건 Release 가 거기서 꺼내면
+ * 둘 다 해결되는 것을 검증용 사본으로 확인했지만, 필드와 분기가 늘어 적용하지 않았다.
+ * ReleaseOwner 루프 도중에는 떼어낸 몫이 지역 목록에 있어 ownerTable 이 잠시 정본이 아니다.
+ * 같은 owner 가 알림 중 같은 Item 을 다시 잡으면 OwnerCount 가 잠시 서로 다른 소유자 수보다 커진다.
+ * Clear 뒤 새 Item 이면 그렇지 않다. 어느 쪽이든 루프가 끝나면 맞아진다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: Item.Owners 를 OwnerCount 로 축소 + 진단 캡처 두 방향
  *
