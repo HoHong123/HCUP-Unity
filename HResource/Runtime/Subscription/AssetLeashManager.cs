@@ -366,8 +366,8 @@ namespace HResource.Subscription {
 
         void _AttachProbe(Component anchor, LeashEntry entry) {
             GameObject go = anchor.gameObject;
-            OwnerLeashProbe probe = go.GetComponent<OwnerLeashProbe>();
-            if (probe == null) probe = go.AddComponent<OwnerLeashProbe>();
+            // 없을 때 GetComponent 는 에디터에서 할당하고 TryGetComponent 는 하지 않는다.
+            if (!go.TryGetComponent(out OwnerLeashProbe probe)) probe = go.AddComponent<OwnerLeashProbe>();
 
             // 파괴가 진행 중인 GameObject 에 AddComponent 는 예외가 아니라 null 반환.
             if (probe == null) {
@@ -401,6 +401,23 @@ namespace HResource.Subscription {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: 프로브 조회를 TryGetComponent 로
+ *
+ * 변경 ::
+ * _AttachProbe 의 GetComponent + null 검사를 TryGetComponent 한 줄로 바꿨다.
+ *
+ * 이유 ::
+ * GameObject 에 프로브가 아직 없을 때(소유자 GameObject 의 첫 부착) GetComponent 는 에디터에서
+ * 할당한다. TryGetComponent 는 없을 때도 할당하지 않는다 (Unity 스크립트 레퍼런스).
+ *
+ * 결과 ::
+ * 동작은 같다. 빌드에는 차이가 없고 에디터의 첫 부착 할당이 사라진다.
+ *
+ * 주의 ::
+ * _AttachProbe 는 요청마다가 아니라 소유자의 첫 요청과 회수 뒤 첫 요청에만 돈다.
+ * AddComponent 는 GameObject 당 한 번이다. 프로브는 _DetachProbe 로 구독만 풀리고 컴포넌트는 남는다.
+ *
  * =========================================================
  * 2026-09-08 (수정 6) :: AssetLeash 를 CSharpAssetLeash 로
  *
