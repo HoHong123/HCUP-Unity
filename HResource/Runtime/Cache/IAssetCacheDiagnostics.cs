@@ -5,7 +5,7 @@
  *
  * 특징 / 지원기능 ::
  * 제네릭을 지운 표면입니다. 진단 창이 TKey / TAsset 을 몰라도 캐시를 다룰 수 있습니다.
- * + CaptureOccupancy 는 호출자가 준 버퍼를 채웁니다. 매 리페인트마다 할당하지 않기 위함입니다
+ * + CaptureOccupancy 는 key 기준, CaptureHoldings 는 소유자 기준으로 호출자가 준 버퍼를 채웁니다
  * + ForceReleaseOwner 는 점유를 강제로 내려놓습니다. orphan 판정은 호출자가 집니다
  *
  * 주의사항 ::
@@ -28,8 +28,11 @@ namespace HResource.Cache {
         /// <summary> 현재 캐시에 올라와 있는 항목 수 </summary>
         int EntryCount { get; }
 
-        /// <summary> 호출자가 준 버퍼를 비우고 현재 점유 현황으로 채운다 </summary>
+        /// <summary> 호출자가 준 버퍼를 비우고 key 기준 점유 현황으로 채운다 </summary>
         void CaptureOccupancy(List<AssetOccupancySnapshot> buffer);
+
+        /// <summary> 호출자가 준 버퍼를 비우고 소유자 기준 점유 현황으로 채운다 </summary>
+        void CaptureHoldings(List<AssetHoldingSnapshot> buffer);
 
         /// <summary> 이 소유자의 점유를 강제 해제. 반환값은 회수한 key 수. 생존 판정은 호출자 몫 </summary>
         int ForceReleaseOwner(int ownerId);
@@ -38,6 +41,23 @@ namespace HResource.Cache {
 
 /* =============================================================================
  *  Dev Log
+ * =============================================================================
+ * 2026-09-23 (수정) :: CaptureHoldings 추가
+ *
+ * 변경 ::
+ * 소유자 기준으로 점유를 내주는 CaptureHoldings 를 넣었다. CaptureOccupancy 는 key 기준으로 남는다.
+ *
+ * 이유 ::
+ * 캐시가 key 마다 소유자 목록을 들지 않고 ownerTable 하나를 정본으로 삼게 됐다.
+ * 소유자 기준은 그것을 그대로 옮기는 편이 key 기준 스냅샷을 에디터에서 다시 뒤집는 것보다 짧다.
+ *
+ * 결과 ::
+ * 워처의 두 탭이 각자 자기 방향의 캡처를 Scan 으로 부른다. 자동 리페인트마다 캡처하지 않는다.
+ *
+ * 주의 ::
+ * 09-04 의 "스냅샷 모양은 key 중심 하나" 결정을 바꾼 것이다. 두 탭은 Scan 시점이 따로라
+ * 서로 다른 순간을 보여줄 수 있다.
+ *
  * =============================================================================
  * 2026-09-06 (수정) :: ForceReleaseOwner 추가
  *
