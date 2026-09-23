@@ -46,7 +46,7 @@ namespace HResource.Benchmark.Editor {
 
             if (_HasArgument(NON_DEVELOPMENT_ARGUMENT)) playerOptions.options &= ~BuildOptions.Development;
             else playerOptions.options |= BuildOptions.Development;
-            // 스크립트 디버깅이 켜지면 디버그 코드 생성이 된다. 릴리스와 같은 코드 생성으로 재기 위해 끈다.
+            // 디버거 연결 대기와 관리 디버거를 뺀다. 이것만으로는 릴리스 코드 생성이 되지 않는다(개발 빌드는 여전히 디버그 코드 생성).
             playerOptions.options &= ~(BuildOptions.AutoRunPlayer | BuildOptions.ConnectToHost | BuildOptions.WaitForPlayerConnection | BuildOptions.ConnectWithProfiler | BuildOptions.AllowDebugging);
             playerOptions.locationPathName = Path.Combine(folder, PLAYER_EXECUTABLE);
 
@@ -88,6 +88,21 @@ namespace HResource.Benchmark.Editor {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: 스크립트 디버깅 주석 정정
+ *
+ * 변경 ::
+ * AllowDebugging 을 끄는 줄의 주석을 고쳤다. 끄면 릴리스와 같은 코드 생성이 된다고 적혀 있었다.
+ *
+ * 이유 ::
+ * 같은 날 보고서의 코드 생성 기록으로 개발 빌드가 스크립트 디버깅을 꺼도 디버그 코드 생성임을 확인했다. 주석이 그 결과와 반대였다.
+ *
+ * 결과 ::
+ * 주석, 헤더, Dev Log 가 같은 사실을 말한다. 빌드 설정은 그대로다.
+ *
+ * 주의 ::
+ * 릴리스 코드 생성 수치는 -hresourceBenchmarkNonDevelopment 로만 얻는다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: 테스트 씬만 빌드, 스크립트 디버깅 끔, 비개발 빌드 옵션
  *
