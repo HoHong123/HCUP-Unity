@@ -33,7 +33,7 @@
 | `Runtime/Cache/AssetOccupancySnapshot.cs` | key 하나의 총 점유와 소유자 목록 |
 | `Runtime/Cache/AssetOwnerOccupancy.cs` | key 를 잡고 있는 소유자 id |
 
-`Entry` 는 `OwnerId` / `UnityOwner` / `ClassName` / `ContainerName` / `OwnerDisplayName` / `SourceTypeName` / `CreatedAt` / `IsUnityObject` / `IsAlive` / `PlainOwnerRef` 10필드다 (`Subscription/AssetOwnerIdWatchRegistry.cs:13-29`). 점유 정보는 여기에 없고 스냅샷에서 합쳐 붙인다. 소유자의 `Holds` 열은 그 소유자가 잡고 있는 key 수다.
+`Entry` 는 `OwnerId` / `UnityOwner` / `ClassName` / `ContainerName` / `OwnerDisplayName` / `SourceTypeName` / `CreatedAt` / `IsUnityObject` / `IsAlive` / `PlainOwnerRef` 에 `[NonSerialized]` 기록용 `OwnerType` / `CreatedTicks` / `HasLabels` 를 더한 13필드다 (`Subscription/AssetOwnerIdWatchRegistry.cs:13-37`). 표시 문자열 필드는 발급 때 비어 있고 뒤에서 채운다(아래 "표 유지" 절). 점유 정보는 여기에 없고 스냅샷에서 합쳐 붙인다. 소유자의 `Holds` 열은 그 소유자가 잡고 있는 key 수다.
 
 `PlainOwnerRef` 는 비 Unity 소유자에만 채우는 `WeakReference` 다. 순수 C# 객체에는 파괴 이벤트가 없어 이것 말고는 죽음을 알 방법이 없다. 강한 참조로 바꾸면 이 창이 소유자를 살려두어, 누수를 관측하려다 누수를 만든다.
 
@@ -80,30 +80,32 @@ flowchart TD
     E["AssetOwnerIdGenerator._ResetStatics (SubsystemRegistration)"] -->|"이벤트를 null 로 비운다"| D
 ```
 
-구독 경로가 3개인 이유가 이 파일의 핵심이다. 런타임의 `_ResetStatics` 가 `SubsystemRegistration` 에서 정적 이벤트를 비우므로 (`Runtime/Subscription/AssetOwnerIdGenerator.cs:43-48`), 정적 생성자 구독만으로는 플레이 모드에서 끊긴다. `AfterAssembliesLoaded` 는 리셋 **이후**임이 순서상 보장되는 재구독 지점이고 (`Subscription/AssetOwnerIdWatchRegistry.cs:62-72`), `EnteredPlayMode` 는 `RuntimeInitializeOnLoadMethod` 가 동작하지 않는 환경을 위한 2차 보완이다. Awake 이후일 수 있어 초기 발급을 놓칠 수 있다는 점이 주석에 명시돼 있다 (`:245-252`).
+구독 경로가 3개인 이유가 이 파일의 핵심이다. 런타임의 `_ResetStatics` 가 `SubsystemRegistration` 에서 정적 이벤트를 비우므로 (`Runtime/Subscription/AssetOwnerIdGenerator.cs:43-48`), 정적 생성자 구독만으로는 플레이 모드에서 끊긴다. `AfterAssembliesLoaded` 는 리셋 **이후**임이 순서상 보장되는 재구독 지점이고 (`Subscription/AssetOwnerIdWatchRegistry.cs:72-82`), `EnteredPlayMode` 는 `RuntimeInitializeOnLoadMethod` 가 동작하지 않는 환경을 위한 2차 보완이다. Awake 이후일 수 있어 초기 발급을 놓칠 수 있다는 점이 주석에 명시돼 있다 (`:291-298`).
 
-`_Subscribe` 는 항상 `-=` 후 `+=` 로 중복 구독을 막는다 (`:75-81`).
+`_Subscribe` 는 항상 `-=` 후 `+=` 로 중복 구독을 막는다 (`:84-91`).
 
 ## 표 유지
 
-- `_OnIdCreated` → `_BuildEntry` 로 owner 타입별 표시명을 채운다. `Component` 는 `gameObject.name` 을 컨테이너로, `GameObject` 는 자기 이름을, 비 Unity 객체는 `(Non-Unity Owner)` 를 넣는다 (`:134-186`).
-- 창이 열려 있을 때 1초 간격으로 전 항목의 생사를 재검사해 **죽은 owner 를 표에서 제거**한다 (`:194-234`, 간격 상수 `SCAN_INTERVAL` `:42`). Unity 객체는 `UnityOwner != null`, 순수 C# 객체는 `PlainOwnerRef.IsAlive` 로 판정한다. 즉 `NotifyReleased` 가 빠져도 두 축 모두 자동으로 사라지고, 그 owner 가 잡고 있던 점유는 남으므로 `ORPHAN` 으로 넘어간다.
+- `_OnIdCreated` → `_BuildEntry` 는 id, 참조, 타입, 발급 시각(UTC ticks)만 기록한다 (`:139-189`). 신원 발급마다 도는 경로라 이름 문자열(네이티브 이름 조회 포함)을 만들지 않는다.
+- 표시명은 `_FillLabels` 가 나중에 채운다 (`:191-226`). 창이 그리기 전에 부르는 `EnsureLabels` (`:115-125`) 와 창이 열려 있을 때 도는 `_ScanOnce` 가 이름이 빈 항목을 채운다. `Component` 는 `gameObject.name` 을 컨테이너로, `GameObject` 는 자기 이름을, 비 Unity 객체는 `(Non-Unity Owner)` 를 넣는다.
+- 채우기 전에 파괴된 Unity 소유자는 이름을 읽을 수 없어 타입 이름과 `(destroyed before it was inspected)` 만 남는다. 창이 닫혀 있을 때뿐 아니라, 열려 있어도 발급 뒤 다음 그리기나 스캔 전에 파괴되면 같다.
+- 창이 열려 있을 때 1초 간격으로 전 항목의 생사를 재검사해 **죽은 owner 를 표에서 제거**한다 (`:234-280`, 간격 상수 `SCAN_INTERVAL` `:52`). Unity 객체는 `UnityOwner != null`, 순수 C# 객체는 `PlainOwnerRef.IsAlive` 로 판정한다. 즉 `NotifyReleased` 가 빠져도 두 축 모두 자동으로 사라지고, 그 owner 가 잡고 있던 점유는 남으므로 `ORPHAN` 으로 넘어간다.
 - 제거 직전에 마지막 정체를 **묘비(tombstone)** 로 남긴다. `ORPHAN` 행이 id 와 개수만 보여주면 무엇이 샜는지 알 수 없기 때문이다. 정상 회수(`NotifyReleased`)는 묘비를 남기지 않는다. 점유가 사라진 묘비는 창이 `ORPHAN` 을 집계할 때 버린다.
-- `EnteredEditMode` / `ExitingPlayMode` 에서 표를 통째로 비운다 (`:254-257`).
+- `EnteredEditMode` / `ExitingPlayMode` 에서 표를 통째로 비운다 (`:300-303`).
 
 창은 검색어와 `Unity Only` / `Alive Only` 필터를 걸고 `OwnerId` 순으로 그린다. `ORPHAN` 행은 이 필터를 타지 않는다. 누수는 필터로 숨길 수 없어야 한다.
 
-`GC Probe` 버튼은 `GC.Collect` 를 강제한 뒤 즉시 판정한다 (`CollectAndPrune`, `:98-103`). 약한 참조는 수집이 일어나야 죽었다고 답하므로, 순수 C# 소유자의 죽음을 지금 확인하려면 이 버튼이 필요하다.
+`GC Probe` 버튼은 `GC.Collect` 를 강제한 뒤 즉시 판정한다 (`CollectAndPrune`, `:108-113`). 약한 참조는 수집이 일어나야 죽었다고 답하므로, 순수 C# 소유자의 죽음을 지금 확인하려면 이 버튼이 필요하다.
 
 `Orphan Clean` 버튼은 목록에 잡힌 `ORPHAN` 의 점유를 확인창 1회 뒤 `IAssetCacheDiagnostics.ForceReleaseOwner` 로 강제 해제한다. `ORPHAN` 이 0 이면 비활성이다. 내려놓는 것은 점유뿐이고 leash 엔트리는 그대로 두는데, 창에서 provider 에 닿을 수 없기 때문이다. 남은 엔트리는 앵커 파괴나 `IAssetSource.ReclaimOrphans()` 가 나중에 걷어간다.
 
 행 클릭은 `PingObject` + `Selection.activeObject` 다. 창이 열려 있는 동안 `EditorApplication.update` 로 0.25초마다 스스로 다시 그린다 (`Subscription/AssetOwnerIdWatcherWindow.cs:50`). 이 리페인트는 소유자 생사 표시용이고 점유를 캡처하지 않는다.
 
-`Scan` 버튼은 요청만 표시하고, 캡처는 다음 Layout 패스 선두에서 한다 (`_RunPendingScans`, `:177-188`). 그리는 도중 행 수가 바뀌면 IMGUI 레이아웃이 어긋나기 때문이다. 캡처가 끝나면 창은 캐시 참조를 비운다 (`:227-230`). 강한 참조를 쥐고 있으면 플레이 종료 시 누수 보고기가 그 캐시를 살아있는 누수로 센다. `Orphan Clean` 뒤에는 이미 Scan 한 탭만 다시 캡처한다. 플레이 모드 진입과 종료 때 스냅샷을 비운다 (`:144-149`).
+`Scan` 버튼은 요청만 표시하고, 캡처는 다음 Layout 패스 선두에서 한다 (`_RunPendingScans`, `:179-190`). 그리는 도중 행 수가 바뀌면 IMGUI 레이아웃이 어긋나기 때문이다. 캡처가 끝나면 창은 캐시 참조를 비운다 (`:229-232`). 강한 참조를 쥐고 있으면 플레이 종료 시 누수 보고기가 그 캐시를 살아있는 누수로 센다. `Orphan Clean` 뒤에는 이미 Scan 한 탭만 다시 캡처한다. 플레이 모드 진입과 종료 때 스냅샷을 비운다 (`:146-151`).
 
 ## 주의할 점
 
-1. **파괴 감지는 창이 열려 있을 때만 돈다.** 창을 닫아 두면 표의 생사 판정이 갱신되지 않는다. 창을 열 때와 `GC Probe` 는 `ScanNow` 로 주기 게이트를 건너뛴다 (`Subscription/AssetOwnerIdWatchRegistry.cs:109-112`).
+1. **파괴 감지는 창이 열려 있을 때만 돈다.** 창을 닫아 두면 표의 생사 판정이 갱신되지 않는다. 창을 열 때와 `GC Probe` 는 `ScanNow` 로 주기 게이트를 건너뛴다 (`Subscription/AssetOwnerIdWatchRegistry.cs:131-134`).
 2. **점유 축은 플레이 중에 `Scan` 을 눌러야 채워진다.** 누르기 전에는 `not scanned` 를, 등록된 캐시가 없으면 `no live cache registered` 를 상태 줄에 표시한다.
 3. **캡처는 Scan 한 번마다 할당한다.** `CaptureOccupancy` 는 `ownerTable` 을 뒤집는 사전과 key 마다 소유자 리스트를, `CaptureHoldings` 는 소유자마다 key 리스트를 새로 만든다. 누를 때만 돌고 에디터 전용이라 풀링은 두지 않았다.
 4. **누수 보고 직전의 `GC.Collect` 는 플레이 종료마다 1회 돈다.** 에디터 전용 비용이다.
