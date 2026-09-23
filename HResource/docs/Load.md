@@ -137,7 +137,7 @@ readonly struct LabelHandleKey : IEquatable<LabelHandleKey> {
 ## SharedAssetLoadGate - 진행 중 작업 합류
 
 ```csharp
-// Load/SharedAssetLoadGate.cs:58-91 - 요약
+// Load/SharedAssetLoadGate.cs:55-85 - 요약
 public async UniTask<TAsset> RunAsync<TState>(TKey key, TState state, Func<TState, UniTask<TAsset>> factory) {
     if (factory == null) HLogger.Throw(new ArgumentNullException(...));
 
@@ -178,10 +178,10 @@ sequenceDiagram
     participant G as SharedAssetLoadGate
     participant L as IAssetLoader
 
-    C1->>G: RunAsync(key, factory)
+    C1->>G: RunAsync(key, state, factory)
     G->>G: loadingTable.Add(key, null) - 합류자 없음
-    G->>L: factory 실행 - 소스 호출 1회
-    C2->>G: RunAsync(key, factory)
+    G->>L: factory(state) 실행 - 소스 호출 1회
+    C2->>G: RunAsync(key, state, factory)
     Note over G,C2: loadingTable 히트 - factory 실행하지 않고 완료 소스 생성 후 합류
     L-->>G: asset
     Note over G: loadingTable.Remove(key) - 합류자를 깨우기 전에 뺀다
