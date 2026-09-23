@@ -343,7 +343,7 @@ namespace HResource.Provider {
         #region Private - Cache First
         /// <summary>
         /// CacheFirst 캐시 히트를 게이트 밖에서 동기로 끝낸다. 로더를 부르지 않으므로 게이트의 참조 수 계약과 무관하다
-        /// 소유자 생존, 로드 허용, 캐시 존재, 에셋 유효, 점유 등록 중 하나라도 실패하면 false. 그 판정과 로그는 기존 경로가 맡는다
+        /// loadMode 등록, 소유자 생존, 로드 허용, 캐시 존재, 에셋 유효, 점유 등록 중 하나라도 실패하면 false. 그 판정과 로그는 기존 경로가 맡는다
         /// </summary>
         private bool _TryAcquireCached(
             AssetRequest<TKey> request,
@@ -352,6 +352,8 @@ namespace HResource.Provider {
 
             asset = default;
             if (request.FetchMode != AssetFetchMode.CacheFirst) return false;
+            // 등록되지 않은 loadMode 는 기존 경로에 넘긴다. 여기서 _ResolveLoader 가 던지면 예외가 반환 task 가 아니라 호출 자리로 나간다.
+            if (!loaderTable.ContainsKey(request.LoadMode)) return false;
             if (!liveToken.IsLive) return false;
             if (!assetValidator.CanLoad(request.Key)) return false;
             if (!_TryPeekCache(request, out TAsset cached)) return false;
@@ -539,6 +541,24 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 3) :: 빠른 경로 검수 반영
+ *
+ * 변경 ::
+ * _TryAcquireCached 가 loaderTable.ContainsKey 로 loadMode 등록을 먼저 본다. 없으면 false 를 돌려 기존 경로가 처리한다.
+ *
+ * 이유 ::
+ * 등록되지 않은 loadMode 로 캐시 히트를 요청하면 _TrackReleasableLoader 안의 _ResolveLoader 가 던진다. 빠른 경로는 async 가 아니어서
+ * 그 예외가 반환 task 가 아니라 호출 자리로 나갔다. 빠른 경로 이전에는 task 에 담겼다(검사관 실측).
+ *
+ * 결과 ::
+ * 이 경우 예외는 다시 반환 task 에 담긴다.
+ *
+ * 주의 ::
+ * 사용자 검증기(IAssetValidator)의 CanLoad / IsValid 가 캐시 히트에서 직접 던지면 여전히 호출 자리로 나간다. 남은 동작 차이다.
+ * (수정 2) 의 "요청당 클로저 + 델리게이트" 크기는 실측으로 CoreCLR x64 104B, Mono 32 비트 88B 다(Unity Mono 64 비트 플레이어는 미측정).
+ * 빠른 경로가 CanLoad 를 먼저 한 번 보므로 캐시 미스 요청은 검증기를 두 번 부른다. 순수 함수 검증기에는 무해하다.
+ *
  * =========================================================
  * 2026-09-23 (수정 2) :: 게이트에 넘기는 fetch 함수를 한 번만 만든다
  *
