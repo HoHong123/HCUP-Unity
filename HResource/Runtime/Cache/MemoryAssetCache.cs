@@ -58,9 +58,6 @@ namespace HResource.Cache {
 
         #region 생성자
         // 진단 레지스트리 등록 지점.
-        // 캐시는 provider 마다 new 로 만들어져 어디에도 등록되지 않으므로,
-        // 에디터 창이 살아있는 캐시에 닿으려면 스스로 손을 들어야 한다.
-        // 빌드에서는 이 생성자가 사라지고 암시적 기본 생성자가 쓰인다.
         public MemoryAssetCache() {
             diagnosticsHandle = AssetCacheDiagnosticsRegistry.Register(this, typeof(TKey), typeof(TAsset));
         }
@@ -80,7 +77,6 @@ namespace HResource.Cache {
 
         #region Public - Save
         public bool Save(TKey key, TAsset asset, AssetOwnerId ownerId) {
-            // 소유자 없는 점유는 만들지 않는다. 추적할 수 없는 점유는 누수와 구분되지 않는다.
             if (!ownerId.IsValid) {
                 HLogger.Error(
                     $"[AssetCache] Save rejected. Key '{key}' was given an invalid owner.\n" +
@@ -120,8 +116,7 @@ namespace HResource.Cache {
                 _WarnUnpairedRelease(key, $"no cache entry (ownerId={ownerId})");
                 return false;
             }
-            // 점유는 유무라 한 번의 Release 가 곧 그 소유자의 점유 해제다.
-            // ReleaseOwner 와 프로브가 이미 같은 의미로 동작하므로 세 경로가 일치한다.
+
             if (!_UnregisterOwnerKey(ownerId, key)) {
                 _WarnUnpairedRelease(key, $"ownerId={ownerId} holds no dependency on this key");
                 return false;
@@ -223,9 +218,8 @@ namespace HResource.Cache {
         private void _ClearItems() {
             if (assetTable.Count < 1) return;
 
-            // OnAssetRemoved 구독자가 알림 도중 Save 를 다시 호출하면 그 항목은 Clear 를
-            // 통과해 살아남는다(구독자 입장에서는 방금 비운 캐시에 유령이 남는다).
-            // 잔존 항목이 없어질 때까지 반복하고, 폭주는 상한으로 끊는다.
+            // OnAssetRemoved 구독자가 알림 도중 Save 를 다시 호출하면 그 항목은 Clear 를 통과해 살아남는다.
+            // 구독자 입장에서는 방금 비운 캐시에 유령이 남는다. 잔존 항목이 없어질 때까지 반복하고, 폭주는 상한으로 끊는다.
             const int MAX_CLEAR_PASSES = 8;
             for (int pass = 0; pass < MAX_CLEAR_PASSES; pass++) {
                 if (assetTable.Count < 1) return;
@@ -313,11 +307,11 @@ namespace HResource.Cache {
 #endif
 
         #region Private - Diagnostics
-        // Release 의 false 는 두 가지 뜻이 겹쳐 있다 - "아직 다른 점유가 남아 살아있다"(정상)
-        // 와 "애초에 이 호출자의 점유가 없다"(획득/해제 짝 오류). 반환값만으로는 호출자가
-        // 둘을 구분할 수 없으므로, 후자에 한해 경고를 남겨 짝 오류를 관측 가능하게 한다.
-        // Error 가 아니라 Warning 인 이유 : ReleaseAll/Clear 이후의 뒤늦은 Release 처럼
-        // 회복 가능한 정리 순서 문제도 이 경로로 들어오기 때문.
+        // Release 의 false 는 두 가지 뜻이 겹쳐 있다
+        // 1. "아직 다른 점유가 남아 살아있다"(정상)
+        // 2. "애초에 이 호출자의 점유가 없다"(획득/해제 짝 오류).
+        // 반환값만으로는 호출자가 둘을 구분할 수 없으므로, 후자에 한해 경고를 남겨 짝 오류를 관측 가능하게 한다.
+        // Error 가 아니라 Warning 인 이유 : ReleaseAll/Clear 이후의 뒤늦은 Release 처럼 회복 가능한 정리 순서 문제도 이 경로로 들어오기 때문.
         private void _WarnUnpairedRelease(TKey key, string reason) {
             HLogger.Warning($"[AssetCache] Unpaired release for key '{key}' - {reason}.");
         }
