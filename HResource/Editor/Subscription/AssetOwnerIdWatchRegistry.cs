@@ -45,6 +45,7 @@ namespace HResource.Editor.Subscription {
 
         const string PLAIN_OWNER_CONTAINER = "(Non-Unity Owner)";
         const string DESTROYED_BEFORE_LABEL = "(destroyed before it was inspected)";
+        const string UNKNOWN_TYPE_LABEL = "(unknown)";
 
         // 전수 스캔 간격(초). 창이 0.25 초마다 그리므로 표시 지연은 최대 1 초다.
         // 진단 표시의 지연을 감수하고 에디터 프레임 부하를 줄이는 쪽을 택했다.
@@ -112,10 +113,6 @@ namespace HResource.Editor.Subscription {
         }
 
         /// <summary>
-        /// 주기 게이트를 건너뛰고 지금 판정한다. 창을 열었을 때와 GC Probe 가 부른다.
-        /// _EditorUpdate 를 부르면 스로틀에 걸려 조용히 아무 일도 하지 않는다.
-        /// </summary>
-        /// <summary>
         /// 이름이 아직 없는 살아있는 항목의 표시 문자열을 채운다. 창이 그리기 전에 부른다.
         /// 발급 경로에서 문자열을 만들지 않기 위해 미뤄 둔 일이다.
         /// </summary>
@@ -127,6 +124,10 @@ namespace HResource.Editor.Subscription {
             }
         }
 
+        /// <summary>
+        /// 주기 게이트를 건너뛰고 지금 판정한다. 창을 열었을 때와 GC Probe 가 부른다.
+        /// _EditorUpdate 를 부르면 스로틀에 걸려 조용히 아무 일도 하지 않는다.
+        /// </summary>
         public static void ScanNow() {
             nextScanTime = EditorApplication.timeSinceStartup + SCAN_INTERVAL;
             _ScanOnce();
@@ -191,8 +192,8 @@ namespace HResource.Editor.Subscription {
         static void _FillLabels(Entry entry) {
             entry.HasLabels = true;
             entry.CreatedAt = _FormatCreatedAt(entry.CreatedTicks);
-            entry.ClassName = entry.OwnerType != null ? entry.OwnerType.Name : "(unknown)";
-            entry.SourceTypeName = entry.OwnerType != null ? (entry.OwnerType.FullName ?? entry.OwnerType.Name) : "(unknown)";
+            entry.ClassName = entry.OwnerType != null ? entry.OwnerType.Name : UNKNOWN_TYPE_LABEL;
+            entry.SourceTypeName = entry.OwnerType != null ? (entry.OwnerType.FullName ?? entry.OwnerType.Name) : UNKNOWN_TYPE_LABEL;
 
             if (entry.IsUnityObject) {
                 UnityEngine.Object unityObject = entry.UnityOwner;
@@ -279,7 +280,7 @@ namespace HResource.Editor.Subscription {
         }
 
         static string _DescribeTombstone(Entry entry) {
-            string className = string.IsNullOrWhiteSpace(entry.ClassName) ? "(unknown)" : entry.ClassName;
+            string className = string.IsNullOrWhiteSpace(entry.ClassName) ? UNKNOWN_TYPE_LABEL : entry.ClassName;
 
             // 순수 객체의 컨테이너는 자리표시자라 붙여도 정보가 늘지 않는다.
             if (string.IsNullOrWhiteSpace(entry.ContainerName)) return className;
@@ -307,6 +308,23 @@ namespace HResource.Editor.Subscription {
 
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: 검수 반영
+ *
+ * 변경 ::
+ * EnsureLabels 위에 겹쳐 붙어 있던 ScanNow 의 요약 주석을 ScanNow 위로 옮겼다. "(unknown)" 을 UNKNOWN_TYPE_LABEL 로 묶었다.
+ *
+ * 이유 ::
+ * (수정) 에서 EnsureLabels 를 끼워 넣으며 요약 주석이 한 메서드에 둘, 다른 메서드에 없음이 됐다. 같은 표기 문자열이 세 곳에 흩어져 있었다.
+ * 바로 아래 항목의 이름 손실 주의가 "창이 닫힌 동안" 으로 범위를 좁게 적었다.
+ *
+ * 결과 ::
+ * 두 메서드가 각자 요약을 갖는다. 표기를 바꾸면 상수 한 곳만 고친다. 코드 동작은 그대로다.
+ *
+ * 주의 ::
+ * 이름 손실은 창이 닫힌 동안만의 일이 아니다. 창이 열려 있어도 발급 뒤 다음 그리기(최대 0.25 초) 또는 다음 스캔 전에
+ * 파괴된 소유자는 이름 대신 타입과 DESTROYED_BEFORE_LABEL 만 남는다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: 발급 시점 기록을 가볍게
  *
