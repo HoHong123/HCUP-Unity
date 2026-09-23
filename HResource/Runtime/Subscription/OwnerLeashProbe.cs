@@ -25,6 +25,7 @@
 #endif
 
 namespace HResource.Subscription {
+    // 사람이 붙이면 안되는 컴포넌트이기에 하이라키 메뉴에서 숨김
     [AddComponentMenu("")]
     [DisallowMultipleComponent]
     internal sealed class OwnerLeashProbe : MonoBehaviour {
