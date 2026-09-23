@@ -51,7 +51,7 @@ flowchart LR
     P -.->|"기본 null"| S["IAssetStore"]
 ```
 
-**팩토리는 로더를 하나만 등록한다** (`Provider/AssetProviderFactory.cs:34-49`). 규칙을 직접 넘기지 않는 한 **한 provider = 한 key 규칙 = 한 소스**다. 두 소스가 필요하면 provider 를 둘 만든다. `Create` 에 규칙 없이 Resources 와 Addressable 로더를 함께 넘기면 조립 시점에 `ArgumentException` 이 난다 (`_InferKeyNormalizer`). 규칙을 직접 넘기면 혼합도 조립되고, 그 규칙이 두 소스에 맞는지는 호출자 책임이다. 규칙 하나로는 두 소스 중 한쪽이 틀리고, `Release` / `TryGet` 이 `loadMode` 를 받지 않아 요청마다 규칙을 고를 수 없기 때문이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 `InvalidOperationException` 을 던진다 (`Provider/AssetProvider.cs:486-494`).
+**팩토리는 로더를 하나만 등록한다** (`Provider/AssetProviderFactory.cs:34-49`). 규칙을 직접 넘기지 않는 한 **한 provider = 한 key 규칙 = 한 소스**다. 두 소스가 필요하면 provider 를 둘 만든다. `Create` 에 규칙 없이 Resources 와 Addressable 로더를 함께 넘기면 조립 시점에 `ArgumentException` 이 난다 (`_InferKeyNormalizer`). 규칙을 직접 넘기면 혼합도 조립되고, 그 규칙이 두 소스에 맞는지는 호출자 책임이다. 규칙 하나로는 두 소스 중 한쪽이 틀리고, `Release` / `TryGet` 이 `loadMode` 를 받지 않아 요청마다 규칙을 고를 수 없기 때문이다. 등록되지 않은 `loadMode` 로 요청하면 `_ResolveLoader` 가 `InvalidOperationException` 을 던진다 (`Provider/AssetProvider.cs:488-496`).
 
 ---
 
@@ -72,15 +72,15 @@ flowchart TD
 
 | 모드 | 캐시 조회 | 스토어 | 소스 | store 없이 호출 시 |
 |---|---|---|---|---|
-| `CacheFirst` (`:367-377`) | 있음 | 저장만 시도 | 미스일 때 | 정상 (저장이 no-op) |
-| `LocalStoreFirst` (`:381-398`) | **없음** | 읽기+쓰기 | 폴백 | **예외** |
-| `LocalStoreOnly` (`:400-411`) | **없음** | 읽기 | 안 함 | **예외** |
-| `SourceFirst` (`:415-428`) | **없음** | 폴백 읽기 + 쓰기 | 항상 | 정상 (`:422` 에서 `default` 반환) |
-| `SourceOnly` (`:430-434`) | **없음** | 안 함 | 항상 | 정상 |
+| `CacheFirst` (`:369-379`) | 있음 | 저장만 시도 | 미스일 때 | 정상 (저장이 no-op) |
+| `LocalStoreFirst` (`:383-400`) | **없음** | 읽기+쓰기 | 폴백 | **예외** |
+| `LocalStoreOnly` (`:402-413`) | **없음** | 읽기 | 안 함 | **예외** |
+| `SourceFirst` (`:417-430`) | **없음** | 폴백 읽기 + 쓰기 | 항상 | 정상 (`:424` 에서 `default` 반환) |
+| `SourceOnly` (`:432-436`) | **없음** | 안 함 | 항상 | 정상 |
 
 **캐시를 읽는 모드는 `CacheFirst` 하나뿐이다.** 나머지 4종은 캐시를 건너뛰고 소스/스토어를 직접 친다. 다만 결과는 **모든 모드에서** 캐시에 `Save` 된다 (`_SaveCache`) - 즉 `SourceOnly` 를 반복 호출하면 매번 소스를 치지만 그 소유자의 점유는 하나로 유지된다.
 
-`_SaveStoreOrReleaseSourceAsync` 는 store 가 없으면 바로 반환한다 (`:470-471`). store 저장이 예외를 던지면 방금 잡은 로더 핸들을 되돌린 뒤 예외를 다시 던진다 (`:473-481`). 캐시 등록 전이라 `OnAssetRemoved` 연쇄로는 그 핸들이 회수되지 않기 때문이다.
+`_SaveStoreOrReleaseSourceAsync` 는 store 가 없으면 바로 반환한다 (`:472-473`). store 저장이 예외를 던지면 방금 잡은 로더 핸들을 되돌린 뒤 예외를 다시 던진다 (`:475-483`). 캐시 등록 전이라 `OnAssetRemoved` 연쇄로는 그 핸들이 회수되지 않기 때문이다.
 
 ---
 
@@ -91,16 +91,20 @@ flowchart TD
 | 순서 | 조건 | 실패 시 |
 |---|---|---|
 | 1 | `FetchMode == CacheFirst` | 기존 경로 |
-| 2 | `liveToken.IsLive` | 기존 경로 |
-| 3 | `assetValidator.CanLoad(key)` | 기존 경로 |
-| 4 | 캐시에 key 가 있음 | 기존 경로 (로드) |
-| 5 | `_IsValidAsset(key, asset)` | 기존 경로 |
-| 6 | `_SaveCache` 성공 (점유 등록) | 기존 경로 (로그 · 롤백은 그쪽이 맡음) |
+| 2 | `loaderTable` 에 `LoadMode` 가 등록됨 | 기존 경로 (미등록 예외는 반환 task 에 담김) |
+| 3 | `liveToken.IsLive` | 기존 경로 |
+| 4 | `assetValidator.CanLoad(key)` | 기존 경로 |
+| 5 | 캐시에 key 가 있음 | 기존 경로 (로드) |
+| 6 | `_IsValidAsset(key, asset)` | 기존 경로 |
+| 7 | `_SaveCache` 성공 (점유 등록) | 기존 경로 (로그 · 롤백은 그쪽이 맡음) |
 
 - 게이트가 지키는 불변식은 **"로더 호출은 반드시 게이트를 지난다"** 이다. 히트는 로더를 부르지 않으므로 이 불변식 밖이다.
-- 빠른 경로는 async 가 아닌 `GetForOwnerAsync` 안에 있다. `_GetAsync` 안에 두면 진입만으로 클로저와 상태 기계가 할당된다.
+- 빠른 경로는 async 가 아닌 `GetForOwnerAsync` 안에 있다. `_GetAsync` 안에 두면 히트도 async 메서드 한 겹을 지난다. 릴리스 코드 생성에서는 동기 완료라 할당이 없지만, 디버그 코드 생성에서는 상태 기계가 할당된다.
 - 의미가 바뀌는 경우가 하나 있다. 같은 key 에 다른 fetch mode 의 로드(예: `SourceOnly`)가 진행 중이면, 예전에는 `CacheFirst` 요청도 그 로드에 합류했지만 이제는 캐시본을 즉시 받는다.
-- 동기로 끝나므로 await 사이의 소유자 사망(RACE-1)은 이 경로에 없다. 생존 판정은 2 번 조건이 한 번 한다.
+- 동기로 끝나므로 await 사이의 소유자 사망(RACE-1)은 이 경로에 없다. 생존 판정은 3 번 조건이 한 번 한다.
+- 2 번 조건이 있는 이유는 예외의 전달 경로다. 빠른 경로는 async 가 아니라서, 여기서 던진 예외는 반환 task 가 아니라 호출 자리로 나간다. 미등록 `LoadMode` 는 기존 경로로 넘겨 예전처럼 task 에 담는다.
+- 사용자 검증기의 `CanLoad` / `IsValid` 가 히트에서 직접 던지면 여전히 호출 자리로 나간다. 남은 동작 차이다.
+- 캐시 미스 요청은 4 번 조건과 기존 경로에서 `CanLoad` 를 두 번 부른다. 순수 함수 검증기에는 무해하다.
 
 ---
 
@@ -135,7 +139,7 @@ private async UniTask<TAsset> _GetAsync(AssetRequest<TKey> request, OwnerLiveTok
 
 1. **dedupe 와 점유의 분리.** 소스 호출은 합치고 점유 등록은 호출자마다 따로 한다. 게이트 안(factory)은 최초 호출자 1회만 실행되므로, 안에서 등록하면 합류한 후속 호출자가 미등록 상태로 asset 을 받아 다른 호출자의 `Release` 한 번에 조기 해제된다.
 2. **캐시 조회 자체는 점유를 만들지 않는다.** `_TryPeekCache` 는 `TryGet` 이라 점유를 건드리지 않고 등록은 게이트 밖 `_SaveCache` 한 곳에서만 일어난다. 캐시 히트/미스 어느 경로든 호출자당 정확히 1회 등록이 보장된다.
-3. **거부 시 핸들 롤백.** 캐시가 소유하지 않으면 `OnAssetRemoved` 연쇄가 돌지 않으므로, 이 요청이 쓴 `loadMode` 의 로더 하나에 직접 돌려준다 (`:281-286`, `:501-506`). 다른 로더가 같은 key 로 이미 캐시에 올려 둔 핸들은 건드리지 않는다.
+3. **거부 시 핸들 롤백.** 캐시가 소유하지 않으면 `OnAssetRemoved` 연쇄가 돌지 않으므로, 이 요청이 쓴 `loadMode` 의 로더 하나에 직접 돌려준다 (`:281-286`, `:503-508`). 다른 로더가 같은 key 로 이미 캐시에 올려 둔 핸들은 건드리지 않는다.
 4. **추적 순서.** `_TrackReleasableLoader` 는 소유자 사망 검사보다 앞에 있어야 한다. 죽은 소유자가 유일한 보유자라면 그 `Release` 가 `OnAssetRemoved` 연쇄를 태우는데, 추적이 비어 있으면 Addressable 핸들이 남는다 (`:292-308` 의 주석).
 5. **폐기와 사망의 처리 차이.** provider 폐기는 모든 대기자가 함께 빠지므로 핸들을 직접 반납한다. 소유자 사망은 같은 key 를 기다린 다른 소유자가 살아 있을 수 있어 캐시의 정상 해제 경로를 태운다.
 
@@ -201,9 +205,9 @@ public bool IsValid(TKey key, TAsset asset) {
 
 | 메서드 | provider 에서의 호출처 |
 |---|---|
-| `HasAsync` | `_LoadFromStoreAsync` (`:449`) |
-| `LoadAsync` | `_LoadFromStoreAsync` (`:450`) |
-| `SaveAsync` | `_SaveStoreOrReleaseSourceAsync` (`:474`) |
+| `HasAsync` | `_LoadFromStoreAsync` (`:451`) |
+| `LoadAsync` | `_LoadFromStoreAsync` (`:452`) |
+| `SaveAsync` | `_SaveStoreOrReleaseSourceAsync` (`:476`) |
 | `ClearAsync` | `ClearStoreAsync` (`:237-241`) |
 | `DeleteAsync` | **없음** - 계약에만 존재 |
 
@@ -216,9 +220,9 @@ public bool IsValid(TKey key, TAsset asset) {
 1. **`GetAsync` 는 호출자를 점유자로 등록한다.** 캐시 히트여도 그렇다. 같은 소유자가 같은 key 를 여러 번 요청해도 점유는 하나이며, 한 번의 `Release` 로 끝난다. 소유자가 자기 획득 횟수를 기억할 필요가 없다.
 2. **`TryGet` 은 점유를 늘리지 않는다** (`:168-175`). 조회 전용이므로 이 경로로 얻은 참조를 장기 보관하면 다른 소유자의 `Release` 로 밑에서 사라질 수 있다.
 3. **`CacheFirst` 외의 fetch mode 는 캐시를 읽지 않는다.** 반복 호출이 소스 호출로 직결된다.
-4. **store 가 없을 때 `LocalStore*` 는 예외**다 (`:382-386`, `:401-405`). 기본 팩토리 조립에서 이 두 모드를 쓰면 반드시 터진다.
+4. **store 가 없을 때 `LocalStore*` 는 예외**다 (`:384-388`, `:403-407`). 기본 팩토리 조립에서 이 두 모드를 쓰면 반드시 터진다.
 5. **폐기 후 호출은 거부된다.** `_RejectIfDisposed` 가 경고를 남기고 무해값을 돌려준다 (`:248-254`). 로딩 중 폐기되면 재개 시점에 핸들을 반납하고 `default` 를 돌려준다 (`:268-273`).
-6. **`AssetProvider` 는 `sealed`** 다 (`:49`). 동작을 바꾸려면 컴포넌트 5종 중 하나를 교체한다.
+6. **`AssetProvider` 는 `sealed`** 다 (`:49`). 동작을 바꾸려면 주입하는 6 개 컴포넌트 중 하나를 교체한다.
 7. **fetch mode 의 `default` 분기는 `NotSupportedException` 을 던진다** (`:333-338`). `AssetFetchMode` 에 값을 추가하면 switch 를 같이 고쳐야 한다 - 컴파일러가 잡아주지 않는다.
 
 ---
