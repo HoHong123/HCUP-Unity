@@ -36,11 +36,23 @@ using HDiagnosis.Logger;
 namespace HResource.Load {
     public sealed class SharedAssetLoadGate<TKey, TAsset> : IAssetLoadGate<TKey, TAsset> {
         #region Private - Fields
+        // 옛 형태는 factory 자신을 state 로 넘겨 새 형태에 맡긴다. 그 전달 함수는 타입마다 한 번만 만든다.
+        static readonly Func<Func<UniTask<TAsset>>, UniTask<TAsset>> invokeFactory = factory => factory();
+
         readonly Dictionary<TKey, UniTaskCompletionSource<TAsset>> loadingTable = new();
         #endregion
 
         #region Public - Run
+        // async 를 유지한다. null factory 는 지금처럼 예외가 반환 task 에 담겨야 하고, 호출 자리에서 바로 던지면 안 된다.
         public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
+            if (factory == null) {
+                HLogger.Throw(new ArgumentNullException(nameof(factory), "[SharedAssetLoadGate] factory is null."));
+            }
+
+            return await RunAsync(key, factory, invokeFactory);
+        }
+
+        public async UniTask<TAsset> RunAsync<TState>(TKey key, TState state, Func<TState, UniTask<TAsset>> factory) {
             if (factory == null) {
                 HLogger.Throw(new ArgumentNullException(nameof(factory), "[SharedAssetLoadGate] factory is null."));
             }
@@ -58,7 +70,7 @@ namespace HResource.Load {
 
             TAsset result;
             try {
-                result = await factory.Invoke();
+                result = await factory.Invoke(state);
             }
             catch (Exception exception) {
                 loadingTable.Remove(key, out var failed);
@@ -78,6 +90,20 @@ namespace HResource.Load {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: 본체를 상태 인자 형태로 옮김
+ *
+ * 변경 ::
+ * RunAsync<TState>(key, state, factory) 가 본체다. factory.Invoke(state) 로 부른다.
+ * 옛 RunAsync(key, factory) 는 factory 자신을 state 로 넘기고 정적 전달 함수(invokeFactory)로 본체에 맡긴다.
+ *
+ * 이유 ::
+ * provider 가 요청마다 만들던 클로저와 델리게이트를 없애기 위해서다. 게이트 로직(표 등록, 합류, 완료 알림)은 그대로다.
+ *
+ * 주의 ::
+ * 옛 형태는 async 로 남겼다. null factory 의 ArgumentNullException 이 지금처럼 반환 task 에 담겨야 한다.
+ * 비동기 대기가 걸리면 상태 기계가 state 사본을 들고 있다. UniTask 가 풀링하므로 요청마다의 새 할당은 아니다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: 헤더의 "우회 경로 0건" 을 불변식 기준으로 다시 씀
  *
