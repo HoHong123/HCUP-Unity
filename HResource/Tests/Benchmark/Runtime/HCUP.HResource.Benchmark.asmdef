@@ -1,0 +1,23 @@
+{
+    "name": "HCUP.HResource.Benchmark",
+    "rootNamespace": "HResource.Benchmark",
+    "references": [
+        "UnityEngine.TestRunner",
+        "HCUP.HResource",
+        "HCUP.HDiagnosis",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
