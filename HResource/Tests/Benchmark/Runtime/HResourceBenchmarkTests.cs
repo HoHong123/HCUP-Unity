@@ -111,13 +111,20 @@ namespace HResource.Benchmark {
             // JIT 과 Addressables 초기화를 측정 밖으로 뺀다.
             await _MeasureBurstAsync(WARMUP_OWNER_COUNT, config.PayloadSizesKB[0], 0);
 
-            for (int p = 0; p < config.PayloadSizesKB.Length; p++) {
+            for (int k = 0; k < config.PayloadSizesKB.Length; k++) {
                 for (int n = 0; n < config.OwnerCounts.Length; n++) {
-                    for (int r = 0; r < config.Repeat; r++) {
-                        HResourceBenchmarkSample[] samples = await _MeasureBurstAsync(config.OwnerCounts[n], config.PayloadSizesKB[p], r);
-                        for (int k = 0; k < samples.Length; k++) report.Add(samples[k]);
-                    }
+                    int payloadKB = config.PayloadSizesKB[k];
+                    int ownerCount = config.OwnerCounts[n];
+                    await _RecordRepeatsAsync(repeat => _MeasureBurstAsync(ownerCount, payloadKB, repeat));
                 }
+            }
+        }
+
+        /// <summary> 같은 조건을 설정의 반복 횟수만큼 재고 결과를 보고서에 담는다 </summary>
+        async UniTask _RecordRepeatsAsync(Func<int, UniTask<HResourceBenchmarkSample[]>> measure) {
+            for (int k = 0; k < config.Repeat; k++) {
+                HResourceBenchmarkSample[] samples = await measure(k);
+                for (int n = 0; n < samples.Length; n++) report.Add(samples[n]);
             }
         }
 
@@ -175,11 +182,9 @@ namespace HResource.Benchmark {
             // 준비 단계는 설정의 최대 key 수만큼만 에셋을 만든다.
             await _MeasureMultiKeyAsync(Math.Min(WARMUP_OWNER_COUNT, config.MaxKeyCount()), 0);
 
-            for (int m = 0; m < config.KeyCounts.Length; m++) {
-                for (int r = 0; r < config.Repeat; r++) {
-                    HResourceBenchmarkSample[] samples = await _MeasureMultiKeyAsync(config.KeyCounts[m], r);
-                    for (int k = 0; k < samples.Length; k++) report.Add(samples[k]);
-                }
+            for (int k = 0; k < config.KeyCounts.Length; k++) {
+                int keyCount = config.KeyCounts[k];
+                await _RecordRepeatsAsync(repeat => _MeasureMultiKeyAsync(keyCount, repeat));
             }
         }
 
@@ -193,6 +198,8 @@ namespace HResource.Benchmark {
                 var addresses = new string[keyCount];
                 for (int k = 0; k < keyCount; k++) addresses[k] = HResourceBenchmarkConfig.KeyAddress(k);
 
+                // 기준선과 같은 조건으로 재기 위해 이슈 직전에 GC 를 정리한다.
+                await _SettleMemoryAsync();
                 IssueResult issue = await _IssueAsync(k => source.GetAsync(owner, addresses[k], AssetLoadMode.Addressable), keyCount);
 
                 long releaseStart = Stopwatch.GetTimestamp();
@@ -225,9 +232,10 @@ namespace HResource.Benchmark {
         #region Private - Measure
         /// <summary> 요청 count 개를 한 프레임에 걸고, 모두 끝날 때까지 프레임을 세며 기다린다 </summary>
         async UniTask<IssueResult> _IssueAsync(Func<int, UniTask<TextAsset>> request, int count) {
+            // 측정 도구 자신의 할당(결과 배열)은 이슈 프레임 밖에서 만든다. 기준선과 같은 조건이다.
+            var tasks = new UniTask<TextAsset>[count];
             // 프레임 경계에서 시작해야 이슈 프레임의 GC 와 프레임 시간이 그 버스트만 담는다.
             await UniTask.NextFrame();
-            var tasks = new UniTask<TextAsset>[count];
             using ProfilerRecorder gcRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Memory, GC_ALLOCATED_IN_FRAME);
 
             long issueStart = Stopwatch.GetTimestamp();
@@ -237,29 +245,36 @@ namespace HResource.Benchmark {
                 IssueMs = _ElapsedMs(issueStart),
                 IssueFrameGcKB = double.NaN,
             };
-            UniTask<TextAsset[]> all = UniTask.WhenAll(tasks).Preserve();
-            result = await _CountFramesUntilAsync(() => all.Status.IsCompleted(), gcRecorder, result);
-
-            TextAsset[] assets = await all;
+            // WhenAll 은 이슈 프레임에 promise 와 결과 배열을 할당한다. 기준선처럼 상태만 확인한다.
+            result = await _CountFramesUntilAsync(tasks, static pending => _AreAllCompleted(pending), gcRecorder, result);
             result.CompleteMs = _ElapsedMs(issueStart);
 
-            for (int k = 0; k < assets.Length; k++) {
-                Assert.IsNotNull(assets[k],
+            for (int k = 0; k < tasks.Length; k++) {
+                TextAsset asset = await tasks[k];
+                Assert.IsNotNull(asset,
                     "[HResourceBenchmark] Request " + k + " returned null. Check that the benchmark Addressables group was built.");
             }
             return result;
         }
 
         /// <summary> 조건이 참이 될 때까지 프레임을 넘기며 프레임 수, 최대 프레임 시간, 이슈 프레임 GC 를 채운다 </summary>
-        static async UniTask<IssueResult> _CountFramesUntilAsync(Func<bool> isDone, ProfilerRecorder gcRecorder, IssueResult result) {
+        // 대기 대상을 인자로 받는다. 대상을 캡처하는 람다를 넘기면 측정 구간에 클로저가 할당된다.
+        static async UniTask<IssueResult> _CountFramesUntilAsync<TState>(TState state, Func<TState, bool> isDone, ProfilerRecorder gcRecorder, IssueResult result) {
             // 모두 동기로 끝났어도 이슈 프레임의 값을 읽으려면 한 프레임은 넘겨야 한다.
             do {
                 await UniTask.NextFrame();
                 result.Frames++;
                 result.MaxFrameMs = Math.Max(result.MaxFrameMs, Time.unscaledDeltaTime * MILLISECONDS_PER_SECOND);
                 if (result.Frames == 1 && gcRecorder.Valid) result.IssueFrameGcKB = gcRecorder.LastValue / BYTES_PER_KB;
-            } while (!isDone());
+            } while (!isDone(state));
             return result;
+        }
+
+        static bool _AreAllCompleted(UniTask<TextAsset>[] tasks) {
+            for (int k = 0; k < tasks.Length; k++) {
+                if (!tasks[k].Status.IsCompleted()) return false;
+            }
+            return true;
         }
 
         static async UniTask<long> _SettleMemoryAsync() {
@@ -322,6 +337,25 @@ namespace HResource.Benchmark {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 3) :: 검수 반영 - 측정 조건 정렬
+ *
+ * 변경 ::
+ * _IssueAsync 가 결과 배열을 NextFrame 전에 만들고, WhenAll 대신 _AreAllCompleted 로 프레임을 센다.
+ * _CountFramesUntilAsync 가 상태 인자(TState)를 받는다. 기준선과 같은 대기 루프를 쓴다.
+ * MultiKey 이슈 직전에 _SettleMemoryAsync 를 부른다. 반복 루프를 _RecordRepeatsAsync 로 묶고 인덱스를 k / n 으로 바꿨다.
+ *
+ * 이유 ::
+ * 결과 배열과 WhenAll 의 할당이 GC 레코더 구간에 들어가 패키지 몫을 부풀렸다.
+ * MultiKey 만 GC 정리 없이 재어 앞 시나리오의 수거가 섞일 수 있었다.
+ * for 인덱스 규칙(k 시작, 중첩 k / n)을 어겼다.
+ *
+ * 결과 ::
+ * 이슈 프레임 GC 에서 요청 수에 비례하는 할당은 요청 자체의 것만 남는다. 대기 루프의 상태 기계와 NextFrame 등록은 요청 수와 무관한 상수로 양쪽에 같이 든다. 모든 이슈 시나리오가 GC 정리 뒤에 시작한다.
+ *
+ * 주의 ::
+ * 대기 판정 람다는 static 이라 캡처가 없다. 상태는 인자로 넘긴다.
+ *
  * =========================================================
  * 2026-09-23 (수정 2) :: 프레임 대기 공통화와 Addressables 기준선
  *
