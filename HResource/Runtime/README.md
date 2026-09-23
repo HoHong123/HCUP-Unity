@@ -12,8 +12,8 @@ HResource 는 **`TKey` 하나로 에셋을 지목하고, 그 에셋을 누가 �
 
 설계의 중심에 네 가지 규약이 있다.
 
-1. **점유의 실 보유자는 캐시 하나다.** `MemoryAssetCache` 의 `Item` 이 소유자 `HashSet` 을 들고, 그것이 비면 실제 제거된다. `AssetLeashManager` 는 그 위에서 "누가 소유자인가" 만 담당하고 점유 계산에는 관여하지 않는다.
-2. **소스 해제는 이벤트 연쇄로만 일어난다.** 캐시가 항목을 실제로 지울 때 `OnAssetRemoved` 를 쏘고, `AssetProvider` 가 그것을 받아 그 key 를 로드했던 releasable 로더 하나에 `Release(key)` 를 호출한다 (`Provider/AssetProvider.cs:92`, `:519-528`). 캐시와 로더는 서로를 모른다.
+1. **점유의 실 보유자는 캐시 하나다.** `MemoryAssetCache` 의 `Item` 이 소유자 수(`OwnerCount`)를 들고, 소유자별 key 집합은 `ownerTable` 이 든다. 소유자 수가 0 이 되면 실제 제거된다. `AssetLeashManager` 는 그 위에서 "누가 소유자인가" 만 담당하고 점유 계산에는 관여하지 않는다.
+2. **소스 해제는 이벤트 연쇄로만 일어난다.** 캐시가 항목을 실제로 지울 때 `OnAssetRemoved` 를 쏘고, `AssetProvider` 가 그것을 받아 그 key 를 로드했던 releasable 로더 하나에 `Release(key)` 를 호출한다 (`Provider/AssetProvider.cs:92`, `:521-530`). 캐시와 로더는 서로를 모른다.
 3. **점유 등록은 dedupe 게이트 바깥에서 호출자마다 한다.** 게이트 안(factory)은 최초 호출자 1회만 실행되므로, 안에서 등록하면 합쳐진 후속 호출자가 미등록 상태로 asset 을 받는다 (`Provider/AssetProvider.cs:275-277` 의 주석).
 4. **owner 는 객체가 아니라 `int` 다.** `AssetOwnerId` 는 `readonly struct` 이고, 캐시는 owner 객체를 참조하지 않는다. 그래서 GameObject 가 파괴돼도 점유 테이블은 무결하다.
 
@@ -39,7 +39,7 @@ HResource 는 **`TKey` 하나로 에셋을 지목하고, 그 에셋을 누가 �
 | `Load/TrimKeyNormalizer.cs` | Addressables 규칙: 앞뒤 공백만 제거 | [Load](../docs/Load.md) |
 | `Cache/IAssetReader.cs` / `IAssetWriter.cs` / `IAssetReleaser.cs` | 읽기·쓰기·해제 3분할 계약 | [Cache](../docs/Cache.md) |
 | `Cache/IAssetCache.cs` | 위 셋 + `OnAssetRemoved` 이벤트 | [Cache](../docs/Cache.md) |
-| `Cache/MemoryAssetCache.cs` | **점유의 실 보유자.** 소유자 집합 + 양방향 인덱스 | [Cache](../docs/Cache.md) |
+| `Cache/MemoryAssetCache.cs` | **점유의 실 보유자.** key 별 소유자 수 + 소유자별 key 집합 | [Cache](../docs/Cache.md) |
 | `Cache/IAssetCacheDiagnostics.cs` 외 4파일 | 에디터 진단 표면. 전부 `#if UNITY_EDITOR` | [Cache](../docs/Cache.md) |
 | `Provider/IAssetSource.cs` | 시스템의 외부 경계. 소유자 없는 획득 멤버가 없다 | [Provider](../docs/Provider.md) |
 | `Provider/AssetProvider.cs` | 6 컴포넌트 오케스트레이터. key 는 입구에서 한 번 정규화 | [Provider](../docs/Provider.md) |
@@ -106,7 +106,7 @@ flowchart TD
 시스템별 세부는 아래 문서로 내렸다.
 
 - [../docs/Load.md](../docs/Load.md) - 로더 3종 + 게이트. 소스 핸들의 수명.
-- [../docs/Cache.md](../docs/Cache.md) - `MemoryAssetCache` 의 소유자 집합과 양방향 인덱스, 에디터 진단 표면.
+- [../docs/Cache.md](../docs/Cache.md) - `MemoryAssetCache` 의 소유자 수와 소유자별 key 집합, 에디터 진단 표면.
 - [../docs/Provider.md](../docs/Provider.md) - fetch mode 5종 분기, 조립, 검증, 저장소.
 - [../docs/Subscription.md](../docs/Subscription.md) - `AssetOwnerId` 발급·통지, leash.
 
@@ -137,7 +137,7 @@ public readonly struct AssetRequest<TKey> {
 | | `SourceFirst` = 3 | 소스 → 스토어 |
 | | `SourceOnly` = 4 | 소스만 |
 
-**두 축은 서로를 모른다.** `loadMode` 는 `_ResolveLoader` 의 Dictionary 키 (`Provider/AssetProvider.cs:486-494`), `fetchMode` 는 `_GetByFetchModeAsync` 의 switch 키 (`:321-340`)다. 라우팅과 순서 결정이 분리되어 있다.
+**두 축은 서로를 모른다.** `loadMode` 는 `_ResolveLoader` 의 Dictionary 키 (`Provider/AssetProvider.cs:488-496`), `fetchMode` 는 `_GetByFetchModeAsync` 의 switch 키 (`:321-340`)다. 라우팅과 순서 결정이 분리되어 있다.
 
 ---
 
@@ -154,6 +154,10 @@ sequenceDiagram
 
     C->>P: GetAsync(owner, key, loadMode, fetchMode)
     P->>P: Fingerprint(owner) - OwnerLiveToken 발급, 귀속 불가면 default 반환
+    alt CacheFirst 이고 캐시에 유효한 자산이 있음 - 빠른 경로
+        P->>M: Save(key, cached, ownerId) - 점유 등록
+        P-->>C: UniTask.FromResult(cached) - 게이트와 async 체인을 지나지 않음
+    end
     P->>V: CanLoad(key)
     alt key 가 비어 있음
         V-->>P: false
@@ -191,6 +195,8 @@ sequenceDiagram
         end
     end
 ```
+
+빠른 경로는 `_TryAcquireCached` 가 판정한다 (`Provider/AssetProvider.cs:348-367`). 조건 하나라도 어긋나면 아래 기존 경로가 처음부터 다시 판정하고 로그를 남긴다. 히트는 로더를 부르지 않으므로 게이트를 지날 이유가 없다. 조건 목록은 [Provider](../docs/Provider.md) 의 "캐시 히트 빠른 경로" 절에 있다.
 
 핵심은 위 다이어그램의 **Note 아래 구간**이다. 게이트가 소스 호출은 합치지만 점유 등록은 합치지 않는다. 호출자 N 명이 합류했으면 `Save` 도 N 번 실행되어 **서로 다른 N 명의 소유자**가 등록되고, 각자 한 번씩 반납해야 항목이 제거된다. 같은 소유자가 N 번 합류한 경우라면 점유는 하나다.
 
@@ -307,8 +313,8 @@ var sprite = await source.GetAsync(pool, "Fx/Spark", AssetLoadMode.Addressable);
 
 1. **`TryGet` 은 점유를 만들지 않는다.** `AssetProvider.TryGet` 은 `assetCache.TryGet` 직행이라 조회만 한다 (`Provider/AssetProvider.cs:168-175`). 반대로 `GetAsync` 는 **캐시 히트여도** `Save` 를 거쳐 호출자를 소유자로 등록한다. 같은 소유자가 여러 번 요청해도 점유는 하나이므로 반납도 한 번이면 된다.
 2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다. provider 하나 안에서는 확장자만 다른 두 key(`Icon/A`, `Icon/A.png`)도 입구 정규화로 캐시 한 칸을 공유하므로 이 문제가 없다 (2026-09-21 수정).
-3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:382-386`, `:401-405`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
-4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:486-494`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
+3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:384-388`, `:403-407`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
+4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:488-496`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
 5. **같은 `LoadMode` 로더를 두 번 넘기면 뒤엣것이 이긴다.** 생성자는 막지 않고 경고만 남긴다 (`Provider/AssetProvider.cs:101-107`).
 6. **폐기 후 호출은 거부된다.** `Dispose` 이후의 공개 API 는 경고를 남기고 무해값을 돌려준다 (`Provider/AssetProvider.cs:248-254`).
 7. **정적 이벤트는 플레이 진입 시 비워진다.** `AssetOwnerIdGenerator._ResetStatics` 가 `SubsystemRegistration` 에서 `nextId` 와 두 이벤트를 초기화한다 (`Subscription/AssetOwnerIdGenerator.cs:43-48`). 런타임 구독자는 재구독 경로를 스스로 가져야 한다 - 에디터 워처가 그 짝을 맞춰 둔 사례다.
