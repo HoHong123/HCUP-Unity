@@ -5,7 +5,9 @@
  *
  * 특징 / 지원기능 ::
  * 명령줄에 -hresourceBenchmarkPlayerPath <폴더> 가 있을 때만 동작합니다.
- * + 그 폴더에 개발 빌드로 만들고 자동 실행과 에디터 연결을 끕니다
+ * + 그 폴더에 개발 빌드로 만들고 자동 실행, 에디터 연결, 스크립트 디버깅을 끕니다
+ * + 테스트 씬만 넣습니다. 게임 씬은 빌드하지 않습니다
+ * + -hresourceBenchmarkNonDevelopment 를 함께 주면 개발 빌드를 끄고 릴리스 코드 생성으로 만듭니다. GC 레코더가 무효일 수 있습니다
  *
  * 주의사항 ::
  * 인자가 없으면 빌드 옵션을 건드리지 않습니다. Test Runner 의 Run on player 는 평소대로 돕니다.
@@ -34,15 +36,25 @@ namespace HResource.Benchmark.Editor {
         #region 상수
         const string PLAYER_PATH_ARGUMENT = "-hresourceBenchmarkPlayerPath";
         const string PLAYER_EXECUTABLE = "HResourceBenchmark.exe";
+        // 개발 빌드는 스크립트를 디버그 코드 생성으로 컴파일한다(2026-09-23 측정). 릴리스 코드 생성으로 재려면 이 인자를 준다.
+        const string NON_DEVELOPMENT_ARGUMENT = "-hresourceBenchmarkNonDevelopment";
         #endregion
 
         #region ITestPlayerBuildModifier
         public BuildPlayerOptions ModifyOptions(BuildPlayerOptions playerOptions) {
             if (!_TryGetPlayerFolder(out string folder)) return playerOptions;
 
-            playerOptions.options |= BuildOptions.Development;
-            playerOptions.options &= ~(BuildOptions.AutoRunPlayer | BuildOptions.ConnectToHost | BuildOptions.WaitForPlayerConnection | BuildOptions.ConnectWithProfiler);
+            if (_HasArgument(NON_DEVELOPMENT_ARGUMENT)) playerOptions.options &= ~BuildOptions.Development;
+            else playerOptions.options |= BuildOptions.Development;
+            // 스크립트 디버깅이 켜지면 디버그 코드 생성이 된다. 릴리스와 같은 코드 생성으로 재기 위해 끈다.
+            playerOptions.options &= ~(BuildOptions.AutoRunPlayer | BuildOptions.ConnectToHost | BuildOptions.WaitForPlayerConnection | BuildOptions.ConnectWithProfiler | BuildOptions.AllowDebugging);
             playerOptions.locationPathName = Path.Combine(folder, PLAYER_EXECUTABLE);
+
+            // 테스트 러너는 자기 테스트 씬을 맨 앞에 두고 게임 씬을 전부 덧붙인다. 벤치는 테스트 씬만 쓴다.
+            // 게임 씬을 넣으면 작업본에만 있는 에셋(누락 프리팹, 폰트)이 빌드를 깨뜨릴 수 있다.
+            if (playerOptions.scenes != null && playerOptions.scenes.Length > 1) {
+                playerOptions.scenes = new[] { playerOptions.scenes[0] };
+            }
 
             HLogger.Log("[HResourceBenchmark] Building the benchmark player to " + playerOptions.locationPathName + " without running it.");
             return playerOptions;
@@ -50,6 +62,14 @@ namespace HResource.Benchmark.Editor {
         #endregion
 
         #region Private
+        static bool _HasArgument(string argument) {
+            string[] arguments = Environment.GetCommandLineArgs();
+            for (int k = 0; k < arguments.Length; k++) {
+                if (string.Equals(arguments[k], argument, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         static bool _TryGetPlayerFolder(out string folder) {
             folder = null;
             string[] arguments = Environment.GetCommandLineArgs();
@@ -68,6 +88,20 @@ namespace HResource.Benchmark.Editor {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: 테스트 씬만 빌드, 스크립트 디버깅 끔, 비개발 빌드 옵션
+ *
+ * 변경 ::
+ * 테스트 러너가 덧붙이는 게임 씬을 빼고 테스트 씬만 넣는다. AllowDebugging 을 끈다.
+ * -hresourceBenchmarkNonDevelopment 가 있으면 Development 도 끈다.
+ *
+ * 이유 ::
+ * 게임 씬이 작업본에만 있는 에셋(누락 프리팹, TMP 폰트)을 참조해 빌드가 깨졌다. 벤치는 게임 씬을 쓰지 않는다.
+ * 스크립트 디버깅을 꺼도 개발 빌드는 디버그 코드 생성이었다. 릴리스 코드 생성 수치는 비개발 빌드에서만 나온다.
+ *
+ * 주의 ::
+ * 비개발 빌드에서는 GC 레코더가 무효일 수 있다. 그때 GC 열은 "-" 로 남는다.
+ *
  * =========================================================
  * 2026-09-23 (최초 설계) :: 벤치 플레이어 빌드와 실행 분리
  *
