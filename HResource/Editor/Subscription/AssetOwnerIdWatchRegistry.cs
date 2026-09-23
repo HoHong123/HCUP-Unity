@@ -21,6 +21,14 @@ namespace HResource.Editor.Subscription {
             public bool IsUnityObject;
             public bool IsAlive;
 
+            // 발급 시점에는 이름 문자열을 만들지 않는다. 타입과 시각만 두고 이름은 창이 볼 때 채운다.
+            [NonSerialized]
+            public Type OwnerType;
+            [NonSerialized]
+            public long CreatedTicks;
+            [NonSerialized]
+            public bool HasLabels;
+
             // 비 Unity 소유자의 생사를 관측하는 유일한 수단.
             // 순수 C# 객체에는 파괴 이벤트가 없어 이 약한 참조 말고는 죽음을 알 방법이 없다.
             // 강한 참조로 바꾸면 이 창이 소유자를 살려두어, 누수를 관측하려다 누수를 만든다.
@@ -36,6 +44,7 @@ namespace HResource.Editor.Subscription {
         static readonly Dictionary<int, string> tombstones = new();
 
         const string PLAIN_OWNER_CONTAINER = "(Non-Unity Owner)";
+        const string DESTROYED_BEFORE_LABEL = "(destroyed before it was inspected)";
 
         // 전수 스캔 간격(초). 창이 0.25 초마다 그리므로 표시 지연은 최대 1 초다.
         // 진단 표시의 지연을 감수하고 에디터 프레임 부하를 줄이는 쪽을 택했다.
@@ -106,6 +115,18 @@ namespace HResource.Editor.Subscription {
         /// 주기 게이트를 건너뛰고 지금 판정한다. 창을 열었을 때와 GC Probe 가 부른다.
         /// _EditorUpdate 를 부르면 스로틀에 걸려 조용히 아무 일도 하지 않는다.
         /// </summary>
+        /// <summary>
+        /// 이름이 아직 없는 살아있는 항목의 표시 문자열을 채운다. 창이 그리기 전에 부른다.
+        /// 발급 경로에서 문자열을 만들지 않기 위해 미뤄 둔 일이다.
+        /// </summary>
+        public static void EnsureLabels() {
+            foreach (KeyValuePair<int, Entry> pair in table) {
+                Entry entry = pair.Value;
+                if (entry == null || entry.HasLabels) continue;
+                _FillLabels(entry);
+            }
+        }
+
         public static void ScanNow() {
             nextScanTime = EditorApplication.timeSinceStartup + SCAN_INTERVAL;
             _ScanOnce();
@@ -131,10 +152,12 @@ namespace HResource.Editor.Subscription {
         #endregion
 
         #region Private - Build
+        // 신원 발급마다 도는 경로다. 여기서 이름 문자열(네이티브 이름 조회 포함)을 만들면
+        // 에디터의 첫 요청 비용이 플레이어의 약 3.5 배가 된다. 참조, 타입, 시각만 남긴다.
         static Entry _BuildEntry(int ownerId, object owner) {
             Entry entry = new Entry {
                 OwnerId = ownerId,
-                CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                CreatedTicks = DateTime.UtcNow.Ticks,
             };
 
             if (owner == null) {
@@ -142,47 +165,67 @@ namespace HResource.Editor.Subscription {
                 entry.ContainerName = "(null)";
                 entry.OwnerDisplayName = "(null)";
                 entry.SourceTypeName = "(null)";
+                entry.CreatedAt = _FormatCreatedAt(entry.CreatedTicks);
+                entry.HasLabels = true;
                 entry.IsUnityObject = false;
                 entry.IsAlive = false;
                 return entry;
             }
 
-            Type ownerType = owner.GetType();
-            entry.ClassName = ownerType.Name;
-            entry.SourceTypeName = ownerType.FullName ?? ownerType.Name;
-            entry.OwnerDisplayName = owner.ToString();
-
+            entry.OwnerType = owner.GetType();
             if (owner is UnityEngine.Object unityObject) {
                 entry.UnityOwner = unityObject;
                 entry.IsUnityObject = true;
                 entry.IsAlive = unityObject != null;
-
-                switch (unityObject) {
-                case Component component:
-                    entry.ContainerName = component.gameObject ? component.gameObject.name : "(Missing GameObject)";
-                    entry.OwnerDisplayName = component.name;
-                    break;
-
-                case GameObject gameObject:
-                    entry.ContainerName = gameObject.name;
-                    entry.OwnerDisplayName = gameObject.name;
-                    break;
-
-                default:
-                    entry.ContainerName = unityObject.name;
-                    entry.OwnerDisplayName = unityObject.name;
-                    break;
-                }
             }
             else {
                 entry.IsUnityObject = false;
                 entry.IsAlive = true;
                 // 약한 참조만 잡는다. 이후 생사 판정의 유일한 근거이며 수명은 붙잡지 않는다.
                 entry.PlainOwnerRef = new WeakReference(owner);
-                entry.ContainerName = PLAIN_OWNER_CONTAINER;
+            }
+            return entry;
+        }
+
+        /// <summary> 미뤄 둔 표시 문자열을 채운다. 소유자가 이미 죽었으면 타입 이름만 남는다 </summary>
+        static void _FillLabels(Entry entry) {
+            entry.HasLabels = true;
+            entry.CreatedAt = _FormatCreatedAt(entry.CreatedTicks);
+            entry.ClassName = entry.OwnerType != null ? entry.OwnerType.Name : "(unknown)";
+            entry.SourceTypeName = entry.OwnerType != null ? (entry.OwnerType.FullName ?? entry.OwnerType.Name) : "(unknown)";
+
+            if (entry.IsUnityObject) {
+                UnityEngine.Object unityObject = entry.UnityOwner;
+                if (unityObject == null) {
+                    entry.ContainerName = DESTROYED_BEFORE_LABEL;
+                    entry.OwnerDisplayName = entry.ClassName;
+                    return;
+                }
+
+                switch (unityObject) {
+                case Component component:
+                    entry.ContainerName = component.gameObject ? component.gameObject.name : "(Missing GameObject)";
+                    entry.OwnerDisplayName = component.name;
+                    break;
+                case GameObject gameObject:
+                    entry.ContainerName = gameObject.name;
+                    entry.OwnerDisplayName = gameObject.name;
+                    break;
+                default:
+                    entry.ContainerName = unityObject.name;
+                    entry.OwnerDisplayName = unityObject.name;
+                    break;
+                }
+                return;
             }
 
-            return entry;
+            entry.ContainerName = PLAIN_OWNER_CONTAINER;
+            object plainOwner = entry.PlainOwnerRef?.Target;
+            entry.OwnerDisplayName = plainOwner != null ? plainOwner.ToString() : entry.ClassName;
+        }
+
+        static string _FormatCreatedAt(long utcTicks) {
+            return new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff");
         }
         #endregion
 
@@ -218,6 +261,8 @@ namespace HResource.Editor.Subscription {
                     : entry.PlainOwnerRef != null && entry.PlainOwnerRef.IsAlive;
 
                 entry.IsAlive = isAlive;
+                // 창이 열려 있을 때 도는 스캔이다. 살아 있는 동안 이름을 잡아 두어야 묘비에 남는다.
+                if (!entry.HasLabels) _FillLabels(entry);
                 if (isAlive) continue;
 
                 // 지우기 전에 정체를 남긴다. 점유가 남아 있으면 창이 ORPHAN 행에 이 이름을 붙인다.
@@ -262,6 +307,27 @@ namespace HResource.Editor.Subscription {
 
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: 발급 시점 기록을 가볍게
+ *
+ * 변경 ::
+ * _BuildEntry 가 id, 참조, 타입, 시각(UTC ticks)만 남긴다. 이름 문자열은 _FillLabels 가 채운다.
+ * 창은 그리기 전에 EnsureLabels 를 부르고, 창이 열려 있을 때 도는 _ScanOnce 도 이름이 없는 항목을 채운다.
+ *
+ * 이유 ::
+ * 신원이 발급될 때마다 DateTime.Now 서식, 타입 전체 이름, owner.ToString, 컴포넌트와 GameObject 이름(네이티브 조회)을
+ * 만들었다. 벤치마크에서 에디터 첫 요청이 약 17us 로 플레이어(약 5us)의 3.5 배였고, 요청당 약 1KB 를 더 할당했다.
+ * 창이 닫혀 있어도 이 비용이 들었다.
+ *
+ * 결과 ::
+ * 발급 경로의 할당은 Entry 하나와 순수 C# 소유자의 WeakReference 뿐이다. 창이 열려 있으면 1 초 안에 이름이 채워진다.
+ *
+ * 주의 ::
+ * "창이 열려 있을 때만 구독" 으로 줄이지 않는다. 창이 닫힌 동안 생긴 소유자가 기록에 없으면 창을 열 때 살아 있는
+ * 소유자가 ORPHAN 으로 보이고, Orphan Clean 이 사용 중인 점유를 강제 해제한다. 구독은 항상 하고 기록만 가볍게 한다.
+ * 창이 닫힌 동안 파괴된 Unity 소유자는 이름을 읽을 수 없어 묘비에 타입 이름과 DESTROYED_BEFORE_LABEL 만 남는다.
+ * CreatedAt 은 발급 시각을 그릴 때 현지 시각으로 바꾼 값이다.
+ *
  * =========================================================
  * 2026-09-08 (수정 3) :: 수동 Register / Unregister 제거
  *
