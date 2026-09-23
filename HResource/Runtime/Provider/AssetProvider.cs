@@ -19,7 +19,7 @@ using UnityEngine;
  * 주요 기능 ::
  * 5 가지 fetch mode (CacheFirst / LocalStoreFirst / LocalStoreOnly / SourceFirst / SourceOnly)
  * 를 _GetByFetchModeAsync switch 한 곳에 모아 cache/store/source 호출 순서 조율.
- * key 는 입구(획득 · 조회 · 반납)에서 keyNormalizer 로 한 번 맞추고, SharedAssetLoadGate 로 동일 key 동시 요청 dedupe.
+ * key 는 입구(획득 · 조회 · 반납)에서 keyNormalizer 로 한 번 맞추고, SharedAssetLoadGate 로 동일 key 동시 로드 dedupe. CacheFirst 히트는 게이트 밖에서 동기로 끝난다.
  * cache 제거 시 OnAssetRemoved → releasable loader 자동 release 연쇄.
  * owner 별 점유의 실제 보유자. 지문 발급은 AssetLeashManager 가 맡는다.
  *
@@ -157,6 +157,8 @@ namespace HResource.Provider {
                 fetchMode: fetchMode,
                 ownerId: liveToken.IssuedId);
 
+            // 캐시 히트는 게이트와 async 체인을 건너뛰고 동기로 끝낸다. 조건이 하나라도 어긋나면 기존 경로가 처리한다.
+            if (_TryAcquireCached(request, liveToken, out TAsset cached)) return UniTask.FromResult(cached);
             return _GetAsync(request, liveToken);
         }
 
@@ -338,6 +340,29 @@ namespace HResource.Provider {
         #endregion
 
         #region Private - Cache First
+        /// <summary>
+        /// CacheFirst 캐시 히트를 게이트 밖에서 동기로 끝낸다. 로더를 부르지 않으므로 게이트의 참조 수 계약과 무관하다
+        /// 소유자 생존, 로드 허용, 캐시 존재, 에셋 유효, 점유 등록 중 하나라도 실패하면 false. 그 판정과 로그는 기존 경로가 맡는다
+        /// </summary>
+        private bool _TryAcquireCached(
+            AssetRequest<TKey> request,
+            AssetLeashManager<TKey, TAsset>.OwnerLiveToken liveToken,
+            out TAsset asset) {
+
+            asset = default;
+            if (request.FetchMode != AssetFetchMode.CacheFirst) return false;
+            if (!liveToken.IsLive) return false;
+            if (!assetValidator.CanLoad(request.Key)) return false;
+            if (!_TryPeekCache(request, out TAsset cached)) return false;
+            if (!_IsValidAsset(request.Key, cached)) return false;
+            if (!_SaveCache(request, cached)) return false;
+
+            // 기존 히트 경로와 같은 동작을 유지한다.
+            _TrackReleasableLoader(request.Key, request.LoadMode);
+            asset = cached;
+            return true;
+        }
+
         private async UniTask<TAsset> _GetCacheFirstAsync(AssetRequest<TKey> request) {
             if (_TryPeekCache(request, out var cachedAsset)) {
                 return cachedAsset;
@@ -513,6 +538,30 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: CacheFirst 캐시 히트 빠른 경로
+ *
+ * 변경 ::
+ * GetForOwnerAsync 가 _GetAsync 를 부르기 전에 _TryAcquireCached 를 먼저 본다. CacheFirst 이고, 소유자가 살아있고,
+ * 로드가 허용되고, 캐시에 있고, 유효하고, 점유 등록이 성공하면 UniTask.FromResult 로 동기 반환한다.
+ * 하나라도 실패하면 false 를 돌려 기존 경로가 판정과 로그를 맡는다.
+ *
+ * 이유 ::
+ * 히트도 게이트 표 등록 · 해제, async 네 단계, 게이트 람다(클로저 + 델리게이트)를 지났다. 벤치마크에서 반복 요청이
+ * 요청당 약 1.45us, 개발 빌드 기준 768B 였다. 게이트의 존재 이유는 로더 호출을 한 번으로 합쳐 Addressables 참조 수를
+ * 1 로 고정하는 것이고, 히트는 로더를 부르지 않으므로 그 계약 밖이다. 캐시 조회가 게이트 안에 있어야 할 근거는
+ * 코드와 문서에 없었다.
+ *
+ * 결과 ::
+ * 히트는 게이트를 지나지 않는다. 불변식은 "로더 호출은 반드시 게이트를 지난다" 로 다시 쓴다.
+ *
+ * 주의 ::
+ * GetForOwnerAsync 는 async 가 아니다. 빠른 경로를 _GetAsync 안에 넣으면 진입만으로 클로저와 상태 기계가 먼저 할당된다.
+ * 같은 key 에 다른 fetch mode 의 로드(SourceOnly 등)가 진행 중이면, 예전에는 CacheFirst 요청도 그 로드에 합류했지만
+ * 이제는 캐시본을 즉시 받는다. 의미가 바뀌는 유일한 경우다.
+ * 히트의 _TrackReleasableLoader 호출은 기존 동작을 그대로 옮겼다. 다른 loadMode 로 히트하면 추적 로더를 덮어쓰는
+ * 기존 문제는 이 변경의 범위 밖이다.
+ *
  * =========================================================
  * 2026-09-21 (수정 2) :: key 를 입구에서 한 번 정규화
  *
