@@ -5,7 +5,9 @@
         "UnityEngine.TestRunner",
         "HCUP.HResource",
         "HCUP.HDiagnosis",
-        "UniTask"
+        "UniTask",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
