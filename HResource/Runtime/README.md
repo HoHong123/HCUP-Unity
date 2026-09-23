@@ -13,8 +13,8 @@ HResource 는 **`TKey` 하나로 에셋을 지목하고, 그 에셋을 누가 �
 설계의 중심에 네 가지 규약이 있다.
 
 1. **점유의 실 보유자는 캐시 하나다.** `MemoryAssetCache` 의 `Item` 이 소유자 `HashSet` 을 들고, 그것이 비면 실제 제거된다. `AssetLeashManager` 는 그 위에서 "누가 소유자인가" 만 담당하고 점유 계산에는 관여하지 않는다.
-2. **소스 해제는 이벤트 연쇄로만 일어난다.** 캐시가 항목을 실제로 지울 때 `OnAssetRemoved` 를 쏘고, `AssetProvider` 가 그것을 받아 그 key 를 로드했던 releasable 로더 하나에 `Release(key)` 를 호출한다 (`Provider/AssetProvider.cs:90`, `:493-502`). 캐시와 로더는 서로를 모른다.
-3. **점유 등록은 dedupe 게이트 바깥에서 호출자마다 한다.** 게이트 안(factory)은 최초 호출자 1회만 실행되므로, 안에서 등록하면 합쳐진 후속 호출자가 미등록 상태로 asset 을 받는다 (`Provider/AssetProvider.cs:272-274` 의 주석).
+2. **소스 해제는 이벤트 연쇄로만 일어난다.** 캐시가 항목을 실제로 지울 때 `OnAssetRemoved` 를 쏘고, `AssetProvider` 가 그것을 받아 그 key 를 로드했던 releasable 로더 하나에 `Release(key)` 를 호출한다 (`Provider/AssetProvider.cs:90`, `:518-527`). 캐시와 로더는 서로를 모른다.
+3. **점유 등록은 dedupe 게이트 바깥에서 호출자마다 한다.** 게이트 안(factory)은 최초 호출자 1회만 실행되므로, 안에서 등록하면 합쳐진 후속 호출자가 미등록 상태로 asset 을 받는다 (`Provider/AssetProvider.cs:274-276` 의 주석).
 4. **owner 는 객체가 아니라 `int` 다.** `AssetOwnerId` 는 `readonly struct` 이고, 캐시는 owner 객체를 참조하지 않는다. 그래서 GameObject 가 파괴돼도 점유 테이블은 무결하다.
 
 ---
@@ -137,7 +137,7 @@ public readonly struct AssetRequest<TKey> {
 | | `SourceFirst` = 3 | 소스 → 스토어 |
 | | `SourceOnly` = 4 | 소스만 |
 
-**두 축은 서로를 모른다.** `loadMode` 는 `_ResolveLoader` 의 Dictionary 키 (`Provider/AssetProvider.cs:460-468`), `fetchMode` 는 `_GetByFetchModeAsync` 의 switch 키 (`:318-337`)다. 라우팅과 순서 결정이 분리되어 있다.
+**두 축은 서로를 모른다.** `loadMode` 는 `_ResolveLoader` 의 Dictionary 키 (`Provider/AssetProvider.cs:485-493`), `fetchMode` 는 `_GetByFetchModeAsync` 의 switch 키 (`:320-339`)다. 라우팅과 순서 결정이 분리되어 있다.
 
 ---
 
@@ -194,7 +194,7 @@ sequenceDiagram
 
 핵심은 위 다이어그램의 **Note 아래 구간**이다. 게이트가 소스 호출은 합치지만 점유 등록은 합치지 않는다. 호출자 N 명이 합류했으면 `Save` 도 N 번 실행되어 **서로 다른 N 명의 소유자**가 등록되고, 각자 한 번씩 반납해야 항목이 제거된다. 같은 소유자가 N 번 합류한 경우라면 점유는 하나다.
 
-소유자가 로딩 중에 죽었을 때 핸들을 직접 반납하지 않고 캐시의 정상 해제 경로를 태우는 이유도 게이트에 있다. 같은 key 를 기다리던 다른 소유자가 살아 있을 수 있어, 마지막 점유일 때만 `OnAssetRemoved` 로 핸들이 반납되어야 한다 (`Provider/AssetProvider.cs:289-312`).
+소유자가 로딩 중에 죽었을 때 핸들을 직접 반납하지 않고 캐시의 정상 해제 경로를 태우는 이유도 게이트에 있다. 같은 key 를 기다리던 다른 소유자가 살아 있을 수 있어, 마지막 점유일 때만 `OnAssetRemoved` 로 핸들이 반납되어야 한다 (`Provider/AssetProvider.cs:291-314`).
 
 ---
 
@@ -216,7 +216,7 @@ flowchart LR
     end
 ```
 
-`TKey` 의 여러 표기를 하나로 맞추는 곳은 **provider 입구 한 곳**이다. `AssetProvider` 가 생성자로 받은 `IAssetKeyNormalizer` 로 획득 · 조회 · 반납 때 key 를 한 번 정규화하고 (`Provider/AssetProvider.cs:155`, `:169`, `:180`, `:193`), 게이트 · 캐시 · 로더 · 반납 추적표는 그 결과만 본다. Resources 규칙은 확장자 제거·슬래시 정리·rootPath 결합이고 (`Load/ResourcesKeyNormalizer.cs:37-62`), Addressables 규칙은 `Trim()` 만 한다 (`Load/TrimKeyNormalizer.cs:22-25`). 로더는 key 를 해석하지 않는다. Resources 규칙은 멱등이 아니라 두 번 거치면 다른 에셋을 가리킬 수 있기 때문이다.
+`TKey` 의 여러 표기를 하나로 맞추는 곳은 **provider 입구 한 곳**이다. `AssetProvider` 가 생성자로 받은 `IAssetKeyNormalizer` 로 획득 · 조회 · 반납 때 key 를 한 번 정규화하고 (`Provider/AssetProvider.cs:155`, `:171`, `:182`, `:195`), 게이트 · 캐시 · 로더 · 반납 추적표는 그 결과만 본다. Resources 규칙은 확장자 제거·슬래시 정리·rootPath 결합이고 (`Load/ResourcesKeyNormalizer.cs:37-62`), Addressables 규칙은 `Trim()` 만 한다 (`Load/TrimKeyNormalizer.cs:22-25`). 로더는 key 를 해석하지 않는다. Resources 규칙은 멱등이 아니라 두 번 거치면 다른 에셋을 가리킬 수 있기 때문이다.
 
 `AssetOwnerId` 는 `Value > 0` 일 때만 유효하다 (`Subscription/AssetOwnerId.cs:33`). 무효 id 로 들어온 `Save` 는 거부되고 에러가 남으며 (`Cache/MemoryAssetCache.cs:84-89`), 무효 id 의 `Release` 는 경고와 함께 `false` 를 돌려준다 (`:114-117`). 소유자 없는 점유는 만들어지지 않는다.
 
@@ -281,6 +281,22 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 
 `HUI/Runtime/HUI/Popup/ImagePopup.cs` 가 Component 경로의 정본 예시다.
 
+### 소유 단위 (권장)
+
+강제 규칙이 아니라 권장이다. **같은 에셋을 쓰는 인스턴스가 많으면, 인스턴스가 아니라 그 인스턴스들의 수명을 쥔 쪽(풀, 스포너, 매니저)을 소유자로 둔다.**
+
+```csharp
+// 권장하지 않음 - 인스턴스 N 개가 각자 소유자가 된다
+var sprite = await source.GetAsync(this, "Fx/Spark", AssetLoadMode.Addressable);   // 각 인스턴스의 Awake
+
+// 권장 - 풀이 한 번 요청하고 인스턴스에 나눠 준다
+var sprite = await source.GetAsync(pool, "Fx/Spark", AssetLoadMode.Addressable);   // 풀 초기화에서 1 회
+```
+
+- 소유자 하나가 드는 비용은 첫 요청 약 4.5~5us, 메모리 약 1KB(관리 약 400B, 네이티브 파괴 프로브 약 430~600B)다. 인스턴스 1 만 개가 각자 소유자가 되면 한 프레임에 약 45ms, 약 10MB 가 된다. 풀이 소유자면 요청 1 회다 (2026-09-23 벤치마크, 개발 빌드 플레이어, `Tests/Benchmark`).
+- 대가는 수명 규칙이다. **소유자는 그 에셋을 쓰는 모든 인스턴스보다 오래 살아야 한다.** 소유자가 먼저 파괴되면 프로브가 점유를 회수하고, 마지막 점유였다면 로더 핸들이 반납되어 인스턴스가 쓰던 에셋이 내려간다.
+- 인스턴스 단위 소유가 맞는 경우도 있다. 인스턴스마다 다른 에셋을 쓰거나, 인스턴스 수가 적고 각자의 수명에 맞춰 반납되어야 할 때다.
+
 ---
 
 ## 주의할 점
@@ -289,17 +305,17 @@ var sprite = await leash.GetAsync("Portrait/Hero", AssetLoadMode.Addressable);
 
 ### 계약
 
-1. **`TryGet` 은 점유를 만들지 않는다.** `AssetProvider.TryGet` 은 `assetCache.TryGet` 직행이라 조회만 한다 (`Provider/AssetProvider.cs:163-170`). 반대로 `GetAsync` 는 **캐시 히트여도** `Save` 를 거쳐 호출자를 소유자로 등록한다. 같은 소유자가 여러 번 요청해도 점유는 하나이므로 반납도 한 번이면 된다.
+1. **`TryGet` 은 점유를 만들지 않는다.** `AssetProvider.TryGet` 은 `assetCache.TryGet` 직행이라 조회만 한다 (`Provider/AssetProvider.cs:165-172`). 반대로 `GetAsync` 는 **캐시 히트여도** `Save` 를 거쳐 호출자를 소유자로 등록한다. 같은 소유자가 여러 번 요청해도 점유는 하나이므로 반납도 한 번이면 된다.
 2. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** 캐시에서 지워지면 `Resources.UnloadAsset` 을 부르지만, `GameObject` / `Component` 는 그 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). Resources 는 참조 카운트가 없어, 같은 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내리고 다른 쪽은 참조 시 디스크에서 다시 읽힌다. provider 하나 안에서는 확장자만 다른 두 key(`Icon/A`, `Icon/A.png`)도 입구 정규화로 캐시 한 칸을 공유하므로 이 문제가 없다 (2026-09-21 수정).
-3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:356-360`, `:375-379`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
-4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:460-468`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
+3. **`LocalStoreFirst` / `LocalStoreOnly` 는 store 없이 호출하면 예외다.** `HLogger.Throw(InvalidOperationException)` 가 실제로 throw 한다 (`Provider/AssetProvider.cs:381-385`, `:400-404`; `HDiagnosis/Runtime/Logger/HLogger.cs:146-150`).
+4. **등록되지 않은 `loadMode` 요청도 예외다** (`Provider/AssetProvider.cs:485-493`). 팩토리 편의 메서드는 로더를 하나만 등록하므로 이 함정에 걸리기 쉽다.
 5. **같은 `LoadMode` 로더를 두 번 넘기면 뒤엣것이 이긴다.** 생성자는 막지 않고 경고만 남긴다 (`Provider/AssetProvider.cs:99-105`).
-6. **폐기 후 호출은 거부된다.** `Dispose` 이후의 공개 API 는 경고를 남기고 무해값을 돌려준다 (`Provider/AssetProvider.cs:243-249`).
+6. **폐기 후 호출은 거부된다.** `Dispose` 이후의 공개 API 는 경고를 남기고 무해값을 돌려준다 (`Provider/AssetProvider.cs:245-251`).
 7. **정적 이벤트는 플레이 진입 시 비워진다.** `AssetOwnerIdGenerator._ResetStatics` 가 `SubsystemRegistration` 에서 `nextId` 와 두 이벤트를 초기화한다 (`Subscription/AssetOwnerIdGenerator.cs:43-48`). 런타임 구독자는 재구독 경로를 스스로 가져야 한다 - 에디터 워처가 그 짝을 맞춰 둔 사례다.
 
 ### 정리 대상
 
-8. **`IAssetStore` 는 기본 구현이 없다** (`Store/IAssetStore.cs`). `LocalStoreFirst`/`LocalStoreOnly` 두 fetch mode 와 `IAssetSource.ClearStoreAsync` (`Provider/AssetProvider.cs:232-236`) 는 사용자가 store 를 직접 구현해 넘길 때만 동작하는 확장 슬롯이다. 팩토리의 `assetStore` 인자 기본값은 `null` 이다.
+8. **`IAssetStore` 는 기본 구현이 없다** (`Store/IAssetStore.cs`). `LocalStoreFirst`/`LocalStoreOnly` 두 fetch mode 와 `IAssetSource.ClearStoreAsync` (`Provider/AssetProvider.cs:234-238`) 는 사용자가 store 를 직접 구현해 넘길 때만 동작하는 확장 슬롯이다. 팩토리의 `assetStore` 인자 기본값은 `null` 이다.
 9. **`AddressableLabelLoader` / `IAddressableLabelLoader` 는 provider 와 분리된 축이다.** `IAssetLoader` 를 구현하지 않아 `AssetProvider` 에 등록할 수 없다. 캐시·소유권·게이트 어느 것도 적용되지 않으므로 핸들 해제는 호출자 책임이다. → [../docs/Load.md](../docs/Load.md)
 10. **`MemoryAssetCache.ReleaseAll()` 과 `Clear()` 는 완전히 같은 동작이다** - 둘 다 `_ClearItems()` 한 줄이다 (`Cache/MemoryAssetCache.cs:160-166`). `IAssetReleaser` 가 두 이름을 계약으로 강제하고 있어 (`Cache/IAssetReleaser.cs:29-30`) 호출자는 의미 차이를 기대하게 된다.
 11. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나, `foo` 라는 다른 에셋이 있으면 그것을 가져온다 (`Load/ResourcesKeyNormalizer.cs:37-62`). 2026-09-21 이전 로더도 같았다.
