@@ -5,6 +5,7 @@
  *
  * 주요 기능 ::
  * RunAsync(key, factory) - key 별 비동기 작업을 공유. 같은 key 동시 요청은 한 UniTask 로 dedupe.
+ * RunAsync(key, state, factory) - 같은 동작. 호출마다 다른 값을 state 로 넘기면 factory 를 한 번 만들어 재사용할 수 있다.
  *
  * 사용법 ::
  * AssetProvider 가 _GetAsync 에서 source 로드 호출을 본 게이트로 감쌈. 같은 key 가 동시에
@@ -23,12 +24,33 @@ using Cysharp.Threading.Tasks;
 namespace HResource.Load {
     public interface IAssetLoadGate<TKey, TAsset> {
         UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory);
+
+        /// <summary>
+        /// 상태를 인자로 받는 형태. 게이트는 state 를 열어 보지 않고 factory(state) 로 넘기기만 한다
+        /// 호출마다 달라지는 값을 람다가 캡처하면 호출마다 클로저와 델리게이트가 생긴다. 이 형태는 그것을 없앤다
+        /// </summary>
+        UniTask<TAsset> RunAsync<TState>(TKey key, TState state, Func<TState, UniTask<TAsset>> factory);
     }
 }
 
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: 상태 인자 형태 추가
+ *
+ * 변경 ::
+ * RunAsync<TState>(key, state, factory) 를 계약에 더했다. 옛 RunAsync(key, factory) 는 남겼다.
+ *
+ * 이유 ::
+ * 호출마다 다른 값을 람다가 캡처하면 호출마다 클로저와 델리게이트가 생긴다(요청당 약 168B, 64 비트 추정).
+ * 값을 인자로 넘기면 factory 를 한 번 만들어 재사용할 수 있다.
+ *
+ * 주의 ::
+ * 이 계약의 외부 구현체는 새 메서드를 구현해야 컴파일된다. 저장소 안의 구현체는 SharedAssetLoadGate 하나다.
+ * 인터페이스의 제네릭 메서드라 호출이 일반 가상 호출보다 비싸다(Mono 수십 ns 추정, 미측정). IL2CPP 로 옮기면
+ * 값 타입 TState 조합의 AOT 생성 여부를 확인해야 한다.
+ *
  * =========================================================
  * 2026-09-21 (수정 2) :: 교착을 택한 근거 서술 정정
  *
