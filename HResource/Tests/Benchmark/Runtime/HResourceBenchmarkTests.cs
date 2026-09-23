@@ -37,7 +37,7 @@ using Object = UnityEngine.Object;
 namespace HResource.Benchmark {
     [PrebuildSetup("HResource.Benchmark.Editor.HResourceBenchmarkSetup")]
     [PostBuildCleanup("HResource.Benchmark.Editor.HResourceBenchmarkSetup")]
-    public sealed class HResourceBenchmarkTests {
+    public sealed partial class HResourceBenchmarkTests {
         #region Nested Types
         struct IssueResult {
             public double IssueMs;
@@ -238,14 +238,7 @@ namespace HResource.Benchmark {
                 IssueFrameGcKB = double.NaN,
             };
             UniTask<TextAsset[]> all = UniTask.WhenAll(tasks).Preserve();
-
-            // 모두 동기로 끝났어도 이슈 프레임의 값을 읽으려면 한 프레임은 넘겨야 한다.
-            do {
-                await UniTask.NextFrame();
-                result.Frames++;
-                result.MaxFrameMs = Math.Max(result.MaxFrameMs, Time.unscaledDeltaTime * MILLISECONDS_PER_SECOND);
-                if (result.Frames == 1 && gcRecorder.Valid) result.IssueFrameGcKB = gcRecorder.LastValue / BYTES_PER_KB;
-            } while (!all.Status.IsCompleted());
+            result = await _CountFramesUntilAsync(() => all.Status.IsCompleted(), gcRecorder, result);
 
             TextAsset[] assets = await all;
             result.CompleteMs = _ElapsedMs(issueStart);
@@ -254,6 +247,18 @@ namespace HResource.Benchmark {
                 Assert.IsNotNull(assets[k],
                     "[HResourceBenchmark] Request " + k + " returned null. Check that the benchmark Addressables group was built.");
             }
+            return result;
+        }
+
+        /// <summary> 조건이 참이 될 때까지 프레임을 넘기며 프레임 수, 최대 프레임 시간, 이슈 프레임 GC 를 채운다 </summary>
+        static async UniTask<IssueResult> _CountFramesUntilAsync(Func<bool> isDone, ProfilerRecorder gcRecorder, IssueResult result) {
+            // 모두 동기로 끝났어도 이슈 프레임의 값을 읽으려면 한 프레임은 넘겨야 한다.
+            do {
+                await UniTask.NextFrame();
+                result.Frames++;
+                result.MaxFrameMs = Math.Max(result.MaxFrameMs, Time.unscaledDeltaTime * MILLISECONDS_PER_SECOND);
+                if (result.Frames == 1 && gcRecorder.Valid) result.IssueFrameGcKB = gcRecorder.LastValue / BYTES_PER_KB;
+            } while (!isDone());
             return result;
         }
 
@@ -317,6 +322,16 @@ namespace HResource.Benchmark {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: 프레임 대기 공통화와 Addressables 기준선
+ *
+ * 변경 ::
+ * 요청 뒤 프레임을 세는 루프를 _CountFramesUntilAsync 로 뺐다. 기준선(HResourceBenchmarkTests.Baseline.cs)이 같은 루프를 쓴다.
+ * 클래스를 partial 로 바꿨다.
+ *
+ * 이유 ::
+ * 새 key 첫 로드 비용 중 패키지 몫과 Addressables 몫을 나누려면 같은 방법으로 잰 기준선이 필요했다.
+ *
  * =========================================================
  * 2026-09-23 (최초 설계) :: HResource 한계 측정 벤치마크
  *
