@@ -54,6 +54,8 @@ namespace HResource.Provider {
         readonly IAssetLoadGate<TKey, TAsset> assetLoadGate;
         readonly IAssetKeyNormalizer<TKey> keyNormalizer;
         readonly AssetLeashManager<TKey, TAsset> leashManager;
+        // 게이트에 넘기는 fetch 함수. 생성자에서 한 번 만든다. 요청은 인자로 넘겨 호출마다 클로저가 생기지 않게 한다.
+        readonly Func<AssetRequest<TKey>, UniTask<TAsset>> fetchByModeFactory;
 
         readonly Dictionary<AssetLoadMode, IAssetLoader<TKey, TAsset>> loaderTable = new();
         readonly Dictionary<TKey, IAssetReleasableLoader<TKey, TAsset>> releasableLoaderByKey = new();
@@ -114,6 +116,7 @@ namespace HResource.Provider {
             // 이 provider 를 통과하는 모든 점유는 반드시 소유자를 갖는다.
             // 지문 발급과 파괴 감지는 leash manager 가 전담한다.
             leashManager = new AssetLeashManager<TKey, TAsset>(this);
+            fetchByModeFactory = _GetByFetchModeAsync;
         }
         #endregion
 
@@ -259,9 +262,7 @@ namespace HResource.Provider {
                 return default;
             }
 
-            var asset = await assetLoadGate.RunAsync(
-                request.Key,
-                () => _GetByFetchModeAsync(request));
+            var asset = await assetLoadGate.RunAsync(request.Key, request, fetchByModeFactory);
 
             // await 는 프레임을 넘긴다. 그 사이 소유자가 파괴되어 Dispose 가 돌았을 수 있다.
             if (disposed) {
@@ -538,6 +539,17 @@ namespace HResource.Provider {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: 게이트에 넘기는 fetch 함수를 한 번만 만든다
+ *
+ * 변경 ::
+ * fetchByModeFactory 필드를 생성자에서 _GetByFetchModeAsync 로 한 번 만들고, 게이트 호출은
+ * RunAsync(request.Key, request, fetchByModeFactory) 로 바꿨다.
+ *
+ * 이유 ::
+ * () => _GetByFetchModeAsync(request) 는 요청을 캡처해 호출마다 클로저와 델리게이트를 만들었다.
+ * 캐시 히트는 빠른 경로가 이미 게이트 밖으로 뺐으므로, 이 변경의 대상은 캐시 미스와 합류자다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: CacheFirst 캐시 히트 빠른 경로
  *
