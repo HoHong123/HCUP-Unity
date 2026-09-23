@@ -115,6 +115,8 @@ namespace HResource.Editor.Subscription {
         }
 
         private void OnGUI() {
+            // 레지스트리는 발급 시점에 이름을 만들지 않는다. 그리기 전에 채운다.
+            AssetOwnerIdWatchRegistry.EnsureLabels();
             _RunPendingScans();
             _DrawToolbar();
 
