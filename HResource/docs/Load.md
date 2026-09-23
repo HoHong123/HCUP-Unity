@@ -137,8 +137,8 @@ readonly struct LabelHandleKey : IEquatable<LabelHandleKey> {
 ## SharedAssetLoadGate - 진행 중 작업 합류
 
 ```csharp
-// Load/SharedAssetLoadGate.cs:46-79 - 요약
-public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
+// Load/SharedAssetLoadGate.cs:58-91 - 요약
+public async UniTask<TAsset> RunAsync<TState>(TKey key, TState state, Func<TState, UniTask<TAsset>> factory) {
     if (factory == null) HLogger.Throw(new ArgumentNullException(...));
 
     if (loadingTable.TryGetValue(key, out var joined)) {
@@ -148,7 +148,7 @@ public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
 
     loadingTable.Add(key, null);                      // null = 진행 중, 합류자 없음
     TAsset result;
-    try { result = await factory.Invoke(); }
+    try { result = await factory.Invoke(state); }
     catch (Exception exception) {                     // 삼키지 않고 전파
         loadingTable.Remove(key, out var failed);
         failed?.TrySetException(exception);
@@ -160,6 +160,8 @@ public async UniTask<TAsset> RunAsync(TKey key, Func<UniTask<TAsset>> factory) {
     return result;
 }
 ```
+
+**상태 인자 형태가 본체다.** 게이트는 `state` 를 열어 보지 않고 `factory(state)` 로 넘기기만 한다. 호출마다 다른 값을 람다가 캡처하면(`() => Fetch(request)`) 호출마다 클로저와 델리게이트가 생기는데, 이 형태는 factory 를 한 번 만들어 재사용하고 값은 인자로 넘기게 해 그 할당을 없앤다. provider 는 생성자에서 만든 `fetchByModeFactory` 를 넘긴다. 옛 형태 `RunAsync(key, factory)` 는 호환용으로 남아 factory 자신을 `state` 로 넘겨 이 본체에 맡긴다. 옛 형태는 `async` 를 유지해 null factory 예외가 지금처럼 반환 task 에 담긴다.
 
 **완료 소스는 첫 합류자가 만든다.** `UniTaskCompletionSource` 는 여러 곳에서 await 할 수 있지만, 항상 만들면 결함이 둘 생긴다. 합류자 없이 실패하면 아무도 읽지 않은 `ExceptionHolder` 가 GC 시점에 소멸자에서 `PublishUnobservedTaskException` 으로 한 번 더 보고되고, 생성자가 `TaskTracker` 에 등록한 항목이 결과를 읽는 `MarkHandled` 없이 남는다. 지연 생성은 둘 다 없애고, 합류가 없는 흔한 경우의 할당을 0 으로 만든다.
 
@@ -194,7 +196,7 @@ sequenceDiagram
 - **`Remove` 가 합류자 재개보다 먼저다.** 재개된 합류자(또는 그 호출자)가 같은 key 를 다시 요청하면 끝난 항목에 합류하지 않고 새 로드로 간다.
 - **예외는 합류한 전원에게 전파된다.** 최초 호출자의 factory 가 던지면 합류자도 같은 예외를 받는다. 취소(`OperationCanceledException`)는 `TrySetException` 이 `TrySetCanceled` 로 넘겨 합류자에게 취소로 전달된다.
 - **factory 안에서 같은 key 로 게이트를 다시 부르면 교착한다.** 등록이 factory 호출 앞이라 자기 자신에게 합류한다. 등록을 뒤로 미루면 교착 대신 이중 로드가 되어 Addressables 참조 카운트 잔존이 생기므로, 교착을 택하고 `IAssetLoadGate` 계약으로 금지한다.
-- **동기 재개는 "획득 직후 동기 반납" 경합을 닫지 않는다.** 합류자 쪽 호출자가 받자마자 `Release` 하면 점유가 0 이 되어 핸들이 반납되고, 뒤이어 재개되는 최초 호출자는 반납된 에셋을 받는다 (`Provider/AssetProvider.cs:262-317`). 이전 구현에서도 프레임을 사이에 두고 같은 일이 생길 수 있었고, 닫으려면 결과를 나눠 주는 동안 임시 점유를 잡는 별도 설계가 필요하다.
+- **동기 재개는 "획득 직후 동기 반납" 경합을 닫지 않는다.** 합류자 쪽 호출자가 받자마자 `Release` 하면 점유가 0 이 되어 핸들이 반납되고, 뒤이어 재개되는 최초 호출자는 반납된 에셋을 받는다 (`Provider/AssetProvider.cs:265-318`). 이전 구현에서도 프레임을 사이에 두고 같은 일이 생길 수 있었고, 닫으려면 결과를 나눠 주는 동안 임시 점유를 잡는 별도 설계가 필요하다.
 
 ---
 
@@ -203,7 +205,7 @@ sequenceDiagram
 1. **`ResourcesAssetLoader` 는 프리팹을 내리지 못한다.** `GameObject` / `Component` 는 `Resources.UnloadAsset` 대상이 아니라 추적만 풀린다 (`Load/ResourcesAssetLoader.cs:80-89`). 회수는 `Resources.UnloadUnusedAssets` 나 씬 전환 정리에 의존한다.
 2. **`AddressableAssetLoader.LoadAsync` 는 캐시된 핸들을 반환할 때 Addressables 참조 카운트를 올리지 않는다** (`Load/AddressableAssetLoader.cs:41-44`). provider 를 우회해 로더를 직접 여러 번 호출하면 첫 `Release` 로 전부 무효화된다.
 3. **`ReleaseAll()` 은 상위 캐시와 동기화되지 않는다** (`AddressableAssetLoader.cs:80-86`, `AddressableLabelLoader.cs:131-142`). 캐시에 항목이 남은 채 핸들만 사라져 `null` 참조를 들고 있는 상태가 된다.
-4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:99-105`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
+4. **로더는 `loadMode` 당 하나만 등록된다.** `loaderTable[assetLoader.LoadMode] = assetLoader` 가 덮어쓰기라 (`Provider/AssetProvider.cs:101-107`), 같은 `LoadMode` 로더를 둘 넘기면 뒤엣것만 남는다. 생성자가 경고를 남긴다.
 5. **같은 Resources 에셋을 provider 여럿이 들면 한쪽 해제가 에셋을 내린다.** Resources 는 참조 카운트가 없어 한 provider 의 캐시에서 빠지는 순간 `UnloadAsset` 이 불린다. 다른 쪽 참조는 Unity 가 디스크에서 다시 읽어 살아나지만 그 재로드 비용이 든다.
 6. **규칙을 직접 넘기지 않는 한, 한 provider 는 한 소스만 담는다.** key 규칙이 provider 당 하나라 Resources 와 Addressables 를 섞으면 어떤 규칙으로도 한쪽이 틀린다. 규칙 없는 `Create` 는 섞인 로더를 `ArgumentException` 으로 거부한다. 규칙을 직접 넘기면 혼합도 조립되며, 그 규칙이 두 소스에 맞는지는 호출자 책임이다.
 7. **Resources 에셋 파일 이름에 점을 쓰지 않는다.** Resources 규칙은 마지막 점 뒤를 확장자로 보고 지운다. `foo.v2.png` 를 확장자 없이 `Icon/foo.v2` 로 요청하면 `Icon/foo` 가 되어 로드에 실패하거나 `foo` 라는 다른 에셋을 가져온다.
