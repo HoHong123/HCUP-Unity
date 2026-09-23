@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using HDiagnosis.Logger;
 using UnityEngine;
@@ -34,6 +35,7 @@ namespace HResource.Benchmark {
         #region Fields
         readonly List<HResourceBenchmarkSample> samples = new();
         readonly string environment;
+        readonly string codeGeneration;
         readonly double frameBudgetMs;
         #endregion
 
@@ -41,6 +43,7 @@ namespace HResource.Benchmark {
         public HResourceBenchmarkReport(double frameBudgetMs) {
             this.frameBudgetMs = frameBudgetMs;
             environment = Application.isEditor ? "editor" : "player";
+            codeGeneration = _DetectCodeGeneration();
         }
         #endregion
 
@@ -100,6 +103,7 @@ namespace HResource.Benchmark {
             builder.AppendLine("- environment: " + environment);
             builder.AppendLine("- unity: " + Application.unityVersion);
             builder.AppendLine("- cpu: " + SystemInfo.processorType);
+            builder.AppendLine("- HResource code generation: " + codeGeneration);
             builder.AppendLine("- frame budget: " + _Number(frameBudgetMs) + " ms");
             builder.AppendLine("- values: median of repeats. verdict compares issueMs and teardownMs with the frame budget");
             if (Application.isEditor) {
@@ -182,6 +186,15 @@ namespace HResource.Benchmark {
         }
         #endregion
 
+        #region Private - Environment
+        // 디버그 코드 생성은 async 상태 기계를 class 로 만들어 동기 완료에도 할당한다. GC 수치 해석이 이것에 달려 있다.
+        static string _DetectCodeGeneration() {
+            Assembly assembly = typeof(HResource.Provider.AssetProviderFactory).Assembly;
+            var debuggable = assembly.GetCustomAttribute<System.Diagnostics.DebuggableAttribute>();
+            return debuggable != null && debuggable.IsJITOptimizerDisabled ? "debug (JIT optimizer disabled)" : "release";
+        }
+        #endregion
+
         #region Private - Format
         static double _Median(List<HResourceBenchmarkSample> group, Func<HResourceBenchmarkSample, double> selector) {
             var values = new List<double>(group.Count);
@@ -215,6 +228,16 @@ namespace HResource.Benchmark {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정) :: 코드 생성 모드 기록
+ *
+ * 변경 ::
+ * 보고서 머리에 HResource 어셈블리의 코드 생성 모드(DebuggableAttribute.IsJITOptimizerDisabled)를 적는다.
+ *
+ * 이유 ::
+ * 디버그 코드 생성은 async 상태 기계를 class 로 만들어 동기 완료에도 할당한다. 같은 코드의 GC 수치가 모드에 따라 약 4 배 달라진다.
+ * 개발 빌드 플레이어도 디버그 코드 생성이었다(이 기록으로 처음 확인).
+ *
  * =========================================================
  * 2026-09-23 (최초 설계) :: 결과 보고서
  *
