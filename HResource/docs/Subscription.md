@@ -72,7 +72,7 @@ private static void _ResetStatics() {
 }
 ```
 
-Domain Reload 비활성 환경에서 id 카운터와 구독이 플레이 세션을 넘어 잔존하는 것을 막는다. **대가는 `[InitializeOnLoad]` 구독자가 함께 끊긴다는 것**이고, 그 복구를 에디터 워처가 `AfterAssembliesLoaded` 재구독으로 맞춰 두었다 (`Editor/Subscription/AssetOwnerIdWatchRegistry.cs:69-72`). 리셋 시점을 바꾸면 그 순서 보장이 깨진다 - 코드 주석이 이를 명시한다 (`:39-42`).
+Domain Reload 비활성 환경에서 id 카운터와 구독이 플레이 세션을 넘어 잔존하는 것을 막는다. **대가는 `[InitializeOnLoad]` 구독자가 함께 끊긴다는 것**이고, 그 복구를 에디터 워처가 `AfterAssembliesLoaded` 재구독으로 맞춰 두었다 (`Editor/Subscription/AssetOwnerIdWatchRegistry.cs:79-82`). 리셋 시점을 바꾸면 그 순서 보장이 깨진다 - 코드 주석이 이를 명시한다 (`AssetOwnerIdGenerator.cs:39-42`).
 
 ```mermaid
 sequenceDiagram
