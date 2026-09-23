@@ -188,6 +188,7 @@ namespace HResource.Benchmark {
 
         #region Private - Environment
         // 디버그 코드 생성은 async 상태 기계를 class 로 만들어 동기 완료에도 할당한다. GC 수치 해석이 이것에 달려 있다.
+        // Mono 기준 판정이다. IL2CPP 는 IL 의 속성을 읽을 뿐 실제 C++ 최적화 수준과 무관하다.
         static string _DetectCodeGeneration() {
             Assembly assembly = typeof(HResource.Provider.AssetProviderFactory).Assembly;
             var debuggable = assembly.GetCustomAttribute<System.Diagnostics.DebuggableAttribute>();
@@ -228,6 +229,21 @@ namespace HResource.Benchmark {
 #if UNITY_EDITOR
 /* =========================================================
  * Dev Log
+ * =========================================================
+ * 2026-09-23 (수정 2) :: IL2CPP 판정 한계 명시
+ *
+ * 변경 ::
+ * _DetectCodeGeneration 위에 IL2CPP 에서는 이 판정이 실제 최적화 수준을 말하지 않는다는 주석을 붙였다.
+ *
+ * 이유 ::
+ * DebuggableAttribute 는 C# 컴파일 결과의 속성이다. IL2CPP 는 그 IL 을 C++ 로 옮긴 뒤 자체 설정(Il2CppCompilerConfiguration)으로 최적화한다.
+ *
+ * 결과 ::
+ * 판정 코드는 그대로다. 보고서 표기는 Mono 에서만 믿는다.
+ *
+ * 주의 ::
+ * 지금까지의 측정은 전부 Mono 백엔드다. IL2CPP 로 재면 이 줄을 근거로 GC 수치를 해석하지 않는다.
+ *
  * =========================================================
  * 2026-09-23 (수정) :: 코드 생성 모드 기록
  *
